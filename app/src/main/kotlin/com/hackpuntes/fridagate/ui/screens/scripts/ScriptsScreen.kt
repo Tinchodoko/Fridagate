@@ -461,7 +461,6 @@ fun ScriptsScreen(
                     }
                 )
                 1 -> EditorTab(
-                    viewModel = viewModel,
                     selectedScript = selectedScript,
                     editorCode = editorCode,
                     onCodeChange = { viewModel.updateEditorCode(it) },
@@ -927,7 +926,6 @@ fun ScriptListItem(
 
 @Composable
 fun EditorTab(
-    viewModel: ScriptsViewModel,
     selectedScript: FridaScript?,
     editorCode: String,
     onCodeChange: (String) -> Unit,
