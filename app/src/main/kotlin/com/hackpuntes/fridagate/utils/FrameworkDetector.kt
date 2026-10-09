@@ -154,7 +154,7 @@ object FrameworkDetector {
                             dexFilesScanned++
                             if (sample.isNotEmpty()) {
                                 dexStrings.append(String(sample, Charsets.ISO_8859_1).lowercase(Locale.ROOT))
-                                dexStrings.append('\\n')
+                                dexStrings.append('\n')
                             }
                         }
                     }
