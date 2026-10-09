@@ -11,5 +11,7 @@ data class FridaScript(
     val updatedAt: Long = System.currentTimeMillis(),
     val supportsIL2CPP: Boolean = false,
     val tags: List<String> = emptyList(),
-    val isExecuting: Boolean = false
+    val isExecuting: Boolean = false,
+    /** When true, include this user script in the next Launch Application action. */
+    val enabledForLaunch: Boolean = false
 )
