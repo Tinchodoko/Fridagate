@@ -359,7 +359,7 @@ fun ScriptListTab(
                     .padding(8.dp)
             ) {
                 Icon(Icons.Default.Add, null, modifier = Modifier.padding(end = 8.dp))
-                Text("Nuevo Script")
+                Text("Nuevo script")
             }
         }
         
