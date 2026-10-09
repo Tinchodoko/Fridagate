@@ -1,6 +1,10 @@
 package com.hackpuntes.fridagate.ui.viewmodels
 
 import android.content.Context
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -250,6 +255,41 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
     }
     
+    fun exportScriptToDownloads(context: Context, script: FridaScript) = viewModelScope.launch(Dispatchers.IO) {
+        val safeName = script.name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifBlank { "script" }
+        val fileName = if (safeName.endsWith(".js", ignoreCase = true)) safeName else "$safeName.js"
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "text/javascript")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: throw IllegalStateException("No se pudo crear el archivo en Descargas")
+                try {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(script.code) }
+                        ?: throw IllegalStateException("No se pudo escribir el archivo")
+                    values.clear()
+                    values.put(MediaStore.Downloads.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
+                    _message.value = "✅ Exportado a Descargas/$fileName"
+                } catch (e: Exception) {
+                    context.contentResolver.delete(uri, null, null)
+                    throw e
+                }
+            } else {
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("No se pudo acceder a Descargas")
+                File(dir, fileName).writeText(script.code)
+                _message.value = "✅ Exportado a Descargas/$fileName"
+            }
+        } catch (e: Exception) {
+            _message.value = "❌ Error al exportar: ${e.message}"
+        }
+    }
+
     fun clearMessage() {
         _message.value = ""
     }
