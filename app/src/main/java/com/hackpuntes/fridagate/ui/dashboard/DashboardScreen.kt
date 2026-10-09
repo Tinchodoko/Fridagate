@@ -373,6 +373,7 @@ fun DashboardScreen() {
     var hasStoragePermission by remember { mutableStateOf(storagePermissionGranted(context)) }
     var hasNotificationPermission by remember { mutableStateOf(notificationPermissionGranted(context)) }
     var hasBackgroundPermission by remember { mutableStateOf(backgroundExecutionAllowed(context)) }
+    var isNotificationVisible by remember { mutableStateOf(notificationIsVisible(context)) }
     var isIgnoringBatteryOptimizations by remember { mutableStateOf(batteryOptimizationIgnored(context)) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -389,19 +390,13 @@ fun DashboardScreen() {
                 hasStoragePermission = storagePermissionGranted(context)
                 hasNotificationPermission = notificationPermissionGranted(context)
                 hasBackgroundPermission = backgroundExecutionAllowed(context)
+                isNotificationVisible = notificationIsVisible(context)
                 isIgnoringBatteryOptimizations = batteryOptimizationIgnored(context)
                 viewModel.refreshStatus()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    LaunchedEffect(hasNotificationPermission) {
-        if (hasNotificationPermission) runCatching {
-            ContextCompat.startForegroundService(context,
-                Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
-        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -476,7 +471,24 @@ fun DashboardScreen() {
                 onActivateAll = { viewModel.activateAll() },
                 onSmartInstall = { viewModel.smartInstallAll() },
                 onDeactivateAll = { viewModel.deactivateAll() },
-                onRefresh = { viewModel.refreshStatus() }
+                onRefresh = { viewModel.refreshStatus() },
+                isNotificationVisible = isNotificationVisible,
+                canShowNotification = hasNotificationPermission,
+                onToggleNotification = {
+                    if (isNotificationVisible) {
+                        context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
+                            action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
+                        })
+                        isNotificationVisible = false
+                    } else if (hasNotificationPermission) {
+                        ContextCompat.startForegroundService(context,
+                            Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
+                        isNotificationVisible = true
+                    } else {
+                        if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                    }
+                }
             )
 
             // ── Log panel ─────────────────────────────────────────────────────
@@ -505,6 +517,14 @@ private fun storagePermissionGranted(context: Context): Boolean =
     else Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
         (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
          ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+
+private fun notificationIsVisible(context: Context): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        runCatching {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
+                .activeNotifications.any { it.id == 2200 }
+        }.getOrDefault(false)
+    } else false
 
 private fun notificationPermissionGranted(context: Context): Boolean =
     (Build.VERSION.SDK_INT < 33 ||
@@ -598,7 +618,7 @@ private fun StatusOverviewCard(
             StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Acceso root", active = isRootAvailable, activeText = "Concedido", inactiveText = "No disponible")
-            StatusIndicatorRow(label = "Ejecución en segundo plano", active = hasBackgroundPermission, activeText = "Permitida", inactiveText = "Restringida")
+            StatusIndicatorRow(label = "Restricciones en segundo plano", active = hasBackgroundPermission, activeText = "Sin restricciones detectadas", inactiveText = "Restringida por el sistema")
             StatusIndicatorRow(label = "Optimización de batería", active = isIgnoringBatteryOptimizations, activeText = "Desactivada", inactiveText = "Activa")
         }
     }
@@ -654,7 +674,10 @@ private fun OneTabActionsCard(
     onActivateAll: () -> Unit,
     onSmartInstall: () -> Unit,
     onDeactivateAll: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    isNotificationVisible: Boolean,
+    canShowNotification: Boolean,
+    onToggleNotification: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -721,7 +744,15 @@ private fun OneTabActionsCard(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
             ) {
-                Text("Actualizar estado")
+                Text("ACTUALIZAR ESTADO")
+            }
+
+            OutlinedButton(
+                onClick = onToggleNotification,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading && (canShowNotification || isNotificationVisible)
+            ) {
+                Text(if (isNotificationVisible) "OCULTAR NOTIFICACIÓN" else "MOSTRAR NOTIFICACIÓN")
             }
         }
     }
