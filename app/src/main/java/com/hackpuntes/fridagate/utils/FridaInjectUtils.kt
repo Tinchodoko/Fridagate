@@ -169,12 +169,11 @@ object FridaInjectUtils {
             //   We don't call waitFor() so it runs for the lifetime of the target app.
             //
             // frida-inject --eternalize: keep the script alive even after frida-inject exits
-            val injectCmd = "$INJECT_BINARY_PATH -f $packageName -s $scriptPath -e > $INJECT_LOG 2>&1 &"
-            try {
-                Runtime.getRuntime().exec(arrayOf("su", "-c", injectCmd))
-                // Intentionally no waitFor() — frida-inject stays attached to the target process
-            } catch (e: Exception) {
-                lines += "ERROR launching frida-inject: ${e.message}"
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $scriptPath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+            val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
+            if (!launchResult.contains("INJECT_LAUNCHED")) {
+                lines += "ERROR: Could not start frida-inject as root."
+                if (launchResult.isNotBlank()) lines += launchResult
                 return@withContext lines
             }
 
@@ -257,8 +256,13 @@ object FridaInjectUtils {
             Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
-            val injectCmd = "$INJECT_BINARY_PATH -f $packageName -s $devicePath -e > $INJECT_LOG 2>&1 &"
-            Runtime.getRuntime().exec(arrayOf("su", "-c", injectCmd))
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+            val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
+            if (!launchResult.contains("INJECT_LAUNCHED")) {
+                lines += "ERROR: Could not start frida-inject as root."
+                if (launchResult.isNotBlank()) lines += launchResult
+                return@withContext lines
+            }
             lines += "Launching $packageName with enabled scripts..."
             Thread.sleep(4000)
 
@@ -316,8 +320,13 @@ object FridaInjectUtils {
             Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
-            val injectCmd = "$INJECT_BINARY_PATH -f $packageName -s $devicePath -e > $INJECT_LOG 2>&1 &"
-            Runtime.getRuntime().exec(arrayOf("su", "-c", injectCmd))
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+            val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
+            if (!launchResult.contains("INJECT_LAUNCHED")) {
+                lines += "ERROR: Could not start frida-inject as root."
+                if (launchResult.isNotBlank()) lines += launchResult
+                return@withContext lines
+            }
             lines += "Launching $scriptName in $packageName..."
             Thread.sleep(4000)
 
@@ -363,8 +372,11 @@ object FridaInjectUtils {
                 Thread.sleep(1000)
 
                 RootUtils.executeSuCommand("rm -f $INJECT_LOG")
-                val attachCmd = "$INJECT_BINARY_PATH -n $packageName -s $scriptPath -e > $INJECT_LOG 2>&1 &"
-                Runtime.getRuntime().exec(arrayOf("su", "-c", attachCmd))
+                val attachCmd = "nohup $INJECT_BINARY_PATH -n $packageName -s $scriptPath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+                val launchResult = RootUtils.executeSuCommand(attachCmd).trim()
+                if (!launchResult.contains("INJECT_LAUNCHED")) {
+                    return@withContext "ERROR: Could not start frida-inject attach process."
+                }
                 Thread.sleep(2500)
 
                 val log = RootUtils.executeSuCommand("cat $INJECT_LOG").trim()
