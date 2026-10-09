@@ -458,7 +458,8 @@ fun ScriptListTab(
     onSelectScript: (FridaScript) -> Unit,
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
-) {
+ ) {
+    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
