@@ -1,6 +1,7 @@
 package com.hackpuntes.fridagate.data.repository
 
 import android.content.Context
+import android.os.Environment
 import com.hackpuntes.fridagate.data.models.FridaScript
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,7 +11,10 @@ class ScriptRepository(private val context: Context) {
     
     private val scriptsDir: File
         get() {
-            val dir = File(context.filesDir, "frida_scripts")
+            val dir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                "Fridagate2.0/Scripts"
+            )
             if (!dir.exists()) dir.mkdirs()
             return dir
         }
@@ -119,6 +123,27 @@ class ScriptRepository(private val context: Context) {
         }
     }
     
+    // IMPORT - Importar script desde archivo externo
+    suspend fun importScript(sourceFile: File): Boolean = withContext(Dispatchers.IO) {
+        return@withContext try {
+            if (!sourceFile.exists() || !sourceFile.extension.equals("js", ignoreCase = true)) {
+                return@withContext false
+            }
+            
+            val code = sourceFile.readText()
+            val script = FridaScript(
+                name = sourceFile.nameWithoutExtension,
+                code = code,
+                supportsIL2CPP = code.contains("frida-il2cpp-bridge")
+            )
+            
+            createScript(script)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
     // Exportar script a TXT
     suspend fun exportScript(scriptId: String, targetPath: String): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
@@ -143,29 +168,6 @@ class ScriptRepository(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             false
-        }
-    }
-    
-    // Importar script desde archivo
-    suspend fun importScript(filePath: String): FridaScript? = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val file = File(filePath)
-            if (!file.exists()) return@withContext null
-            
-            val code = file.readText()
-            val scriptName = file.nameWithoutExtension
-            
-            val script = FridaScript(
-                name = scriptName,
-                code = code,
-                supportsIL2CPP = code.contains("frida-il2cpp-bridge")
-            )
-            
-            createScript(script)
-            script
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
         }
     }
     
