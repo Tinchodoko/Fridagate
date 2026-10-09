@@ -326,7 +326,7 @@ fun ScriptListTab(
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text("Permiso para guardar scripts", style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Para guardar tus archivos en Documentos/FridaGate 2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
+                            "Para guardar tus archivos en Documentos/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
