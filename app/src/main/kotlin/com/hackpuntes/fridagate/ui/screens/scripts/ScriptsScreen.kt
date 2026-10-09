@@ -39,6 +39,7 @@ fun ScriptsScreen(
     val logs by viewModel.logs.collectAsState()
     val isExecuting by viewModel.isExecuting.collectAsState()
     val message by viewModel.message.collectAsState()
+    val context = LocalContext.current
     
     var selectedTab by remember { mutableStateOf(0) }
     var showNewScriptDialog by remember { mutableStateOf(false) }
