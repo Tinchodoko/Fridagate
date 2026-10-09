@@ -123,20 +123,15 @@ fun ScriptsScreen(
 
     var detectedFrameworks by remember { mutableStateOf<Map<String, FrameworkInfo>>(emptyMap()) }
 
-    // Detect the selected app by default; scan the list in the background when the dropdown opens.
-    LaunchedEffect(targetPackage, targetMenuExpanded, installedApps) {
-        val packagesToDetect = if (targetMenuExpanded) {
-            installedApps.map { it.second }
-        } else {
-            listOf(targetPackage).filter { it.isNotBlank() }
+    // Analiza únicamente la aplicación seleccionada. Cambiar o quitar la selección
+    // cancela esta corrutina y evita recorrer todas las aplicaciones del dispositivo.
+    LaunchedEffect(targetPackage) {
+        val packageName = targetPackage
+        if (packageName.isBlank() || detectedFrameworks.containsKey(packageName)) return@LaunchedEffect
+        val info = withContext(Dispatchers.IO) {
+            FrameworkDetector.detect(context, packageName)
         }
-        for (packageName in packagesToDetect) {
-            if (detectedFrameworks.containsKey(packageName)) continue
-            val info = withContext(Dispatchers.IO) {
-                FrameworkDetector.detect(context, packageName)
-            }
-            detectedFrameworks = detectedFrameworks + (packageName to info)
-        }
+        detectedFrameworks = detectedFrameworks + (packageName to info)
     }
 
     val importJsLauncher = rememberLauncherForActivityResult(
@@ -210,25 +205,14 @@ fun ScriptsScreen(
                     onExpandedChange = { if (isRootAvailable) targetMenuExpanded = !targetMenuExpanded }
                 ) {
                     OutlinedTextField(
-                        value = allInstalledApps.firstOrNull { it.second == targetPackage }?.let {
-                            val framework = detectedFrameworks[targetPackage]?.name ?: "Detectando motor…"
-                            "${it.first} ($framework) (${it.second})"
-                        } ?: targetPackage,
+                        value = if (targetPackage.isBlank()) "" else "Cambiar aplicación de destino",
                         onValueChange = {},
                         readOnly = true,
                         enabled = isRootAvailable,
-                        label = { Text("Seleccionar aplicación instalada") },
+                        label = { Text("Seleccionar una app") },
                         placeholder = { Text("Elige una aplicación") },
                         trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (targetPackage.isNotBlank()) {
-                                    detectedFrameworks[targetPackage]?.let { FrameworkBadge(it) }
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    AppPackageIcon(targetPackage)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                }
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded)
-                            }
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded)
                         },
                         modifier = Modifier.fillMaxWidth()
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
@@ -238,25 +222,20 @@ fun ScriptsScreen(
                         onDismissRequest = { targetMenuExpanded = false },
                         modifier = Modifier.heightIn(max = 320.dp)
                     ) {
-                        installedApps.forEach { (label, packageName) ->
+                        installedApps.forEach { (label, packageName, _) ->
                             DropdownMenuItem(
                                 text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        val framework = detectedFrameworks[packageName]
+                                    Column {
+                                        Text(label, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                                         Text(
-                                            if (framework != null) "$label (${framework.name})" else "$label (Analizando motor…)",
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            packageName,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline,
                                             maxLines = 1
                                         )
-                                        Text(packageName, style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.outline, maxLines = 1)
                                     }
-                                    detectedFrameworks[packageName]?.let { FrameworkBadge(it) }
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    AppPackageIcon(packageName)
-                                }
                                 },
+                                leadingIcon = { AppPackageIcon(packageName) },
                                 onClick = {
                                     extrasViewModel.setTargetPackage(packageName)
                                     viewModel.addLog("Aplicación de destino seleccionada: $packageName")
@@ -266,6 +245,92 @@ fun ScriptsScreen(
                         }
                         if (installedApps.isEmpty()) {
                             DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
+                        }
+                    }
+                }
+
+                if (targetPackage.isNotBlank()) {
+                    val selectedApp = allInstalledApps.firstOrNull { it.second == targetPackage }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                selectedApp?.first ?: targetPackage,
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 2
+                            )
+                            Text(
+                                targetPackage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        AppPackageIcon(targetPackage)
+                        IconButton(
+                            onClick = {
+                                val removedPackage = targetPackage
+                                extrasViewModel.setTargetPackage("")
+                                viewModel.addLog("Aplicación de destino retirada: $removedPackage. Análisis detenido.")
+                            },
+                            modifier = Modifier.padding(start = 4.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Quitar aplicación seleccionada y detener análisis",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    val framework = detectedFrameworks[targetPackage]
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                            val isGameEngine = framework?.category in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold")
+                            Text(
+                                if (isGameEngine) "MOTOR DE JUEGO" else "FRAMEWORK / MOTOR DE JUEGO",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            if (framework == null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Analizando únicamente esta aplicación…", style = MaterialTheme.typography.bodyMedium)
+                                }
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    FrameworkBadge(framework)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(framework.name, style = MaterialTheme.typography.titleMedium)
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                val confidence = when (framework.confidence.lowercase(Locale.ROOT)) {
+                                    "alta" -> "Alta"
+                                    "media" -> "Media"
+                                    else -> "Baja"
+                                }
+                                Text("Confianza: $confidence", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("Indicadores encontrados:", style = MaterialTheme.typography.labelMedium)
+                                if (framework.evidence.isEmpty()) {
+                                    Text("• No se encontraron indicadores concluyentes", style = MaterialTheme.typography.bodySmall)
+                                } else {
+                                    framework.evidence.forEach { indicator ->
+                                        Text("✓ $indicator", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
