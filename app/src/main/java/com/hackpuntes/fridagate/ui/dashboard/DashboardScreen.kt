@@ -1,6 +1,21 @@
 package com.hackpuntes.fridagate.ui.dashboard
 
+import android.Manifest
+import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -355,6 +370,40 @@ fun DashboardScreen() {
     val isLoading by viewModel.isLoading.collectAsState()
     val logs by viewModel.logs.collectAsState()
 
+    var hasStoragePermission by remember { mutableStateOf(storagePermissionGranted(context)) }
+    var hasNotificationPermission by remember { mutableStateOf(notificationPermissionGranted(context)) }
+    var hasBackgroundPermission by remember { mutableStateOf(backgroundExecutionAllowed(context)) }
+    var isIgnoringBatteryOptimizations by remember { mutableStateOf(batteryOptimizationIgnored(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val requestNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        hasNotificationPermission = notificationPermissionGranted(context)
+    }
+    val requestLegacyStorage = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        hasStoragePermission = storagePermissionGranted(context)
+    }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasStoragePermission = storagePermissionGranted(context)
+                hasNotificationPermission = notificationPermissionGranted(context)
+                hasBackgroundPermission = backgroundExecutionAllowed(context)
+                isIgnoringBatteryOptimizations = batteryOptimizationIgnored(context)
+                viewModel.refreshStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(hasNotificationPermission) {
+        if (hasNotificationPermission) runCatching {
+            ContextCompat.startForegroundService(context,
+                Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -365,17 +414,65 @@ fun DashboardScreen() {
         ) {
 
             // ── Status overview card ──────────────────────────────────────────
+            PermissionControlsCard(
+                storageGranted = hasStoragePermission,
+                notificationsGranted = hasNotificationPermission,
+                rootGranted = isRootAvailable,
+                backgroundGranted = hasBackgroundPermission,
+                batteryExempt = isIgnoringBatteryOptimizations,
+                onRequestStorage = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                Uri.parse("package:" + context.packageName)))
+                        }.onFailure {
+                            context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                        }
+                    } else {
+                        requestLegacyStorage.launch(arrayOf(
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        ))
+                    }
+                },
+                onRequestNotifications = {
+                    if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                },
+                onRequestRoot = { viewModel.refreshStatus() },
+                onRequestBackground = {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + context.packageName)))
+                },
+                onRequestBattery = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                Uri.parse("package:" + context.packageName)))
+                        }.onFailure {
+                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }
+                    }
+                }
+            )
+
+            // ── Status overview card ──────────────────────────────────────────
             StatusOverviewCard(
                 isRootAvailable = isRootAvailable,
                 isFridaInstalled = isFridaInstalled,
                 isFridaRunning = isFridaRunning,
                 isProxyActive = isProxyActive,
-                isBurpReachable = isBurpReachable
+                isBurpReachable = isBurpReachable,
+                hasStoragePermission = hasStoragePermission,
+                hasNotificationPermission = hasNotificationPermission,
+                hasBackgroundPermission = hasBackgroundPermission,
+                isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations
             )
 
             // ── One-tap action buttons ────────────────────────────────────────
             OneTabActionsCard(
                 isLoading = isLoading,
+                isRootAvailable = isRootAvailable,
                 onActivateAll = { viewModel.activateAll() },
                 onSmartInstall = { viewModel.smartInstallAll() },
                 onDeactivateAll = { viewModel.deactivateAll() },
@@ -403,6 +500,65 @@ fun DashboardScreen() {
     }
 }
 
+private fun storagePermissionGranted(context: Context): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
+    else Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+        (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+         ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+
+private fun notificationPermissionGranted(context: Context): Boolean =
+    (Build.VERSION.SDK_INT < 33 ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).areNotificationsEnabled()
+
+private fun backgroundExecutionAllowed(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.P ||
+        !(context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).isBackgroundRestricted
+
+private fun batteryOptimizationIgnored(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+        (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(context.packageName)
+
+@Composable
+private fun PermissionControlsCard(
+    storageGranted: Boolean,
+    notificationsGranted: Boolean,
+    rootGranted: Boolean,
+    backgroundGranted: Boolean,
+    batteryExempt: Boolean,
+    onRequestStorage: () -> Unit,
+    onRequestNotifications: () -> Unit,
+    onRequestRoot: () -> Unit,
+    onRequestBackground: () -> Unit,
+    onRequestBattery: () -> Unit
+) {
+    val missingAny = !storageGranted || !notificationsGranted || !rootGranted || !backgroundGranted || !batteryExempt
+    if (!missingAny) return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Permisos y ejecución", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary)
+            Text("Las opciones desaparecen automáticamente cuando el sistema confirma el permiso.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!storageGranted) OutlinedButton(onClick = onRequestStorage, modifier = Modifier.fillMaxWidth()) {
+                Text("Permitir acceso al almacenamiento")
+            }
+            if (!notificationsGranted) OutlinedButton(onClick = onRequestNotifications, modifier = Modifier.fillMaxWidth()) {
+                Text("Permitir notificaciones")
+            }
+            if (!rootGranted) OutlinedButton(onClick = onRequestRoot, modifier = Modifier.fillMaxWidth()) {
+                Text("Permitir acceso root")
+            }
+            if (!backgroundGranted) OutlinedButton(onClick = onRequestBackground, modifier = Modifier.fillMaxWidth()) {
+                Text("Permitir ejecución en segundo plano")
+            }
+            if (!batteryExempt) OutlinedButton(onClick = onRequestBattery, modifier = Modifier.fillMaxWidth()) {
+                Text("Desactivar optimización de batería")
+            }
+        }
+    }
+}
+
 /**
  * Card showing all component statuses as a grid of indicator rows.
  * Each row shows a colored dot + label + value.
@@ -413,7 +569,11 @@ private fun StatusOverviewCard(
     isFridaInstalled: Boolean,
     isFridaRunning: Boolean,
     isProxyActive: Boolean,
-    isBurpReachable: Boolean
+    isBurpReachable: Boolean,
+    hasStoragePermission: Boolean,
+    hasNotificationPermission: Boolean,
+    hasBackgroundPermission: Boolean,
+    isIgnoringBatteryOptimizations: Boolean
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -485,6 +645,7 @@ private fun StatusIndicatorRow(
 @Composable
 private fun OneTabActionsCard(
     isLoading: Boolean,
+    isRootAvailable: Boolean,
     onActivateAll: () -> Unit,
     onSmartInstall: () -> Unit,
     onDeactivateAll: () -> Unit,
@@ -511,7 +672,7 @@ private fun OneTabActionsCard(
             Button(
                 onClick = onActivateAll,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
+                enabled = !isLoading && isRootAvailable,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
                 Text(
