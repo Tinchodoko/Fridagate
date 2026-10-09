@@ -69,6 +69,7 @@ dependencies {
     // ViewModel survives screen rotations and holds UI state
     // The -compose variant adds special Compose integration
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
 
     // --- Coroutines ---
     // Allows running async code (network, file I/O) without blocking the UI thread
