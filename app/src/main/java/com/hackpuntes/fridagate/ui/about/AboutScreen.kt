@@ -1,5 +1,6 @@
-package com.hackpuntes.fridagate.ui.screens
+package com.hackpuntes.fridagate.ui.about
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.ClickableText
