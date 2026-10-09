@@ -134,12 +134,12 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
 
     // Main navigation tabs, including the previously disconnected Script Manager.
     val navItems = listOf(
-        BottomNavItem(Routes.DASHBOARD, "Dashboard", Icons.Default.Home),
+        BottomNavItem(Routes.DASHBOARD, "Inicio", Icons.Default.Home),
         BottomNavItem(Routes.FRIDA,     "Frida",     Icons.Default.Star),
         BottomNavItem(Routes.SCRIPTS,   "Scripts",   Icons.Default.Code),
         BottomNavItem(Routes.PROXY,     "Proxy",     Icons.Default.Settings),
         BottomNavItem(Routes.EXTRAS,    "Extras",    Icons.Default.Build),
-        BottomNavItem(Routes.ABOUT,     "About",     Icons.Default.Info)
+        BottomNavItem(Routes.ABOUT,     "Acerca de",     Icons.Default.Info)
     )
 
     Scaffold(
@@ -150,7 +150,7 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Fridagate",
+                        text = "FridaGate 2.0",
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
@@ -158,7 +158,7 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
                     IconButton(onClick = onToggleTheme) {
                         Icon(
                             imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = if (isDarkTheme) "Switch to light mode" else "Switch to dark mode",
+                            contentDescription = if (isDarkTheme) "Cambiar a modo claro" else "Cambiar a modo oscuro",
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
