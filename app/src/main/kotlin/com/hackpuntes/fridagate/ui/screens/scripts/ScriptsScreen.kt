@@ -142,17 +142,6 @@ fun ScriptsScreen(
         }
     }
     
-    // Dialog para nuevo script
-    if (showNewScriptDialog) {
-        NewScriptDialog(
-            onDismiss = { showNewScriptDialog = false },
-            onConfirm = { name, code ->
-                viewModel.createScript(name, code)
-                showNewScriptDialog = false
-            }
-        )
-    }
-    
     // Dialog de confirmación de eliminación
     if (showConfirmDelete && scriptToDelete != null) {
         AlertDialog(
@@ -472,45 +461,4 @@ fun LogsTab(
             }
         }
     }
-}
-
-// ==================== NEW SCRIPT DIALOG ====================
-
-@Composable
-fun NewScriptDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Nuevo Script") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nombre") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                TextField(
-                    value = code,
-                    onValueChange = { code = it },
-                    label = { Text("Código") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 150.dp),
-                    singleLine = false
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(name, code) }) { Text("Crear") }
-        },
-        dismissButton = {
-            Button(onClick = onDismiss) { Text("Cancelar") }
-        }
-    )
 }
