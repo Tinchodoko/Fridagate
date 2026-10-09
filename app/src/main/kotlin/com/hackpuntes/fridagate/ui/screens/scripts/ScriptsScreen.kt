@@ -461,9 +461,16 @@ fun ScriptListTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(script.name, style = MaterialTheme.typography.bodyMedium)
-                            Text(script.description, style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline)
+                            Text(
+                                script.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                script.description,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                         Switch(
                             checked = enabledBypassScripts.contains(script.id),
