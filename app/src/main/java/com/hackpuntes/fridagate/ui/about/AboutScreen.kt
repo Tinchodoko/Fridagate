@@ -8,6 +8,9 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -148,6 +151,46 @@ fun AboutScreen(onBack: () -> Unit) {
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             
+            // Contact and suggestions
+            Text(
+                "Contacto",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
+            )
+
+            OutlinedButton(
+                onClick = {
+                    uriHandler.openUri("mailto:tinchorotelamail@gmail.com?subject=Sugerencia%20para%20FridaGate2.0")
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Sugerencia por mail", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Email, contentDescription = "Correo electrónico")
+            }
+
+            OutlinedButton(
+                onClick = { uriHandler.openUri("https://github.com/Tinchodoko/Fridagate/issues/new") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Sugerencia en Github", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Code, contentDescription = "GitHub")
+            }
+
+            OutlinedButton(
+                onClick = { uriHandler.openUri("https://t.me/tinchoDKO") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Sugerencia en Telegram", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Send, contentDescription = "Telegram")
+            }
+
+            Text(
+                "Si tienen alguna duda, sugerencia, queja o encontraste un bug, no dudes en comunicarte conmigo, muchas gracias !🫂",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+            )
+
             // Version
             Spacer(modifier = Modifier.height(32.dp))
             
