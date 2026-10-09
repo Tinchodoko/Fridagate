@@ -5,12 +5,15 @@ package com.hackpuntes.fridagate.ui.screens.scripts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import android.provider.OpenableColumns
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -153,6 +157,7 @@ fun ScriptsScreen(
                                     },
                                     onClick = {
                                         appFilter = option
+                                        viewModel.addLog("Filtro de aplicaciones seleccionado: $option")
                                         appFilterMenuExpanded = false
                                     }
                                 )
@@ -183,14 +188,18 @@ fun ScriptsScreen(
                         installedApps.forEach { (label, packageName) ->
                             DropdownMenuItem(
                                 text = {
-                                    Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(label)
                                         Text(packageName, style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.outline)
                                     }
+                                    AppPackageIcon(packageName)
+                                }
                                 },
                                 onClick = {
                                     extrasViewModel.setTargetPackage(packageName)
+                                    viewModel.addLog("Aplicación de destino seleccionada: $packageName")
                                     targetMenuExpanded = false
                                 }
                             )
@@ -262,7 +271,10 @@ fun ScriptsScreen(
                     scripts = scripts,
                     selectedScript = selectedScript,
                     selectedTargetApp = targetPackage,
-                    onImportScript = { importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*")) },
+                    onImportScript = {
+                        viewModel.addLog("Seleccionando archivo JavaScript para importar")
+                        importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*"))
+                    },
                     onExportScript = { script ->
                         scriptToExport = script
                         showConfirmExport = true
@@ -281,7 +293,9 @@ fun ScriptsScreen(
                         viewModel.selectScript(script)
                         selectedTab = 1
                     },
+                    onLog = { viewModel.addLog(it) },
                     onNewScript = {
+                        viewModel.addLog("Nuevo script abierto en el editor")
                         viewModel.createNewScript()
                         selectedTab = 1
                     },
@@ -367,12 +381,38 @@ fun ScriptsScreen(
 // ==================== SCRIPT LIST TAB ====================
 
 @Composable
+private fun AppPackageIcon(packageName: String) {
+    val context = LocalContext.current
+    val iconBitmap = remember(packageName) {
+        runCatching {
+            val drawable = context.packageManager.getApplicationIcon(packageName)
+            val bitmap = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, 48, 48)
+            drawable.draw(canvas)
+            bitmap.asImageBitmap()
+        }.getOrNull()
+    }
+    if (iconBitmap != null) {
+        Image(
+            bitmap = iconBitmap,
+            contentDescription = "Icono de $packageName",
+            modifier = Modifier.size(32.dp)
+        )
+    } else {
+        Icon(Icons.Default.Android, contentDescription = "Aplicación", modifier = Modifier.size(32.dp))
+    }
+}
+
+
+@Composable
 fun ScriptListTab(
     scripts: List<FridaScript>,
     selectedScript: FridaScript?,
     selectedTargetApp: String,
     onImportScript: () -> Unit,
     onExportScript: (FridaScript) -> Unit,
+    onLog: (String) -> Unit,
     enabledBypassScripts: Set<String>,
     onToggleBypassScript: (String) -> Unit,
     bypassScripts: List<ScriptUtils.BypassScript>,
@@ -389,12 +429,18 @@ fun ScriptListTab(
     var hasStorageAccess by remember {
         mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager())
     }
+    var previousStorageAccess by remember { mutableStateOf(hasStorageAccess) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                hasStorageAccess = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+                val currentAccess = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
                     Environment.isExternalStorageManager()
+                hasStorageAccess = currentAccess
+                if (currentAccess != previousStorageAccess) {
+                    onLog(if (currentAccess) "✅ Permiso de almacenamiento concedido" else "⚠️ Permiso de almacenamiento revocado")
+                    previousStorageAccess = currentAccess
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
