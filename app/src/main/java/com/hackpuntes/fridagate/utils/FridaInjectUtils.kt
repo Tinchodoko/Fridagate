@@ -239,6 +239,16 @@ object FridaInjectUtils {
         lines
     }
 
+    /** Stops a custom-script frida-inject process without touching the predefined bypass injection. */
+    suspend fun stopCustomScript(): List<String> = withContext(Dispatchers.IO) {
+        try {
+            RootUtils.executeSuCommand("pkill -f '[f]ridagate_custom.js'")
+            listOf("Stop request sent for the custom script injection.")
+        } catch (e: Exception) {
+            listOf("ERROR stopping custom script: ${e.message}")
+        }
+    }
+
     /**
      * Fallback: launch via monkey then attach by process name.
      * Used when frida-inject -f does not spawn the app.
