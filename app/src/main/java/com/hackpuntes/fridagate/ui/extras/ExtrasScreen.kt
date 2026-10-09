@@ -55,30 +55,6 @@ fun ExtrasScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // ── Beta warning banner ────────────────────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFE65100),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Experimental — el soporte puede variar según la aplicación.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE65100)
-                    )
-                }
-            }
-
             // ── Banner ─────────────────────────────────────────────────────────
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -111,15 +87,7 @@ fun ExtrasScreen() {
                 }
             }
 
-            // ── Environment ────────────────────────────────────────────────────
-            EnvironmentCard(
-                isFridaRunning         = isFridaRunning,
-                isFridaInjectInstalled = isFridaInjectInstalled,
-                fridaInjectVersion     = fridaInjectVersion,
-                isLoading              = isLoading,
-                onRefresh              = { viewModel.refreshStatus() },
-                onDownload             = { viewModel.downloadFridaInject() }
-            )
+
 
         }
 
