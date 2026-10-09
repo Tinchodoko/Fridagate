@@ -26,7 +26,7 @@ object FrameworkDetector {
     private const val MAX_DEX_BYTES = 1L * 1024L * 1024L
     private const val MAX_TOTAL_DEX_BYTES = 4L * 1024L * 1024L
     private const val MAX_DEX_FILES = 4
-    private const val MAX_DEX_ENTRY_SIZE = 64L * 1024L * 1024L
+    private const val MAX_DEX_ENTRY_SIZE = 32L * 1024L * 1024L
 
     private data class Signature(
         val name: String,
@@ -74,33 +74,38 @@ object FrameworkDetector {
     )
 
     private suspend fun readDexTail(input: InputStream, declaredSize: Long, maxBytes: Int): ByteArray {
-        val skipTarget = (declaredSize - maxBytes).coerceAtLeast(0L)
-        var skipped = 0L
-        val skipBuffer = ByteArray(8192)
-        while (skipped < skipTarget) {
+        // Conserva solo los últimos bytes del DEX en un búfer circular: memoria constante,
+        // lectura por bloques y posibilidad de cancelar mientras se procesa un APK grande.
+        val tail = ByteArray(maxBytes)
+        val buffer = ByteArray(8192)
+        var totalRead = 0L
+
+        while (true) {
             coroutineContext.ensureActive()
-            val count = input.skip(skipTarget - skipped)
-            if (count > 0) {
-                skipped += count
-            } else {
-                val wanted = minOf(skipBuffer.size.toLong(), skipTarget - skipped).toInt()
-                val read = input.read(skipBuffer, 0, wanted)
-                if (read < 0) break
-                skipped += read
+            val count = input.read(buffer)
+            if (count < 0) break
+
+            val writePosition = (totalRead % maxBytes).toInt()
+            val firstPart = minOf(count, maxBytes - writePosition)
+            System.arraycopy(buffer, 0, tail, writePosition, firstPart)
+            if (count > firstPart) {
+                System.arraycopy(buffer, firstPart, tail, 0, count - firstPart)
             }
+            totalRead += count
+            // Si el APK está malformado y supera el tamaño declarado de forma extrema,
+            // no dejamos que una entrada descomprimida ilimitada consuma tiempo indefinido.
+            if (totalRead > declaredSize + 1024L * 1024L) break
         }
 
-        val output = ByteArrayOutputStream(minOf(maxBytes.toLong(), declaredSize).toInt())
-        val buffer = ByteArray(8192)
-        var total = 0
-        while (total < maxBytes) {
-            coroutineContext.ensureActive()
-            val count = input.read(buffer, 0, minOf(buffer.size, maxBytes - total))
-            if (count < 0) break
-            output.write(buffer, 0, count)
-            total += count
+        val validSize = minOf(totalRead, maxBytes.toLong()).toInt()
+        val output = ByteArray(validSize)
+        val startPosition = if (totalRead >= maxBytes) (totalRead % maxBytes).toInt() else 0
+        val firstPart = minOf(validSize, maxBytes - startPosition)
+        System.arraycopy(tail, startPosition, output, 0, firstPart)
+        if (validSize > firstPart) {
+            System.arraycopy(tail, 0, output, firstPart, validSize - firstPart)
         }
-        return output.toByteArray()
+        return output
     }
 
     suspend fun detect(context: Context, packageName: String): FrameworkInfo {
