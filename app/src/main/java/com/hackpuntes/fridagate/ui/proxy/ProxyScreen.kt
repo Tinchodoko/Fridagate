@@ -21,6 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hackpuntes.fridagate.utils.RootUtils
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -51,6 +55,16 @@ fun ProxyScreen() {
         }
     )
 
+    var isRootAvailable by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) isRootAvailable = RootUtils.isRootAvailable()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Collect state from the ViewModel
     val burpIp by viewModel.burpIp.collectAsState()
     val httpPort by viewModel.httpPort.collectAsState()
@@ -77,6 +91,7 @@ fun ProxyScreen() {
                 httpsPort = httpsPort,
                 isBurpReachable = isBurpReachable,
                 isLoading = isLoading,
+                isRootAvailable = isRootAvailable,
                 onIpChange = { viewModel.updateBurpIp(it) },
                 onHttpPortChange = { viewModel.updateHttpPort(it) },
                 onHttpsPortChange = { viewModel.updateHttpsPort(it) },
@@ -88,6 +103,7 @@ fun ProxyScreen() {
                 isIptablesEnabled = isIptablesEnabled,
                 isSystemProxyEnabled = isSystemProxyEnabled,
                 isLoading = isLoading,
+                isRootAvailable = isRootAvailable,
                 onToggleIptables = { viewModel.toggleIptablesProxy(it) },
                 onToggleSystemProxy = { viewModel.toggleSystemProxy(it) }
             )
@@ -95,6 +111,7 @@ fun ProxyScreen() {
             // ── Section: Certificate ──────────────────────────────────────────
             CertificateCard(
                 isLoading = isLoading,
+                isRootAvailable = isRootAvailable,
                 onInstallCert = { viewModel.installBurpCertificate() }
             )
 
@@ -102,7 +119,8 @@ fun ProxyScreen() {
             ProxyLogPanel(
                 logs = logs,
                 onClear = { viewModel.clearLogs() },
-                onRefresh = { viewModel.checkProxyStatus() }
+                onRefresh = { viewModel.checkProxyStatus() },
+                isRootAvailable = isRootAvailable
             )
         }
 
@@ -137,6 +155,7 @@ private fun ConnectionSettingsCard(
     httpsPort: Int,
     isBurpReachable: Boolean?,
     isLoading: Boolean,
+    isRootAvailable: Boolean,
     onIpChange: (String) -> Unit,
     onHttpPortChange: (String) -> Unit,
     onHttpsPortChange: (String) -> Unit,
@@ -160,6 +179,7 @@ private fun ConnectionSettingsCard(
                 label = { Text("Dirección IP de Burp") },
                 placeholder = { Text("192.168.1.100") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = isRootAvailable && !isLoading,
                 singleLine = true,
                 // Use number keyboard with decimal point for IP addresses
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
@@ -175,6 +195,7 @@ private fun ConnectionSettingsCard(
                     onValueChange = onHttpPortChange,
                     label = { Text("Puerto HTTP") },
                     modifier = Modifier.weight(1f),
+                    enabled = isRootAvailable && !isLoading,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
@@ -205,7 +226,7 @@ private fun ConnectionSettingsCard(
 
                 Button(
                     onClick = onTestConnection,
-                    enabled = !isLoading
+                    enabled = !isLoading && isRootAvailable
                 ) { Text("Probar conexión") }
             }
         }
@@ -223,6 +244,7 @@ private fun ProxyMethodsCard(
     isIptablesEnabled: Boolean,
     isSystemProxyEnabled: Boolean,
     isLoading: Boolean,
+    isRootAvailable: Boolean,
     onToggleIptables: (Boolean) -> Unit,
     onToggleSystemProxy: (Boolean) -> Unit
 ) {
@@ -243,7 +265,7 @@ private fun ProxyMethodsCard(
                 title = "iptables Transparent Proxy",
                 subtitle = "Redirects ALL traffic (recommended, requires root)",
                 checked = isIptablesEnabled,
-                enabled = !isLoading,
+                enabled = !isLoading && isRootAvailable,
                 onCheckedChange = onToggleIptables
             )
 
@@ -254,7 +276,7 @@ private fun ProxyMethodsCard(
                 title = "System Proxy",
                 subtitle = "Only apps that respect proxy settings",
                 checked = isSystemProxyEnabled,
-                enabled = !isLoading,
+                enabled = !isLoading && isRootAvailable,
                 onCheckedChange = onToggleSystemProxy
             )
         }
@@ -302,6 +324,7 @@ private fun ProxyToggleRow(
 @Composable
 private fun CertificateCard(
     isLoading: Boolean,
+    isRootAvailable: Boolean,
     onInstallCert: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -323,7 +346,7 @@ private fun CertificateCard(
             Button(
                 onClick = onInstallCert,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
+                enabled = !isLoading && isRootAvailable
             ) {
                 Text("Instalar certificado CA de Burp")
             }
@@ -339,7 +362,8 @@ private fun CertificateCard(
 private fun ProxyLogPanel(
     logs: List<String>,
     onClear: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    isRootAvailable: Boolean
 ) {
     val listState = rememberLazyListState()
 
@@ -362,12 +386,12 @@ private fun ProxyLogPanel(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row {
-                    TextButton(onClick = onRefresh) {
+                    TextButton(onClick = onRefresh, enabled = isRootAvailable) {
                         Icon(Icons.Default.Refresh, contentDescription = "Actualizar", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Actualizar")
                     }
-                    TextButton(onClick = onClear) { Text("Limpiar") }
+                    TextButton(onClick = onClear, enabled = isRootAvailable) { Text("Limpiar") }
                 }
             }
 
