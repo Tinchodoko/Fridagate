@@ -22,8 +22,9 @@ object FrameworkTestScript {
                 try {
                   var Activity = Java.use('android.app.Activity');
                   var dispatch = Activity.dispatchTouchEvent.overload('android.view.MotionEvent');
-                  Activity.onResume.implementation = function () {
-                    var r = this.onResume();
+                  var onResume = Activity.onResume.overload();
+                  onResume.implementation = function () {
+                    var r = onResume.call(this);
                     try {
                       var content = this.findViewById(0x01020002);
                       if (content && !banner) {
