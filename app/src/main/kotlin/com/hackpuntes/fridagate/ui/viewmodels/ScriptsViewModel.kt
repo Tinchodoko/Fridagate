@@ -368,6 +368,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     }
     
     fun exportScriptToDownloads(context: Context, script: FridaScript) = viewModelScope.launch(Dispatchers.IO) {
+        addLog("📤 Exportando script: ${script.name}")
         val safeName = script.name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifBlank { "script" }
         val fileName = if (safeName.endsWith(".js", ignoreCase = true)) safeName else "$safeName.js"
         try {
@@ -387,6 +388,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                     values.put(MediaStore.Downloads.IS_PENDING, 0)
                     context.contentResolver.update(uri, values, null, null)
                     _message.value = "✅ Exportado a Descargas/$fileName"
+                    addLog("✅ Script exportado a Descargas/$fileName")
                 } catch (e: Exception) {
                     context.contentResolver.delete(uri, null, null)
                     throw e
