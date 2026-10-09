@@ -241,7 +241,7 @@ fun ScriptsScreen(
                         viewModel.clearLogs()
                         extrasViewModel.clearLogs()
                     },
-                    onExecute = { viewModel.executeScript() },
+                    onExecute = { viewModel.executeScript(context, targetPackage) },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
                         viewModel.exportLogs(context)
