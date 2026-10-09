@@ -77,6 +77,24 @@ object FridaInjectUtils {
     // -------------------------------------------------------------------------
 
     /**
+     * Refuse to report an injection attempt as successful when its prerequisites
+     * are missing. Root alone is not enough: both frida-inject and frida-server
+     * must be available on the device.
+     */
+    private suspend fun injectionPrerequisiteError(): String? {
+        if (!RootUtils.isRootAvailable()) {
+            return "ERROR: Root access is unavailable. Check APatch and grant FridaGate superuser permission."
+        }
+        if (!isFridaInjectInstalled()) {
+            return "ERROR: frida-inject is not installed. Install the injector from the Frida tools section first."
+        }
+        if (!FridaUtils.isFridaServerRunning()) {
+            return "ERROR: frida-server is not running. Start Frida server before launching an app."
+        }
+        return null
+    }
+
+    /**
      * Spawns the target app with one or more scripts injected from the first instruction.
      *
      * Flow:
@@ -98,6 +116,10 @@ object FridaInjectUtils {
         packageName: String
     ): List<String> = withContext(Dispatchers.IO) {
         val lines = mutableListOf<String>()
+        if (!packageName.matches(Regex("[A-Za-z0-9._]+"))) {
+            return@withContext listOf("ERROR: Invalid target package name")
+        }
+        injectionPrerequisiteError()?.let { return@withContext listOf(it) }
 
         try {
             // Step 1: save scripts and build the path to pass to frida-inject
@@ -199,6 +221,7 @@ object FridaInjectUtils {
         if (bypassScripts.isEmpty() && customScripts.isEmpty()) {
             return@withContext listOf("WARNING: No scripts are enabled")
         }
+        injectionPrerequisiteError()?.let { return@withContext listOf(it) }
 
         try {
             val source = buildString {
@@ -273,6 +296,7 @@ object FridaInjectUtils {
         if (!packageName.matches(Regex("[A-Za-z0-9._]+"))) {
             return@withContext listOf("ERROR: Invalid target package name")
         }
+        injectionPrerequisiteError()?.let { return@withContext listOf(it) }
 
         try {
             val localFile = File(context.filesDir, "fridagate_custom.js")
