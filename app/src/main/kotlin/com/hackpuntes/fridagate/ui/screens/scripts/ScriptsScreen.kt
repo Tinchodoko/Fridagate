@@ -462,50 +462,6 @@ fun ScriptListTab(
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Update the status as soon as Android returns from the permission settings.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Permiso para guardar scripts", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            if (hasStorageAccess)
-                                "Permiso de almacenamiento concedido. Ya puedes guardar y exportar archivos."
-                            else
-                                "Para guardar tus archivos en Documentos/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (hasStorageAccess) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (hasStorageAccess) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Permiso concedido", color = MaterialTheme.colorScheme.primary)
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = {
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                        Uri.parse("package:${context.packageName}")
-                                    )
-                                    runCatching { context.startActivity(intent) }
-                                        .onFailure {
-                                            context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                                        }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Conceder permiso de almacenamiento")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // NEW SCRIPT BUTTON
         item {
             Button(
