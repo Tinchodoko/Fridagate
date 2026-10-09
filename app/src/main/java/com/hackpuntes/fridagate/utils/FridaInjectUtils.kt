@@ -265,7 +265,7 @@ object FridaInjectUtils {
             Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
-            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo \\$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo \$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
             if (!launchResult.contains("INJECT_LAUNCHED")) {
                 lines += "ERROR: Could not start frida-inject as root."
@@ -408,12 +408,16 @@ object FridaInjectUtils {
 
             var removed = false
             for (taskId in taskIds) {
-                val output = RootUtils.executeSuCommand(
-                    "am task remove $taskId 2>&1 || cmd activity task remove $taskId 2>&1"
-                )
+                var output = RootUtils.executeSuCommand("am task remove $taskId 2>&1")
+                if (output.contains("Unknown command", ignoreCase = true) ||
+                    output.contains("Error", ignoreCase = true) ||
+                    output.contains("Exception", ignoreCase = true)) {
+                    output = RootUtils.executeSuCommand("cmd activity task remove $taskId 2>&1")
+                }
                 if (!output.contains("Unknown command", ignoreCase = true) &&
                     !output.contains("Error", ignoreCase = true) &&
-                    !output.contains("Exception", ignoreCase = true)) {
+                    !output.contains("Exception", ignoreCase = true) &&
+                    !output.contains("not found", ignoreCase = true)) {
                     removed = true
                     lines += "✓ Se solicitó quitar la tarea $taskId de Aplicaciones recientes."
                 }
