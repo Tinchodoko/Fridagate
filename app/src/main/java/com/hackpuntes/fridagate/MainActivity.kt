@@ -214,7 +214,15 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
             composable(Routes.FRIDA)     { FridaScreen() }
             composable(Routes.PROXY)     { ProxyScreen() }
             composable(Routes.EXTRAS)    { ExtrasScreen() }
-            composable(Routes.ABOUT)     { AboutScreen() }
+            composable(Routes.ABOUT) {
+                AboutScreen(
+                    onBack = {
+                        navController.navigate(Routes.DASHBOARD) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
             composable(Routes.SCRIPTS)   {
                 ScriptsScreen(
                     viewModel = scriptsViewModel,
