@@ -440,55 +440,6 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         _message.value = ""
     }
     
-    // ==================== TEMPLATES ====================
-    
-    fun insertIL2CPPTemplate() {
-        val template = """
-            import "frida-il2cpp-bridge";
-            
-            function main() {
-                console.log("IL2CPP Bridge loaded successfully!");
-                
-                // Encuentra una clase
-                // const MyClass = IL2CPP.classes["Assembly-CSharp.MyNamespace.MyClass"];
-                
-                // Instancia un objeto
-                // const instance = MyClass.${'$'}new();
-                
-                // Llama un método
-                // instance.MyMethod(param1, param2);
-                
-                console.log("Script finished");
-            }
-            
-            if (Java.available) {
-                main();
-            }
-        """.trimIndent()
-        
-        _editorCode.value = template
-    }
-    
-    fun insertBasicTemplate() {
-        val template = """
-            // Script básico de Frida
-            console.log("Script started!");
-            
-            // Hook a un método Java
-            var MainActivity = Java.use("com.example.MainActivity");
-            
-            MainActivity.onCreate.implementation = function(savedInstanceState) {
-                console.log("onCreate called!");
-                return this.onCreate(savedInstanceState);
-            };
-            
-            console.log("Hooks installed!");
-        """.trimIndent()
-        
-        _editorCode.value = template
-    }
-}
-
 // Factory para crear el ViewModel
 class ScriptsViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
