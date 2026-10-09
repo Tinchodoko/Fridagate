@@ -41,6 +41,10 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     // Estado de ejecución
     private val _isExecuting = MutableStateFlow(false)
     val isExecuting = _isExecuting.asStateFlow()
+
+    // Aplicación lanzada mediante el flujo combinado de inyección.
+    private val _activeTargetPackage = MutableStateFlow<String?>(null)
+    val activeTargetPackage = _activeTargetPackage.asStateFlow()
     
     // Logs en tiempo real
     private val _logs = MutableStateFlow<List<String>>(emptyList())
@@ -244,6 +248,17 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             )
             result.forEach { addLog(it) }
             lastObservedInjectionLog = FridaInjectUtils.readCurrentInjectionLog()
+            val launchSucceeded = result.any {
+                it.contains("is running (PID", ignoreCase = true) ||
+                it.contains("Attached to $packageName", ignoreCase = true)
+            }
+            if (launchSucceeded) {
+                _activeTargetPackage.value = packageName
+                addLog("🟢 Estado actualizado: $packageName está lanzada con los scripts habilitados.")
+            } else {
+                _activeTargetPackage.value = null
+                addLog("⚠️ No se pudo confirmar que $packageName haya quedado ejecutándose con la inyección.")
+            }
         } catch (e: Exception) {
             addLog("❌ Error de inyección: ${e.message}")
         } finally {
@@ -256,6 +271,27 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         val result = FridaInjectUtils.stopCustomScript()
         result.forEach { addLog(it) }
         _isExecuting.value = false
+    }
+
+    fun stopTargetApp(packageName: String) = viewModelScope.launch {
+        if (packageName.isBlank()) {
+            addLog("⚠️ No hay una aplicación seleccionada para detener.")
+            return@launch
+        }
+        _isExecuting.value = true
+        addLog("⏹️ Solicitando detener aplicación y scripts: $packageName")
+        try {
+            FridaInjectUtils.stopTargetApp(packageName).forEach { addLog(it) }
+            if (_activeTargetPackage.value == packageName) {
+                _activeTargetPackage.value = null
+            }
+            lastObservedInjectionLog = ""
+            addLog("⚫ $packageName: solicitud de detención completada.")
+        } catch (e: Exception) {
+            addLog("❌ No se pudo detener $packageName: ${e.message}")
+        } finally {
+            _isExecuting.value = false
+        }
     }
 
     /**
