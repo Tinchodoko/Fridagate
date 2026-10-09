@@ -74,6 +74,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         val success = repository.createScript(script)
         if (success) {
             _message.value = "✅ Script creado: $name"
+            addLog("✅ Script creado: $name")
             loadScripts()
         } else {
             _message.value = "❌ Error al crear script"
@@ -83,7 +84,8 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     fun updateScript(script: FridaScript) = viewModelScope.launch {
         val success = repository.updateScript(script)
         if (success) {
-            _message.value = "✅ Script actualizado"
+            _message.value = "✅ Script actualizado: ${script.name}"
+            addLog("✅ Script guardado: ${script.name}")
             loadScripts()
         } else {
             _message.value = "❌ Error al actualizar"
@@ -94,6 +96,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         val success = repository.deleteScript(scriptId)
         if (success) {
             _message.value = "✅ Script eliminado"
+            addLog("🗑️ Script eliminado: $scriptId")
             if (_selectedScript.value?.id == scriptId) {
                 _selectedScript.value = null
                 _editorCode.value = ""
@@ -152,11 +155,14 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             code = code,
             supportsIL2CPP = code.contains("frida-il2cpp-bridge", ignoreCase = true)
         )
+        addLog("📥 Importando script: $cleanName")
         if (repository.createScript(script)) {
             _scripts.value = repository.getAllScripts()
             _message.value = "✅ Script importado: $cleanName"
+            addLog("✅ Script importado correctamente: $cleanName")
         } else {
             _message.value = "❌ No se pudo guardar el script importado. Comprueba el almacenamiento."
+            addLog("❌ Falló la importación del script: $cleanName")
         }
     }
 
@@ -198,6 +204,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
 
     fun setUserScriptEnabled(scriptId: String, enabled: Boolean) = viewModelScope.launch {
         val script = _scripts.value.firstOrNull { it.id == scriptId } ?: return@launch
+        addLog("${if (enabled) "✅" else "ℹ️"} Script ${script.name}: ${if (enabled) "activado" else "desactivado"}")
         val updated = script.copy(enabledForLaunch = enabled)
         _scripts.update { current -> current.map { if (it.id == scriptId) updated else it } }
         if (!repository.updateScript(updated)) {
@@ -392,6 +399,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             }
         } catch (e: Exception) {
             _message.value = "❌ Error al exportar: ${e.message}"
+            addLog("❌ Error al exportar ${script.name}: ${e.message}")
         }
     }
 
