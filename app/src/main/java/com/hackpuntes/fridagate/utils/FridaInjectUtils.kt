@@ -31,8 +31,8 @@ object FridaInjectUtils {
 
     suspend fun isFridaInjectInstalled(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val r = RootUtils.executeSuCommand("ls $INJECT_BINARY_PATH")
-            r.contains("frida-inject") && !r.contains("No such file")
+            RootUtils.executeSuCommand("test -x $INJECT_BINARY_PATH && echo FRIDA_INJECT_EXECUTABLE")
+                .contains("FRIDA_INJECT_EXECUTABLE")
         } catch (e: Exception) { false }
     }
 
