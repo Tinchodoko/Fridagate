@@ -280,7 +280,11 @@ fun ScriptsScreen(
                         showConfirmExport = true
                     },
                     enabledBypassScripts = enabledBypassScripts,
-                    onToggleBypassScript = { extrasViewModel.toggleScript(it) },
+                    onToggleBypassScript = { id ->
+                        extrasViewModel.toggleScript(id)
+                        val scriptName = extrasViewModel.scripts.firstOrNull { it.id == id }?.name ?: id
+                        viewModel.addLog("Script predefinido cambiado: $scriptName")
+                    },
                     bypassScripts = extrasViewModel.scripts,
                     onLaunchWithBypass = {
                         val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
