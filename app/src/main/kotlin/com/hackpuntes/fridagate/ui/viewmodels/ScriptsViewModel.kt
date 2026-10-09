@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.data.repository.ScriptRepository
+import com.hackpuntes.fridagate.utils.FridaInjectUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -149,36 +150,36 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         _targetAppPid.value = pid
     }
     
-    fun executeScript() = viewModelScope.launch {
+    fun executeScript(context: Context, packageName: String) = viewModelScope.launch {
         val script = _selectedScript.value
-        val pid = _targetAppPid.value
-        
-        if (script == null) {
-            addLog("❌ Error: No hay script seleccionado")
+        val code = _editorCode.value
+
+        if (code.isBlank()) {
+            addLog("❌ Error: No hay código para ejecutar")
             return@launch
         }
-        
-        if (pid == null) {
-            addLog("❌ Error: Selecciona una app primero")
+        if (packageName.isBlank()) {
+            addLog("❌ Error: Selecciona una app de destino primero")
             return@launch
         }
-        
+
         _isExecuting.value = true
-        addLog("▶️ Ejecutando: ${script.name} en PID $pid")
-        
+        addLog("▶️ Ejecutando: ${script?.name ?: "Script del editor"} en $packageName")
         try {
-            addLog("📝 Inyectando script...")
-            kotlinx.coroutines.delay(1000)
-            addLog("✅ Script inyectado correctamente")
-            addLog("🔄 Esperando respuestas...")
+            val result = FridaInjectUtils.launchWithCustomScript(
+                context = context,
+                scriptName = script?.name ?: "Script del editor",
+                scriptCode = code,
+                packageName = packageName
+            )
+            result.forEach { addLog(it) }
         } catch (e: Exception) {
-            addLog("❌ Error: ${e.message}")
+            addLog("❌ Error de inyección: ${e.message}")
         } finally {
             _isExecuting.value = false
-            addLog("⏹️ Ejecución finalizada")
         }
     }
-    
+
     fun stopScript() {
         _isExecuting.value = false
         addLog("⏹️ Script detenido por usuario")
