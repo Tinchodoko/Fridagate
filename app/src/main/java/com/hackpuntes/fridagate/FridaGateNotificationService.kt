@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 
 /**
  * Keeps FridaGate visible while instrumentation is in progress.
- * The STOP notification action removes the notification and stops this service.
+ * Visibility is controlled from the Home tab.
  */
 class FridaGateNotificationService : Service() {
     override fun onCreate() {
@@ -26,17 +26,11 @@ class FridaGateNotificationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
+        if (intent?.action == ACTION_HIDE) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
-
-        val stopIntent = Intent(this, FridaGateNotificationService::class.java).apply { action = ACTION_STOP }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 1002, stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val contentPendingIntent = launchIntent?.let {
             PendingIntent.getActivity(this, 1001, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -50,7 +44,6 @@ class FridaGateNotificationService : Service() {
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(contentPendingIntent)
-            .addAction(0, "STOP", stopPendingIntent)
             .build()
 
         startForeground(NOTIFICATION_ID, notification)
@@ -60,7 +53,7 @@ class FridaGateNotificationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        const val ACTION_STOP = "com.hackpuntes.fridagate.action.STOP_NOTIFICATION"
+        const val ACTION_HIDE = "com.hackpuntes.fridagate.action.HIDE_NOTIFICATION"
         private const val CHANNEL_ID = "fridagate_running"
         private const val NOTIFICATION_ID = 2200
     }
