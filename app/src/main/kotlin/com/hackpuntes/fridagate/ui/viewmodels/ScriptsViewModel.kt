@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,6 +53,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     // Mensajes de error/éxito
     private val _message = MutableStateFlow("")
     val message = _message.asStateFlow()
+    private var lastObservedInjectionLog: String = ""
     
     init {
         loadScripts()
@@ -230,6 +232,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
 
         _isExecuting.value = true
+        lastObservedInjectionLog = ""
         addLog("▶️ Lanzando $packageName con ${enabledBuiltInScripts.size + enabledUserScripts.size} script(s) activado(s)")
         frameworkTestScript?.let { addLog("🧪 Prueba de framework incluida: ${it.name}") }
         try {
@@ -240,6 +243,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 packageName = packageName
             )
             result.forEach { addLog(it) }
+            lastObservedInjectionLog = FridaInjectUtils.readCurrentInjectionLog()
         } catch (e: Exception) {
             addLog("❌ Error de inyección: ${e.message}")
         } finally {
@@ -252,6 +256,30 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         val result = FridaInjectUtils.stopCustomScript()
         result.forEach { addLog(it) }
         _isExecuting.value = false
+    }
+
+    /**
+     * Polls the injector output while the Logs tab is visible. This lets the first-touch
+     * test report its result after the app has already been launched.
+     */
+    suspend fun refreshInjectionLogs() {
+        val current = withContext(Dispatchers.IO) {
+            FridaInjectUtils.readCurrentInjectionLog()
+        }
+        if (current.isBlank()) return
+        val previous = lastObservedInjectionLog
+        if (previous.isBlank()) {
+            lastObservedInjectionLog = current
+            return
+        }
+        if (current.startsWith(previous)) {
+            current.substring(previous.length)
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .forEach { addLog("📟 $it") }
+        }
+        lastObservedInjectionLog = current
     }
 
     // ==================== LOGS ====================
