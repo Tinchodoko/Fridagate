@@ -261,23 +261,84 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         addLog("📋 Logs limpiados")
     }
     
-    fun exportLogs(context: Context): String? {
+    fun exportLogs(
+        context: Context,
+        logLines: List<String> = _logs.value,
+        packageName: String? = null
+    ): String? {
         return try {
-            val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
-            val fileName = "fridagate_logs_$timestamp.txt"
-            val file = File(context.externalCacheDir, fileName)
-            
-            val content = _logs.value.joinToString("\n")
-            file.writeText(content)
-            
-            _message.value = "✅ Logs exportados a: ${file.absolutePath}"
-            file.absolutePath
+            val safePackage = packageName
+                ?.trim()
+                ?.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                ?.takeIf { it.isNotBlank() }
+            val baseName = if (safePackage == null) "log" else "${safePackage}_log"
+            val content = logLines.joinToString("\n")
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val relativePath = Environment.DIRECTORY_DOWNLOADS + "/"
+                val existingNames = mutableSetOf<String>()
+                context.contentResolver.query(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+                    "${MediaStore.MediaColumns.RELATIVE_PATH}=?",
+                    arrayOf(relativePath),
+                    null
+                )?.use { cursor ->
+                    val nameColumn = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                    while (cursor.moveToNext()) {
+                        if (nameColumn >= 0) existingNames += cursor.getString(nameColumn)
+                    }
+                }
+
+                var suffix = 0
+                var fileName: String
+                do {
+                    fileName = baseName + if (suffix == 0) "" else suffix.toString() + ".txt"
+                    if (suffix == 0) fileName = "$baseName.txt"
+                    suffix++
+                } while (fileName in existingNames)
+
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: throw IllegalStateException("No se pudo crear el archivo en Descargas")
+                try {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(content) }
+                        ?: throw IllegalStateException("No se pudo escribir el registro")
+                    val readyValues = ContentValues().apply {
+                        put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    }
+                    context.contentResolver.update(uri, readyValues, null, null)
+                    _message.value = "✅ Registro exportado a Descargas/$fileName"
+                    "Descargas/$fileName"
+                } catch (e: Exception) {
+                    context.contentResolver.delete(uri, null, null)
+                    throw e
+                }
+            } else {
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("No se pudo acceder a Descargas")
+                var suffix = 0
+                var file: File
+                do {
+                    val fileName = baseName + (if (suffix == 0) "" else suffix.toString()) + ".txt"
+                    file = File(dir, fileName)
+                    suffix++
+                } while (file.exists())
+                file.writeText(content)
+                _message.value = "✅ Registro exportado a Descargas/${file.name}"
+                file.absolutePath
+            }
         } catch (e: Exception) {
-            _message.value = "❌ Error al exportar: ${e.message}"
+            _message.value = "❌ Error al exportar el registro: ${e.message}"
             null
         }
     }
-    
+
     fun exportScript(context: Context, scriptId: String): String? {
         return try {
             val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
