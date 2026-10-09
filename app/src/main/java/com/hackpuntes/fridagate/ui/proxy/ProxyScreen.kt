@@ -148,7 +148,7 @@ private fun ConnectionSettingsCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Burp Suite Connection",
+                text = "Conexión con Burp Suite",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -157,7 +157,7 @@ private fun ConnectionSettingsCard(
             OutlinedTextField(
                 value = ip,
                 onValueChange = onIpChange,
-                label = { Text("Burp IP Address") },
+                label = { Text("Dirección IP de Burp") },
                 placeholder = { Text("192.168.1.100") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -173,7 +173,7 @@ private fun ConnectionSettingsCard(
                 OutlinedTextField(
                     value = httpPort.toString(),
                     onValueChange = onHttpPortChange,
-                    label = { Text("HTTP Port") },
+                    label = { Text("Puerto HTTP") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -181,7 +181,7 @@ private fun ConnectionSettingsCard(
                 OutlinedTextField(
                     value = httpsPort.toString(),
                     onValueChange = onHttpsPortChange,
-                    label = { Text("HTTPS Port") },
+                    label = { Text("Puerto HTTPS") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -206,7 +206,7 @@ private fun ConnectionSettingsCard(
                 Button(
                     onClick = onTestConnection,
                     enabled = !isLoading
-                ) { Text("Test") }
+                ) { Text("Probar conexión") }
             }
         }
     }
@@ -232,7 +232,7 @@ private fun ProxyMethodsCard(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "Proxy Methods",
+                text = "Métodos de proxy",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -310,12 +310,12 @@ private fun CertificateCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "SSL Certificate",
+                text = "Certificado SSL",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Install Burp's CA certificate to intercept HTTPS traffic. " +
+                text = "Instala el certificado CA de Burp para interceptar tráfico HTTPS. " +
                         "Requires root and an active system proxy.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -325,7 +325,7 @@ private fun CertificateCard(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
             ) {
-                Text("Install Burp CA Certificate")
+                Text("Instalar certificado CA de Burp")
             }
         }
     }
@@ -357,17 +357,17 @@ private fun ProxyLogPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Log",
+                    text = "Registro",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row {
                     TextButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Refresh")
                     }
-                    TextButton(onClick = onClear) { Text("Clear") }
+                    TextButton(onClick = onClear) { Text("Limpiar") }
                 }
             }
 
@@ -381,7 +381,7 @@ private fun ProxyLogPanel(
                     .padding(8.dp)
             ) {
                 if (logs.isEmpty()) {
-                    Text("No logs yet...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text("Todavía no hay registros...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                 } else {
                     LazyColumn(state = listState) {
                         items(logs) { line ->
