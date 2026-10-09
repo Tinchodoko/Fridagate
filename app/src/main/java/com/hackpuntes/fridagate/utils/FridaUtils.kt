@@ -582,8 +582,8 @@ object FridaUtils {
     suspend fun isFridaServerInstalled(): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val result = RootUtils.executeSuCommand("ls -la $FRIDA_BINARY_PATH")
-                result.contains(FRIDA_BINARY_PATH) && !result.contains("No such file")
+                RootUtils.executeSuCommand("test -x $FRIDA_BINARY_PATH && echo FRIDA_SERVER_EXECUTABLE")
+                    .contains("FRIDA_SERVER_EXECUTABLE")
             } catch (e: Exception) {
                 false
             }
