@@ -31,7 +31,7 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
 
     /** IDs of scripts currently toggled ON */
-    private val _enabledScripts = MutableStateFlow(setOf(scripts.first().id))
+    private val _enabledScripts = MutableStateFlow(emptySet<String>())
     val enabledScripts: StateFlow<Set<String>> = _enabledScripts.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
