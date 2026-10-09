@@ -123,6 +123,7 @@ fun ScriptsScreen(
     var appFilterMenuExpanded by remember { mutableStateOf(false) }
     var targetMenuExpanded by remember { mutableStateOf(false) }
 
+    var selectedTab by remember { mutableStateOf(0) }
     var detectedFrameworks by remember { mutableStateOf<Map<String, FrameworkInfo>>(emptyMap()) }
     var frameworkTestEnabled by remember(targetPackage) { mutableStateOf(false) }
 
@@ -139,7 +140,7 @@ fun ScriptsScreen(
 
     LaunchedEffect(selectedTab, targetPackage) {
         if (selectedTab == 2) {
-            repeat(300) {
+            repeat(Int.MAX_VALUE) {
                 viewModel.refreshInjectionLogs()
                 delay(1200)
             }
@@ -167,7 +168,6 @@ fun ScriptsScreen(
         }
     }
     
-    var selectedTab by remember { mutableStateOf(0) }
     var showConfirmDelete by remember { mutableStateOf(false) }
     var scriptToDelete by remember { mutableStateOf<FridaScript?>(null) }
     var showConfirmExport by remember { mutableStateOf(false) }
