@@ -2,7 +2,12 @@ package com.hackpuntes.fridagate.utils
 
 import android.content.Context
 import java.util.Locale
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.util.zip.ZipFile
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 
 /**
  * Detector estático de tecnologías a partir de los nombres de archivos del APK
@@ -17,7 +22,11 @@ data class FrameworkInfo(
 )
 
 object FrameworkDetector {
-    private const val MAX_DEX_BYTES = 12L * 1024L * 1024L
+    // Límites estrictos para evitar OOM al analizar APKs grandes o con muchos DEX.
+    private const val MAX_DEX_BYTES = 1L * 1024L * 1024L
+    private const val MAX_TOTAL_DEX_BYTES = 4L * 1024L * 1024L
+    private const val MAX_DEX_FILES = 4
+    private const val MAX_DEX_ENTRY_SIZE = 64L * 1024L * 1024L
 
     private data class Signature(
         val name: String,
@@ -64,7 +73,35 @@ object FrameworkDetector {
             listOf("com.adobe.air", "com/adobe/air", "application.xml", "libstagefright_android.so"))
     )
 
-    fun detect(context: Context, packageName: String): FrameworkInfo {
+    private fun readDexTail(input: InputStream, declaredSize: Long, maxBytes: Int): ByteArray {
+        val skipTarget = (declaredSize - maxBytes).coerceAtLeast(0L)
+        var skipped = 0L
+        val skipBuffer = ByteArray(8192)
+        while (skipped < skipTarget) {
+            val count = input.skip(skipTarget - skipped)
+            if (count > 0) {
+                skipped += count
+            } else {
+                val wanted = minOf(skipBuffer.size.toLong(), skipTarget - skipped).toInt()
+                val read = input.read(skipBuffer, 0, wanted)
+                if (read < 0) break
+                skipped += read
+            }
+        }
+
+        val output = ByteArrayOutputStream(minOf(maxBytes.toLong(), declaredSize).toInt())
+        val buffer = ByteArray(8192)
+        var total = 0
+        while (total < maxBytes) {
+            val count = input.read(buffer, 0, minOf(buffer.size, maxBytes - total))
+            if (count < 0) break
+            output.write(buffer, 0, count)
+            total += count
+        }
+        return output.toByteArray()
+    }
+
+    suspend fun detect(context: Context, packageName: String): FrameworkInfo {
         val appInfo = try {
             context.packageManager.getApplicationInfo(packageName, 0)
         } catch (_: Exception) {
@@ -78,28 +115,45 @@ object FrameworkDetector {
 
         val entries = linkedSetOf<String>()
         val dexStrings = StringBuilder()
+        var dexBytesScanned = 0L
+        var dexFilesScanned = 0
 
         for (path in apkPaths) {
+            coroutineContext.ensureActive()
             try {
                 ZipFile(path).use { zip ->
                     val iterator = zip.entries()
                     while (iterator.hasMoreElements()) {
+                        coroutineContext.ensureActive()
                         val entry = iterator.nextElement()
                         val name = entry.name.lowercase(Locale.ROOT)
                         entries.add(name)
 
+                        // Lee una muestra limitada del final del DEX, sin cargarlo entero en RAM.
                         if (!entry.isDirectory &&
-                            Regex("classes(\\d*)\\.dex").matches(name) &&
-                            entry.size in 1..MAX_DEX_BYTES
+                            Regex("classes(\\\\d*)\\\\.dex").matches(name) &&
+                            entry.size in 1..MAX_DEX_ENTRY_SIZE &&
+                            dexFilesScanned < MAX_DEX_FILES &&
+                            dexBytesScanned < MAX_TOTAL_DEX_BYTES
                         ) {
-                            runCatching {
-                                val bytes = zip.getInputStream(entry).use { it.readBytes() }
-                                dexStrings.append(String(bytes, Charsets.ISO_8859_1).lowercase(Locale.ROOT))
-                                dexStrings.append('\n')
+                            val budget = minOf(
+                                MAX_DEX_BYTES,
+                                MAX_TOTAL_DEX_BYTES - dexBytesScanned
+                            ).toInt()
+                            val sample = zip.getInputStream(entry).use { input ->
+                                readDexTail(input, entry.size, budget)
+                            }
+                            dexBytesScanned += sample.size
+                            dexFilesScanned++
+                            if (sample.isNotEmpty()) {
+                                dexStrings.append(String(sample, Charsets.ISO_8859_1).lowercase(Locale.ROOT))
+                                dexStrings.append('\\n')
                             }
                         }
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 // Sigue con los demás APKs divididos si alguno no se puede leer.
             }
