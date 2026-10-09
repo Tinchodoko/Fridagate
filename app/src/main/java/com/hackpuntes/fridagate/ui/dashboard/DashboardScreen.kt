@@ -686,7 +686,7 @@ private fun OneTabActionsCard(
             Button(
                 onClick = onSmartInstall,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
+                enabled = !isLoading && isRootAvailable,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(
@@ -700,7 +700,7 @@ private fun OneTabActionsCard(
             Button(
                 onClick = onDeactivateAll,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
+                enabled = !isLoading && isRootAvailable,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
             ) {
                 Text(
