@@ -135,7 +135,6 @@ fun ScriptsScreen(
                     onExecute = { viewModel.executeScript() },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
-                        val context = LocalContext.current
                         viewModel.exportLogs(context)
                     }
                 )
