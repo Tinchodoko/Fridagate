@@ -590,11 +590,16 @@ private fun StatusOverviewCard(
             HorizontalDivider()
 
             // Each StatusIndicatorRow shows one component's status
-            StatusIndicatorRow(label = "Root Access",     active = isRootAvailable,  activeText = "Available",  inactiveText = "Not available")
-            StatusIndicatorRow(label = "Frida Installed", active = isFridaInstalled, activeText = "Yes",        inactiveText = "No")
-            StatusIndicatorRow(label = "Frida Running",   active = isFridaRunning,   activeText = "Running",    inactiveText = "Stopped")
-            StatusIndicatorRow(label = "Proxy (iptables)",active = isProxyActive,    activeText = "Active",     inactiveText = "Inactive")
-            StatusIndicatorRow(label = "Burp Reachable",  active = isBurpReachable,  activeText = "Yes",        inactiveText = "No")
+            StatusIndicatorRow(label = "Frida Installed", active = isFridaInstalled, activeText = "Sí", inactiveText = "No")
+            StatusIndicatorRow(label = "Frida Running", active = isFridaRunning, activeText = "En ejecución", inactiveText = "Detenido")
+            StatusIndicatorRow(label = "Proxy (iptables)", active = isProxyActive, activeText = "Activo", inactiveText = "Inactivo")
+            StatusIndicatorRow(label = "Burp reachable", active = isBurpReachable, activeText = "Sí", inactiveText = "No")
+            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+            StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
+            StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
+            StatusIndicatorRow(label = "Acceso root", active = isRootAvailable, activeText = "Concedido", inactiveText = "No disponible")
+            StatusIndicatorRow(label = "Ejecución en segundo plano", active = hasBackgroundPermission, activeText = "Permitida", inactiveText = "Restringida")
+            StatusIndicatorRow(label = "Optimización de batería", active = isIgnoringBatteryOptimizations, activeText = "Desactivada", inactiveText = "Activa")
         }
     }
 }
