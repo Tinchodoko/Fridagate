@@ -41,14 +41,10 @@ fun ExtrasScreen() {
         }
     )
 
-    val targetPackage          by viewModel.targetPackage.collectAsState()
-    val enabledScripts         by viewModel.enabledScripts.collectAsState()
     val isLoading              by viewModel.isLoading.collectAsState()
-    val logs                   by viewModel.logs.collectAsState()
     val isFridaRunning         by viewModel.isFridaRunning.collectAsState()
     val isFridaInjectInstalled by viewModel.isFridaInjectInstalled.collectAsState()
     val fridaInjectVersion     by viewModel.fridaInjectVersion.collectAsState()
-    val installedApps          by viewModel.installedApps.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -125,50 +121,6 @@ fun ExtrasScreen() {
                 onDownload             = { viewModel.downloadFridaInject() }
             )
 
-            // ── Target package ─────────────────────────────────────────────────
-            TargetPackageCard(
-                apps     = installedApps,
-                selected = targetPackage,
-                enabled  = !isLoading,
-                onSelect = { viewModel.setTargetPackage(it) }
-            )
-
-            // ── Script toggles ─────────────────────────────────────────────────
-            ScriptsCard(
-                scripts        = viewModel.scripts,
-                enabledScripts = enabledScripts,
-                isLoading      = isLoading,
-                context        = context,
-                onToggle       = { viewModel.toggleScript(it) }
-            )
-
-            // ── Single Launch button ───────────────────────────────────────────
-            Button(
-                onClick  = { viewModel.launch() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled  = !isLoading && isFridaInjectInstalled,
-                colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Launch with Bypass", fontSize = 16.sp, modifier = Modifier.padding(vertical = 4.dp))
-            }
-
-            if (!isFridaInjectInstalled) {
-                Text(
-                    text  = "Download frida-inject above to enable on-device launch",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-
-            // ── Log ────────────────────────────────────────────────────────────
-            LogPanel(
-                logs      = logs,
-                onClear   = { viewModel.clearLogs() },
-                onRefresh = { viewModel.refreshStatus() }
-            )
         }
 
         if (isLoading) {
