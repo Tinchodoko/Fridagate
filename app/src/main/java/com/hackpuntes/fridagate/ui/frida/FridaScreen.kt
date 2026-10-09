@@ -261,9 +261,11 @@ private fun VersionSelector(
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val latestVersion = releases.firstOrNull()?.version ?: "No disponible"
-    val versions = listOf("16.7.19" to "Recommended", latestVersion to "Latest")
-        .distinctBy { it.first }
+    val latestVersion = releases.firstOrNull()?.version
+    val versions = buildList {
+        add("16.7.19" to "Recommended")
+        latestVersion?.let { add(it to "Latest") }
+    }.distinctBy { it.first }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -277,7 +279,7 @@ private fun VersionSelector(
                 OutlinedTextField(
                     value = when (selectedVersion) {
                         "16.7.19" -> "16.7.19 (Recommended)"
-                        latestVersion -> "$latestVersion (Latest)"
+                        latestVersion -> if (latestVersion != null) "$latestVersion (Latest)" else "16.7.19 (Recommended)"
                         else -> selectedVersion.ifEmpty { "Select version..." }
                     },
                     onValueChange = {},
