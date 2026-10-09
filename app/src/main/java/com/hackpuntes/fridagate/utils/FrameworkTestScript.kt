@@ -59,7 +59,7 @@ object FrameworkTestScript {
                     var TextView = Java.use('android.widget.TextView');
                     if (TextView.class.isInstance(view)) {
                       var text = Java.cast(view, TextView).getText();
-                      if (text) parts.push('texto="' + String(text).replace(/\\s+/g, ' ').slice(0, 100) + '"');
+                      if (text) parts.push('texto="' + String(text).replace(/\s+/g, ' ').slice(0, 100) + '"');
                     }
                   }
                 } catch (_) {}
@@ -117,7 +117,7 @@ object FrameworkTestScript {
                       log('PRIMER TOQUE: acción=ACTION_UP, x=' + x + ', y=' + y + '; elemento=' + details);
                       if (banner) {
                         try {
-                          banner.setText('Hola Mundo — Script Test By Tinchodoko: ' + frameworkName + '\\nPrimer toque: ' + details.slice(0, 110));
+                          banner.setText('Hola Mundo — Script Test By Tinchodoko: ' + frameworkName + '\nPrimer toque: ' + details.slice(0, 110));
                         } catch (_) {}
                       }
                       log('Nota: motores como Unity/Unreal/Godot pueden exponer solo la superficie y las coordenadas.');
