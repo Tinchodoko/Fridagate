@@ -398,6 +398,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("No se pudo acceder a Descargas")
                 File(dir, fileName).writeText(script.code)
                 _message.value = "✅ Exportado a Descargas/$fileName"
+                addLog("✅ Script exportado a Descargas/$fileName")
             }
         } catch (e: Exception) {
             _message.value = "❌ Error al exportar: ${e.message}"
