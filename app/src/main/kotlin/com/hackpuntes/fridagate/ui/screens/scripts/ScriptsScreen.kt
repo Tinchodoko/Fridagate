@@ -62,6 +62,7 @@ fun ScriptsScreen(
     val enabledBypassScripts by extrasViewModel.enabledScripts.collectAsState()
     val bypassLoading by extrasViewModel.isLoading.collectAsState()
     val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
+    val bypassLogs by extrasViewModel.logs.collectAsState()
 
     val installedApps = remember(context) {
         context.packageManager.getInstalledApplications(0)
@@ -234,9 +235,12 @@ fun ScriptsScreen(
                     }
                 )
                 2 -> LogsTab(
-                    logs = logs,
+                    logs = (logs + bypassLogs).takeLast(500),
                     isExecuting = isExecuting,
-                    onClearLogs = { viewModel.clearLogs() },
+                    onClearLogs = {
+                        viewModel.clearLogs()
+                        extrasViewModel.clearLogs()
+                    },
                     onExecute = { viewModel.executeScript() },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
