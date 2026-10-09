@@ -39,6 +39,10 @@ import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
 import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
 import com.hackpuntes.fridagate.utils.ScriptUtils
+import com.hackpuntes.fridagate.utils.RootUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -60,6 +64,22 @@ fun ScriptsScreen(
     val isExecuting by viewModel.isExecuting.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
+    var isRootAvailable by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(Unit) {
+        isRootAvailable = withContext(Dispatchers.IO) { RootUtils.isRootAvailable() }
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                    isRootAvailable = RootUtils.isRootAvailable()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val extrasViewModel: ExtrasViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -141,7 +161,7 @@ fun ScriptsScreen(
                 ) {
                     Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
                     Box {
-                        TextButton(onClick = { appFilterMenuExpanded = true }) {
+                        TextButton(onClick = { if (isRootAvailable) appFilterMenuExpanded = true }, enabled = isRootAvailable) {
                             Text(appFilter)
                             Icon(Icons.Default.ArrowDropDown, contentDescription = "Filtrar aplicaciones")
                         }
@@ -167,13 +187,14 @@ fun ScriptsScreen(
                 }
                 ExposedDropdownMenuBox(
                     expanded = targetMenuExpanded,
-                    onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
+                    onExpandedChange = { if (isRootAvailable) targetMenuExpanded = !targetMenuExpanded }
                 ) {
                     OutlinedTextField(
                         value = allInstalledApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
                             ?: targetPackage,
                         onValueChange = {},
                         readOnly = true,
+                        enabled = isRootAvailable,
                         label = { Text("Seleccionar aplicación instalada") },
                         placeholder = { Text("Elige una aplicación") },
                         trailingIcon = {
@@ -299,6 +320,7 @@ fun ScriptsScreen(
                         viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts)
                     },
                     bypassLoading = bypassLoading || isExecuting,
+                    isRootAvailable = isRootAvailable,
                     onToggleUserScript = { script, enabled -> viewModel.setUserScriptEnabled(script.id, enabled) },
                     fridaInjectReady = fridaInjectReady,
                     onSelectScript = { script ->
@@ -430,35 +452,13 @@ fun ScriptListTab(
     bypassScripts: List<ScriptUtils.BypassScript>,
     onLaunchWithBypass: () -> Unit,
     bypassLoading: Boolean,
+    isRootAvailable: Boolean,
     onToggleUserScript: (FridaScript, Boolean) -> Unit,
     fridaInjectReady: Boolean,
     onSelectScript: (FridaScript) -> Unit,
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var hasStorageAccess by remember {
-        mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager())
-    }
-    var previousStorageAccess by remember { mutableStateOf(hasStorageAccess) }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                val currentAccess = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
-                    Environment.isExternalStorageManager()
-                hasStorageAccess = currentAccess
-                if (currentAccess != previousStorageAccess) {
-                    onLog(if (currentAccess) "✅ Permiso de almacenamiento concedido" else "⚠️ Permiso de almacenamiento revocado")
-                    previousStorageAccess = currentAccess
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -602,7 +602,7 @@ fun ScriptListTab(
             Button(
                 onClick = onLaunchWithBypass,
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
-                enabled = !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() &&
+                enabled = isRootAvailable && !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() &&
                 (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch })
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
