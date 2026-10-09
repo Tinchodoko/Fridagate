@@ -618,7 +618,7 @@ private fun StatusOverviewCard(
             StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Acceso root", active = isRootAvailable, activeText = "Concedido", inactiveText = "No disponible")
-            StatusIndicatorRow(label = "Restricciones en segundo plano", active = hasBackgroundPermission, activeText = "Sin restricciones detectadas", inactiveText = "Restringida por el sistema")
+            StatusIndicatorRow(label = "Restricciones en segundo plano", active = !hasBackgroundPermission, activeText = "Sí", inactiveText = "No", activeColor = Color(0xFFF44336), inactiveColor = Color(0xFF4CAF50))
             StatusIndicatorRow(label = "Optimización de batería", active = isIgnoringBatteryOptimizations, activeText = "Desactivada", inactiveText = "Activa")
         }
     }
@@ -637,27 +637,33 @@ private fun StatusIndicatorRow(
     label: String,
     active: Boolean,
     activeText: String,
-    inactiveText: String
+    inactiveText: String,
+    activeColor: Color = Color(0xFF4CAF50),
+    inactiveColor: Color = Color(0xFFF44336)
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
+            style = MaterialTheme.typography.bodyMedium
+        )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Colored dot indicator
             Text(
                 text = "●",
-                color = if (active) Color(0xFF4CAF50) else Color(0xFFF44336),
+                color = if (active) activeColor else inactiveColor,
                 fontSize = 12.sp
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = if (active) activeText else inactiveText,
                 fontWeight = FontWeight.Bold,
-                color = if (active) Color(0xFF4CAF50) else Color(0xFFF44336),
+                color = if (active) activeColor else inactiveColor,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
