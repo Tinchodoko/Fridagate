@@ -266,6 +266,11 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 if (systemProxySet) addLog("Proxy del sistema configurado")
                 else addLog("ADVERTENCIA: No se pudo configurar el proxy del sistema")
 
+                addLog("Intentando instalar el certificado CA de Burp Suite...")
+                val certificateInstalled = ProxyUtils.installBurpCertificate(ip, httpPort)
+                if (certificateInstalled) addLog("Certificado CA de Burp Suite instalado")
+                else addLog("ADVERTENCIA: No se instaló el certificado CA; verifica que Burp esté ejecutándose y accesible")
+
                 _isBurpReachable.value = ProxyUtils.isBurpReachable(ip, httpPort)
                 addLog(if (_isBurpReachable.value) "Burp Suite está accesible" else "ADVERTENCIA: Burp no responde; comprueba que esté abierto en tu PC")
                 addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ─")
