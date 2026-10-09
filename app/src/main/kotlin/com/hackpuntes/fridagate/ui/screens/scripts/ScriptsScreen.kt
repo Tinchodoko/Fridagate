@@ -5,6 +5,7 @@ package com.hackpuntes.fridagate.ui.screens.scripts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -65,14 +66,30 @@ fun ScriptsScreen(
     val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
     val bypassLogs by extrasViewModel.logs.collectAsState()
 
-    val installedApps = remember(context) {
+    val allInstalledApps = remember(context) {
         context.packageManager.getInstalledApplications(0)
             .filter { it.packageName != context.packageName }
             .map { info ->
-                context.packageManager.getApplicationLabel(info).toString() to info.packageName
+                val flags = info.flags
+                val isSystem = (flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
+                    (flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                Triple(
+                    context.packageManager.getApplicationLabel(info).toString(),
+                    info.packageName,
+                    isSystem
+                )
             }
             .sortedBy { it.first.lowercase(Locale.getDefault()) }
     }
+    var appFilter by remember { mutableStateOf("Usuario") }
+    val installedApps = remember(allInstalledApps, appFilter) {
+        when (appFilter) {
+            "Sistema" -> allInstalledApps.filter { it.third }
+            "Usuario" -> allInstalledApps.filter { !it.third }
+            else -> allInstalledApps
+        }
+    }
+    var appFilterMenuExpanded by remember { mutableStateOf(false) }
     var targetMenuExpanded by remember { mutableStateOf(false) }
 
     val importJsLauncher = rememberLauncherForActivityResult(
@@ -110,7 +127,36 @@ fun ScriptsScreen(
         // Target app selector is intentionally above the Script Manager header.
         Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
+                    Box {
+                        TextButton(onClick = { appFilterMenuExpanded = true }) {
+                            Text(appFilter)
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Filtrar aplicaciones")
+                        }
+                        DropdownMenu(
+                            expanded = appFilterMenuExpanded,
+                            onDismissRequest = { appFilterMenuExpanded = false }
+                        ) {
+                            listOf("Usuario", "Sistema", "Usuario + Sistema").forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    leadingIcon = {
+                                        if (appFilter == option) Icon(Icons.Default.Check, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        appFilter = option
+                                        appFilterMenuExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
                 ExposedDropdownMenuBox(
                     expanded = targetMenuExpanded,
                     onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
@@ -217,8 +263,12 @@ fun ScriptsScreen(
                     enabledBypassScripts = enabledBypassScripts,
                     onToggleBypassScript = { extrasViewModel.toggleScript(it) },
                     bypassScripts = extrasViewModel.scripts,
-                    onLaunchWithBypass = { extrasViewModel.launch() },
-                    bypassLoading = bypassLoading,
+                    onLaunchWithBypass = {
+                        val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
+                        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts)
+                    },
+                    bypassLoading = bypassLoading || isExecuting,
+                    onToggleUserScript = { script, enabled -> viewModel.setUserScriptEnabled(script.id, enabled) },
                     fridaInjectReady = fridaInjectReady,
                     onSelectScript = { script ->
                         viewModel.selectScript(script)
@@ -317,6 +367,7 @@ fun ScriptListTab(
     bypassScripts: List<ScriptUtils.BypassScript>,
     onLaunchWithBypass: () -> Unit,
     bypassLoading: Boolean,
+    onToggleUserScript: (FridaScript, Boolean) -> Unit,
     fridaInjectReady: Boolean,
     onSelectScript: (FridaScript) -> Unit,
     onNewScript: () -> Unit,
@@ -447,7 +498,8 @@ fun ScriptListTab(
             Button(
                 onClick = onLaunchWithBypass,
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
-                enabled = !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() && enabledBypassScripts.isNotEmpty()
+                enabled = !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() &&
+                (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch })
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -499,7 +551,9 @@ fun ScriptListTab(
                     isSelected = selectedScript?.id == script.id,
                     onSelect = { onSelectScript(script) },
                     onExport = { onExportScript(script) },
-                    onDelete = { onDeleteScript(script) }
+                    onDelete = { onDeleteScript(script) },
+                    isEnabledForLaunch = script.enabledForLaunch,
+                    onToggleEnabled = { enabled -> onToggleUserScript(script, enabled) }
                 )
             }
         }
@@ -512,7 +566,9 @@ fun ScriptListItem(
     isSelected: Boolean,
     onSelect: () -> Unit,
     onExport: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    isEnabledForLaunch: Boolean,
+    onToggleEnabled: (Boolean) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -561,6 +617,16 @@ fun ScriptListItem(
                 )
             }
             
+            Switch(
+                checked = isEnabledForLaunch,
+                onCheckedChange = onToggleEnabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = androidx.compose.ui.graphics.Color(0xFF00C853),
+                    checkedTrackColor = androidx.compose.ui.graphics.Color(0xFF69F0AE),
+                    uncheckedThumbColor = MaterialTheme.colorScheme.error,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.errorContainer
+                )
+            )
             IconButton(onClick = onExport) {
                 Icon(
                     Icons.Default.Save,
