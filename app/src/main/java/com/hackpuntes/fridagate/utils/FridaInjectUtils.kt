@@ -72,6 +72,14 @@ object FridaInjectUtils {
             } catch (e: Exception) { false }
         }
 
+    suspend fun readCurrentInjectionLog(): String = withContext(Dispatchers.IO) {
+        try {
+            RootUtils.executeSuCommand("cat /data/local/tmp/fridagate_inject.log").trimEnd()
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Launch & inject
     // -------------------------------------------------------------------------
