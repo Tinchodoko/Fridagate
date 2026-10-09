@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -29,6 +32,9 @@ import com.hackpuntes.fridagate.ui.extras.ExtrasScreen
 import com.hackpuntes.fridagate.ui.frida.FridaScreen
 import com.hackpuntes.fridagate.ui.proxy.ProxyScreen
 import com.hackpuntes.fridagate.ui.theme.FridagateTheme
+import com.hackpuntes.fridagate.ui.screens.scripts.ScriptsScreen
+import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
+import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModelFactory
 
 /**
  * MainActivity - The single Activity that hosts the entire app.
@@ -83,6 +89,7 @@ object Routes {
     const val PROXY     = "proxy"
     const val EXTRAS    = "extras"
     const val ABOUT     = "about"
+    const val SCRIPTS   = "scripts"
 }
 
 /**
@@ -119,10 +126,17 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
     // rememberNavController creates a NavController that survives recompositions
     val navController = rememberNavController()
 
-    // Define the three tabs
+    // Share one ScriptsViewModel instance for the Script Manager destination.
+    val context = LocalContext.current
+    val scriptsViewModel: ScriptsViewModel = viewModel(
+        factory = remember(context) { ScriptsViewModelFactory(context.applicationContext) }
+    )
+
+    // Main navigation tabs, including the previously disconnected Script Manager.
     val navItems = listOf(
         BottomNavItem(Routes.DASHBOARD, "Dashboard", Icons.Default.Home),
         BottomNavItem(Routes.FRIDA,     "Frida",     Icons.Default.Star),
+        BottomNavItem(Routes.SCRIPTS,   "Scripts",   Icons.Default.Code),
         BottomNavItem(Routes.PROXY,     "Proxy",     Icons.Default.Settings),
         BottomNavItem(Routes.EXTRAS,    "Extras",    Icons.Default.Build),
         BottomNavItem(Routes.ABOUT,     "About",     Icons.Default.Info)
@@ -201,6 +215,17 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
             composable(Routes.PROXY)     { ProxyScreen() }
             composable(Routes.EXTRAS)    { ExtrasScreen() }
             composable(Routes.ABOUT)     { AboutScreen() }
+            composable(Routes.SCRIPTS)   {
+                ScriptsScreen(
+                    viewModel = scriptsViewModel,
+                    onBack = {
+                        navController.navigate(Routes.DASHBOARD) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
         }
     }
 }
