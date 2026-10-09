@@ -162,7 +162,7 @@ class FridaViewModel : ViewModel() {
             if (releases.isNotEmpty()) {
                 // Auto-select the latest version if nothing is selected yet
                 if (_selectedVersion.value.isEmpty()) {
-                    _selectedVersion.value = releases.first().version
+                    _selectedVersion.value = "16.7.19"
                 }
                 addLog("Found ${releases.size} releases. Latest: ${releases.first().version}")
             } else {
