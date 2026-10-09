@@ -31,37 +31,37 @@ object FrameworkDetector {
     // sin incorporar un motor externo pesado a la aplicación Android.
     private val signatures = listOf(
         Signature("Flutter", "F", "flutter",
-            listOf("libflutter.so", "assets/flutter_assets/", "io.flutter", "flutter_assets/kernel_blob.bin")),
+            listOf("libflutter.so", "assets/flutter_assets/", "io.flutter", "io/flutter", "flutter_assets/kernel_blob.bin")),
         Signature("React Native", "RN", "react",
-            listOf("libreactnativejni.so", "assets/index.android.bundle", "com.facebook.react", "libhermes.so", "libjscexecutor.so")),
+            listOf("libreactnativejni.so", "assets/index.android.bundle", "com.facebook.react", "com/facebook/react", "libhermes.so", "libjscexecutor.so")),
         Signature("Cordova / JavaScript", "JS", "javascript",
-            listOf("assets/www/cordova.js", "assets/www/cordova_plugins.js", "org.apache.cordova")),
+            listOf("assets/www/cordova.js", "assets/www/cordova_plugins.js", "org.apache.cordova", "org/apache/cordova")),
         Signature("Capacitor / JavaScript", "JS", "javascript",
-            listOf("assets/capacitor.config.json", "assets/public/capacitor.js", "com.getcapacitor")),
+            listOf("assets/capacitor.config.json", "assets/public/capacitor.js", "com.getcapacitor", "com/getcapacitor")),
         Signature("Ionic", "I", "javascript",
             listOf("ionic.bundle.js", "assets/www/build/", "@ionic")),
         Signature("Unreal Engine", "UE", "unreal",
             listOf("libue4.so", "libunreal.so", "libue5.so", "ue4game/", "ue5game/", "globalshadercache")),
         Signature("Godot", "G", "godot",
-            listOf("libgodot_android.so", "libgodot.so", "org.godotengine", "godotengine")),
+            listOf("libgodot_android.so", "libgodot.so", "org.godotengine", "org/godotengine", "godotengine")),
         Signature("Cocos2d-x", "C2", "cocos",
-            listOf("libcocos2dcpp.so", "libcocos2djs.so", "org.cocos2dx")),
+            listOf("libcocos2dcpp.so", "libcocos2djs.so", "org.cocos2dx", "org/cocos2dx")),
         Signature("libGDX", "GX", "libgdx",
-            listOf("com/badlogic/gdx/", "com.badlogic.gdx", "libgdx.so")),
+            listOf("com/badlogic/gdx/", "com.badlogic.gdx", "com/badlogic/gdx", "libgdx.so")),
         Signature("Xamarin / .NET MAUI", ".N", "dotnet",
-            listOf("libmonodroid.so", "libxamarin-app.so", "assemblies/", "libmonosgen-2.0.so", "microsoft.maui")),
+            listOf("libmonodroid.so", "libxamarin-app.so", "assemblies/", "libmonosgen-2.0.so", "microsoft.maui", "microsoft/maui")),
         Signature("NativeScript", "NS", "nativescript",
-            listOf("org.nativescript", "libnativescript.so", "tns_modules/")),
+            listOf("org.nativescript", "org/nativescript", "libnativescript.so", "tns_modules/")),
         Signature("Qt for Android", "Qt", "qt",
-            listOf("libqt6core.so", "libqt5core.so", "assets/qt/", "org.qtproject")),
+            listOf("libqt6core.so", "libqt5core.so", "assets/qt/", "org.qtproject", "org/qtproject")),
         Signature("Kivy / Python", "Py", "python",
-            listOf("libpython3.", "python-for-android", "org.kivy")),
+            listOf("libpython3.", "python-for-android", "org.kivy", "org/kivy")),
         Signature("Solar2D", "S2", "solar2d",
-            listOf("libcorona.so", "com.ansca.corona", "resource.car")),
+            listOf("libcorona.so", "com.ansca.corona", "com/ansca/corona", "resource.car")),
         Signature("Defold", "D", "defold",
             listOf("libdlib.so", "dmengine", "game.project")),
         Signature("Adobe AIR", "AIR", "air",
-            listOf("com.adobe.air", "application.xml", "libstagefright_android.so"))
+            listOf("com.adobe.air", "com/adobe/air", "application.xml", "libstagefright_android.so"))
     )
 
     fun detect(context: Context, packageName: String): FrameworkInfo {
@@ -182,14 +182,18 @@ object FrameworkDetector {
 
         // Kotlin y Jetpack Compose se buscan en DEX; no se infieren solo por el nombre de la app.
         val kotlinEvidence = listOf(
-            "kotlin.jvm.internal" ,
+            "kotlin.jvm.internal",
+            "kotlin/jvm/internal",
             "kotlin/metadata",
             ".kotlin_module"
         ).filter { has(it) }
         val composeEvidence = listOf(
             "androidx.compose.",
             "androidx.compose.runtime",
-            "androidx.compose.ui"
+            "androidx.compose.ui",
+            "androidx/compose/",
+            "androidx/compose/runtime",
+            "androidx/compose/ui"
         ).filter { has(it) }.distinct()
 
         if (composeEvidence.isNotEmpty()) {
@@ -206,9 +210,13 @@ object FrameworkDetector {
 
         val javaEvidence = listOf(
             "android.app.activity",
+            "android/app/activity",
             "androidx.appcompat",
+            "androidx/appcompat",
             "android.view.",
-            "androidx.fragment.app"
+            "android/view/",
+            "androidx.fragment.app",
+            "androidx/fragment/app"
         ).filter { has(it) }
 
         val hasDex = entries.any { Regex("classes(\\d*)\\.dex").matches(it) }
