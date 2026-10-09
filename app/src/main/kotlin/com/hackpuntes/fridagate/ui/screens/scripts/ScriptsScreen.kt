@@ -40,6 +40,8 @@ import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
 import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
 import com.hackpuntes.fridagate.utils.ScriptUtils
 import com.hackpuntes.fridagate.utils.RootUtils
+import com.hackpuntes.fridagate.utils.FrameworkDetector
+import com.hackpuntes.fridagate.utils.FrameworkInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -119,6 +121,24 @@ fun ScriptsScreen(
     var appFilterMenuExpanded by remember { mutableStateOf(false) }
     var targetMenuExpanded by remember { mutableStateOf(false) }
 
+    var detectedFrameworks by remember { mutableStateOf<Map<String, FrameworkInfo>>(emptyMap()) }
+
+    // Detect the selected app by default; scan the list in the background when the dropdown opens.
+    LaunchedEffect(targetPackage, targetMenuExpanded, installedApps) {
+        val packagesToDetect = if (targetMenuExpanded) {
+            installedApps.map { it.second }
+        } else {
+            listOf(targetPackage).filter { it.isNotBlank() }
+        }
+        for (packageName in packagesToDetect) {
+            if (detectedFrameworks.containsKey(packageName)) continue
+            val info = withContext(Dispatchers.IO) {
+                FrameworkDetector.detect(context, packageName)
+            }
+            detectedFrameworks = detectedFrameworks + (packageName to info)
+        }
+    }
+
     val importJsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -190,8 +210,10 @@ fun ScriptsScreen(
                     onExpandedChange = { if (isRootAvailable) targetMenuExpanded = !targetMenuExpanded }
                 ) {
                     OutlinedTextField(
-                        value = allInstalledApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
-                            ?: targetPackage,
+                        value = allInstalledApps.firstOrNull { it.second == targetPackage }?.let {
+                            val framework = detectedFrameworks[targetPackage]?.name ?: "Detectando motor…"
+                            "${it.first} ($framework) (${it.second})"
+                        } ?: targetPackage,
                         onValueChange = {},
                         readOnly = true,
                         enabled = isRootAvailable,
@@ -200,6 +222,8 @@ fun ScriptsScreen(
                         trailingIcon = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (targetPackage.isNotBlank()) {
+                                    detectedFrameworks[targetPackage]?.let { FrameworkBadge(it) }
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     AppPackageIcon(targetPackage)
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
@@ -219,10 +243,17 @@ fun ScriptsScreen(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(label)
+                                        val framework = detectedFrameworks[packageName]
+                                        Text(
+                                            if (framework != null) "$label (${framework.name})" else "$label (Analizando motor…)",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1
+                                        )
                                         Text(packageName, style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.outline)
+                                            color = MaterialTheme.colorScheme.outline, maxLines = 1)
                                     }
+                                    detectedFrameworks[packageName]?.let { FrameworkBadge(it) }
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     AppPackageIcon(packageName)
                                 }
                                 },
@@ -413,6 +444,35 @@ fun ScriptsScreen(
 }
 
 // ==================== SCRIPT LIST TAB ====================
+
+@Composable
+private fun FrameworkBadge(info: FrameworkInfo) {
+    val color = when (info.category) {
+        "unity" -> MaterialTheme.colorScheme.primary
+        "unreal" -> MaterialTheme.colorScheme.tertiary
+        "godot" -> MaterialTheme.colorScheme.error
+        "flutter" -> MaterialTheme.colorScheme.secondary
+        "react" -> MaterialTheme.colorScheme.primary
+        "javascript" -> MaterialTheme.colorScheme.tertiary
+        "dotnet" -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    Surface(
+        color = color,
+        contentColor = if (info.category == "native") MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
+        shape = androidx.compose.foundation.shape.CircleShape,
+        modifier = Modifier.size(29.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = info.badge,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                fontSize = if (info.badge.length > 1) 9.sp else 12.sp
+            )
+        }
+    }
+}
 
 @Composable
 private fun AppPackageIcon(packageName: String) {
