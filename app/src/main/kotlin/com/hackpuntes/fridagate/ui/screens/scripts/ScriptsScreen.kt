@@ -162,7 +162,7 @@ fun ScriptsScreen(
                     onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
                 ) {
                     OutlinedTextField(
-                        value = installedApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
+                        value = allInstalledApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
                             ?: targetPackage,
                         onValueChange = {},
                         readOnly = true,
