@@ -36,6 +36,9 @@ import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
 import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
 import com.hackpuntes.fridagate.utils.ScriptUtils
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -204,7 +207,11 @@ fun ScriptsScreen(
         TopAppBar(
             title = { Text("📝 Administrador de scripts") },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = {
+                        if (selectedTab != 0) selectedTab = 0 else onBack()
+                    }
+                ) {
                     Icon(Icons.Default.ArrowBack, "Volver")
                 }
             },
@@ -303,7 +310,11 @@ fun ScriptsScreen(
                     onExecute = { viewModel.executeScript(context, targetPackage) },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
-                        viewModel.exportLogs(context)
+                        viewModel.exportLogs(
+                            context = context,
+                            logLines = (logs + bypassLogs).takeLast(500),
+                            packageName = targetPackage
+                        )
                     }
                 )
             }
