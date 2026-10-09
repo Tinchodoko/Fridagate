@@ -439,7 +439,8 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     fun clearMessage() {
         _message.value = ""
     }
-    
+}
+
 // Factory para crear el ViewModel
 class ScriptsViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
