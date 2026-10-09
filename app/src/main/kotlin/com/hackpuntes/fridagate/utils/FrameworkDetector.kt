@@ -73,11 +73,12 @@ object FrameworkDetector {
             listOf("com.adobe.air", "com/adobe/air", "application.xml", "libstagefright_android.so"))
     )
 
-    private fun readDexTail(input: InputStream, declaredSize: Long, maxBytes: Int): ByteArray {
+    private suspend fun readDexTail(input: InputStream, declaredSize: Long, maxBytes: Int): ByteArray {
         val skipTarget = (declaredSize - maxBytes).coerceAtLeast(0L)
         var skipped = 0L
         val skipBuffer = ByteArray(8192)
         while (skipped < skipTarget) {
+            coroutineContext.ensureActive()
             val count = input.skip(skipTarget - skipped)
             if (count > 0) {
                 skipped += count
@@ -93,6 +94,7 @@ object FrameworkDetector {
         val buffer = ByteArray(8192)
         var total = 0
         while (total < maxBytes) {
+            coroutineContext.ensureActive()
             val count = input.read(buffer, 0, minOf(buffer.size, maxBytes - total))
             if (count < 0) break
             output.write(buffer, 0, count)
@@ -131,7 +133,7 @@ object FrameworkDetector {
 
                         // Lee una muestra limitada del final del DEX, sin cargarlo entero en RAM.
                         if (!entry.isDirectory &&
-                            Regex("classes(\\\\d*)\\\\.dex").matches(name) &&
+                            Regex("classes(\\d*)\\.dex").matches(name) &&
                             entry.size in 1..MAX_DEX_ENTRY_SIZE &&
                             dexFilesScanned < MAX_DEX_FILES &&
                             dexBytesScanned < MAX_TOTAL_DEX_BYTES
