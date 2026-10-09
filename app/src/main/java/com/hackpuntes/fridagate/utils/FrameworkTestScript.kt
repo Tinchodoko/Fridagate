@@ -17,6 +17,51 @@ object FrameworkTestScript {
               var captured = false;
               var banner = null;
               function log(s) { console.log('[Script Test By Tinchodoko][' + frameworkName + '] ' + s); }
+              function findViewAt(view, x, y) {
+                try {
+                  if (!view || !view.isShown()) return null;
+                  try {
+                    if (String(view.getContentDescription()) === 'fridagate_test_banner') return null;
+                  } catch (_) {}
+                  var location = Java.array('int', [0, 0]);
+                  view.getLocationOnScreen(location);
+                  var left = location[0], top = location[1];
+                  if (x < left || x > left + view.getWidth() || y < top || y > top + view.getHeight()) return null;
+                  try {
+                    var group = Java.cast(view, Java.use('android.view.ViewGroup'));
+                    for (var i = group.getChildCount() - 1; i >= 0; i--) {
+                      var child = findViewAt(group.getChildAt(i), x, y);
+                      if (child) return child;
+                    }
+                  } catch (_) {}
+                  return view;
+                } catch (_) { return null; }
+              }
+              function describeView(view) {
+                if (!view) return 'no se pudo identificar una vista Android';
+                var parts = [];
+                try { parts.push('clase=' + view.getClass().getName()); } catch (_) {}
+                try {
+                  var id = view.getId();
+                  if (id !== -1) parts.push('id=' + view.getResources().getResourceEntryName(id));
+                } catch (_) {}
+                try {
+                  var description = view.getContentDescription();
+                  if (description) parts.push('contentDescription="' + String(description) + '"');
+                } catch (_) {}
+                try {
+                  var className = String(view.getClass().getName());
+                  if (className.indexOf('EditText') === -1) {
+                    var TextView = Java.use('android.widget.TextView');
+                    if (TextView.class.isInstance(view)) {
+                      var text = Java.cast(view, TextView).getText();
+                      if (text) parts.push('texto="' + String(text).replace(/\\s+/g, ' ').slice(0, 100) + '"');
+                    }
+                  }
+                } catch (_) {}
+                try { if (view.isClickable()) parts.push('clickable=true'); } catch (_) {}
+                return parts.join(', ');
+              }
               if (!Java.available) { log('Java no disponible; test Android omitido.'); return; }
               Java.perform(function () {
                 try {
@@ -54,25 +99,12 @@ object FrameworkTestScript {
                       captured = true;
                       var x = event.getRawX(), y = event.getRawY();
                       var root = this.findViewById(0x01020002);
-                      var target = null;
-                      try {
-                        var loc = Java.array('int', [0, 0]);
-                        root.getLocationOnScreen(loc);
-                        if (x >= loc[0] && x <= loc[0] + root.getWidth() && y >= loc[1] && y <= loc[1] + root.getHeight()) target = root;
-                      } catch (_) {}
-                      var details = 'vista Android raíz';
-                      if (target) {
-                        try { details = 'clase=' + target.getClass().getName(); } catch (_) {}
-                        try {
-                          var id = target.getId();
-                          if (id !== -1) details += ', id=' + target.getResources().getResourceEntryName(id);
-                        } catch (_) {}
-                        try {
-                          var description = target.getContentDescription();
-                          if (description) details += ', descripción=' + description;
-                        } catch (_) {}
+                      var target = findViewAt(root, x, y);
+                      var details = describeView(target);
+                      log('PRIMER TOQUE: acción=ACTION_UP, x=' + x + ', y=' + y + '; elemento=' + details);
+                      if (banner) {
+                        try { banner.setText('Hola Mundo — Script Test By Tinchodoko: ' + frameworkName + '\\nPrimer toque: ' + details.slice(0, 110)); } catch (_) {}
                       }
-                      log('PRIMER TOQUE: ACTION_UP, x=' + x + ', y=' + y + '; elemento=' + details);
                       log('Nota: en motores que dibujan toda la interfaz (p. ej. Unity/Unreal/Godot), Android puede exponer solo la superficie y las coordenadas.');
                     }
                     return result;
