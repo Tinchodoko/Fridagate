@@ -4,6 +4,11 @@ package com.hackpuntes.fridagate.ui.screens.scripts
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -284,6 +289,37 @@ fun ScriptListTab(
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
+        // Android 11+ requires explicit all-files access for the public Documents folder.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Permiso para guardar scripts", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Para guardar tus archivos en Documents/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                runCatching { context.startActivity(intent) }
+                                    .onFailure {
+                                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                                    }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Conceder permiso de almacenamiento")
+                        }
+                    }
+                }
+            }
+        }
+
         // NEW SCRIPT BUTTON
         item {
             Button(
