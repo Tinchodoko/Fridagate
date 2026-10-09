@@ -134,6 +134,15 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
     }
     
+    fun importScript(name: String, code: String) {
+        val cleanName = name.substringBeforeLast('.', name).ifBlank { "Imported Script" }
+        if (code.isBlank()) {
+            _message.value = "⚠️ El archivo está vacío"
+            return
+        }
+        createScript(cleanName, code)
+    }
+
     // ==================== EXECUTION ====================
     
     fun setTargetApp(pid: Int?) {
