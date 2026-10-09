@@ -66,6 +66,7 @@ fun ScriptsScreen(
     val editorCode by viewModel.editorCode.collectAsState()
     val logs by viewModel.logs.collectAsState()
     val isExecuting by viewModel.isExecuting.collectAsState()
+    val activeTargetPackage by viewModel.activeTargetPackage.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
     var isRootAvailable by remember { mutableStateOf(false) }
@@ -438,6 +439,8 @@ fun ScriptsScreen(
                         val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
                         viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts, frameworkTestScript)
                     },
+                    activeTargetPackage = activeTargetPackage,
+                    onStopTargetApp = { packageName -> viewModel.stopTargetApp(packageName) },
                     frameworkInfo = detectedFrameworks[targetPackage],
                     frameworkTestEnabled = frameworkTestEnabled,
                     onToggleFrameworkTest = { frameworkTestEnabled = it },
@@ -598,6 +601,8 @@ fun ScriptListTab(
     onToggleBypassScript: (String) -> Unit,
     bypassScripts: List<ScriptUtils.BypassScript>,
     onLaunchWithBypass: (FridaScript?) -> Unit,
+    activeTargetPackage: String?,
+    onStopTargetApp: (String) -> Unit,
     frameworkInfo: FrameworkInfo?,
     frameworkTestEnabled: Boolean,
     onToggleFrameworkTest: (Boolean) -> Unit,
@@ -764,23 +769,41 @@ fun ScriptListTab(
         item {
             Button(
                 onClick = {
-                    val testScript = if (frameworkTestEnabled && frameworkInfo != null) {
-                        FridaScript(
-                            name = "Script Test By Tinchodoko ${frameworkInfo.name}",
-                            code = FrameworkTestScript.build(frameworkInfo.name, frameworkInfo.category),
-                            description = "Prueba de banner y primer toque",
-                            enabledForLaunch = true
-                        )
-                    } else null
-                    onLaunchWithBypass(testScript)
+                    if (activeTargetPackage == selectedTargetApp) {
+                        onStopTargetApp(selectedTargetApp)
+                    } else {
+                        val testScript = if (frameworkTestEnabled && frameworkInfo != null) {
+                            FridaScript(
+                                name = "Script Test By Tinchodoko ${frameworkInfo.name}",
+                                code = FrameworkTestScript.build(frameworkInfo.name, frameworkInfo.category),
+                                description = "Prueba de banner y primer toque",
+                                enabledForLaunch = true
+                            )
+                        } else null
+                        onLaunchWithBypass(testScript)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
-                enabled = isRootAvailable && !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() &&
-                (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch } || (frameworkTestEnabled && frameworkInfo != null))
+                enabled = isRootAvailable && !bypassLoading && selectedTargetApp.isNotBlank() &&
+                    if (activeTargetPackage == selectedTargetApp) {
+                        true
+                    } else {
+                        fridaInjectReady &&
+                        (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch } || (frameworkTestEnabled && frameworkInfo != null))
+                    },
+                colors = if (activeTargetPackage == selectedTargetApp) {
+                    ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                } else {
+                    ButtonDefaults.buttonColors()
+                }
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                if (activeTargetPackage == selectedTargetApp) {
+                    Icon(Icons.Default.Stop, contentDescription = null)
+                } else {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Lanzar aplicación")
+                Text(if (activeTargetPackage == selectedTargetApp) "Detener aplicación" else "Lanzar aplicación")
             }
             if (!fridaInjectReady) {
                 Text(
