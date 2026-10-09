@@ -1,8 +1,6 @@
-package com.hackpuntes.fridagate.ui.screens.scripts
-
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-import androidx.compose.material3.ExperimentalMaterial3Api
+package com.hackpuntes.fridagate.ui.screens.scripts
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
