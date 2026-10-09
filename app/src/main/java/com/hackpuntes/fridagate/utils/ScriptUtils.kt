@@ -56,7 +56,7 @@ object ScriptUtils {
     val SCRIPTS = listOf(
         BypassScript(
             id          = "root_bypass",
-            name        = "Omisión de detección de root",
+            name        = "Root Detection Bypass",
             description = "Intercepta File.exists(), Runtime.exec(), SystemProperties y PackageManager " +
                           "para ocultar indicios de acceso root, como su, Magisk, SuperSU y marcas de compilación.",
             category    = "root",
@@ -65,7 +65,7 @@ object ScriptUtils {
         ),
         BypassScript(
             id          = "ssl_bypass",
-            name        = "Omisión universal de SSL Pinning",
+            name        = "Universal SSL Pinning Bypass",
             description = "Omite la validación de certificados en TrustManager, OkHttp 2/3, Conscrypt, " +
                           "HostnameVerifier, la configuración de seguridad de red de Android y TrustKit. " +
                           "Compatible con muchas aplicaciones sin modificarlas.",
