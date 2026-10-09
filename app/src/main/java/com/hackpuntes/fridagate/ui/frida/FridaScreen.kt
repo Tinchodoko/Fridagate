@@ -107,7 +107,7 @@ fun FridaScreen(
                 selectedVersion = selectedVersion,
                 onVersionSelected = { viewModel.setSelectedVersion(it) },
                 onCustomVersion = { viewModel.setCustomVersion(it) },
-                enabled = !isLoading
+                enabled = !isLoading && isRootAvailable
             )
 
             // ── Section: Action Buttons ───────────────────────────────────────
@@ -359,7 +359,7 @@ private fun ActionButtons(
             StatusRow("frida-inject", if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado", isInjectInstalled)
             if (!isInjectInstalled) {
                 Text("Necesario para lanzar scripts desde el dispositivo. Se instala con la misma versión que frida-server.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = onDownloadInject, enabled = !isInjectLoading && !isLoading, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onDownloadInject, enabled = !isInjectLoading && !isLoading && isRootAvailable, modifier = Modifier.fillMaxWidth()) {
                     Text("Descargar frida-inject")
                 }
             }
@@ -384,7 +384,7 @@ private fun ActionButtons(
                     Button(
                         onClick = onStart,
                         modifier = Modifier.weight(1f),
-                        enabled = !isLoading && !isRunning,
+                        enabled = !isLoading && !isRunning && isRootAvailable,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4CAF50) // Green
                         )
@@ -394,7 +394,7 @@ private fun ActionButtons(
                     Button(
                         onClick = onStop,
                         modifier = Modifier.weight(1f),
-                        enabled = !isLoading && isRunning,
+                        enabled = !isLoading && isRunning && isRootAvailable,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFF44336) // Red
                         )
@@ -405,14 +405,14 @@ private fun ActionButtons(
                 OutlinedButton(
                     onClick = onStartCustom,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading && !isRunning
+                    enabled = !isLoading && !isRunning && isRootAvailable
                 ) { Text("Iniciar con parámetros personalizados") }
 
                 // Uninstall button
                 OutlinedButton(
                     onClick = onUninstall,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading,
+                    enabled = !isLoading && isRootAvailable,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
@@ -423,7 +423,7 @@ private fun ActionButtons(
             OutlinedButton(
                 onClick = onRefresh,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
+                enabled = !isLoading && isRootAvailable
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
