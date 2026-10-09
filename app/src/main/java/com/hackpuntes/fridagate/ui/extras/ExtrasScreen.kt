@@ -72,7 +72,7 @@ fun ExtrasScreen() {
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Experimental — some apps may not work. Report issues at github.com/JavierOlmedo/Fridagate/issues",
+                        text = "Experimental — el soporte puede variar según la aplicación.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFE65100)
                     )
@@ -97,13 +97,13 @@ fun ExtrasScreen() {
                     )
                     Column {
                         Text(
-                            text = "Bypass Injection",
+                            text = "Estado del entorno Frida",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Select a target app, enable scripts and launch.",
+                            text = "Consulta el estado de frida-server y frida-inject.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
