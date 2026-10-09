@@ -25,6 +25,9 @@ import com.hackpuntes.fridagate.utils.RootUtils
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -59,7 +62,7 @@ fun ProxyScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) isRootAvailable = RootUtils.isRootAvailable()
+            if (event == Lifecycle.Event.ON_RESUME) CoroutineScope(Dispatchers.IO).launch { isRootAvailable = RootUtils.isRootAvailable() }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -204,6 +207,7 @@ private fun ConnectionSettingsCard(
                     onValueChange = onHttpsPortChange,
                     label = { Text("Puerto HTTPS") },
                     modifier = Modifier.weight(1f),
+                    enabled = isRootAvailable && !isLoading,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
