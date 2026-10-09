@@ -11,12 +11,16 @@ class ScriptRepository(private val context: Context) {
     
     private val scriptsDir: File
         get() {
-            val dir = File(
+            val publicDir = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-                "Fridagate2.0/Scripts"
+                "FridaGate 2.0/Scripts"
             )
-            if (!dir.exists()) dir.mkdirs()
-            return dir
+            if ((publicDir.exists() || publicDir.mkdirs()) && publicDir.canWrite()) {
+                return publicDir
+            }
+            val appDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FridaGate 2.0/Scripts")
+            if (!appDir.exists()) appDir.mkdirs()
+            return appDir
         }
     
     // CREATE - Guardar nuevo script
