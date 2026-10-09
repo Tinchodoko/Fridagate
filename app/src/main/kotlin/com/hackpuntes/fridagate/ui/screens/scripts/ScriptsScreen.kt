@@ -210,6 +210,10 @@ fun ScriptsScreen(
                     selectedScript = selectedScript,
                     selectedTargetApp = targetPackage,
                     onImportScript = { importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*")) },
+                    onExportScript = { script ->
+                        scriptToExport = script
+                        showConfirmExport = true
+                    },
                     enabledBypassScripts = enabledBypassScripts,
                     onToggleBypassScript = { extrasViewModel.toggleScript(it) },
                     bypassScripts = extrasViewModel.scripts,
@@ -307,6 +311,7 @@ fun ScriptListTab(
     selectedScript: FridaScript?,
     selectedTargetApp: String,
     onImportScript: () -> Unit,
+    onExportScript: (FridaScript) -> Unit,
     enabledBypassScripts: Set<String>,
     onToggleBypassScript: (String) -> Unit,
     bypassScripts: List<ScriptUtils.BypassScript>,
@@ -493,10 +498,7 @@ fun ScriptListTab(
                     script = script,
                     isSelected = selectedScript?.id == script.id,
                     onSelect = { onSelectScript(script) },
-                    onExport = {
-                        scriptToExport = script
-                        showConfirmExport = true
-                    },
+                    onExport = { onExportScript(script) },
                     onDelete = { onDeleteScript(script) }
                 )
             }
