@@ -176,7 +176,15 @@ fun ScriptsScreen(
                         readOnly = true,
                         label = { Text("Seleccionar aplicación instalada") },
                         placeholder = { Text("Elige una aplicación") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (targetPackage.isNotBlank()) {
+                                    AppPackageIcon(targetPackage)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded)
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     )
