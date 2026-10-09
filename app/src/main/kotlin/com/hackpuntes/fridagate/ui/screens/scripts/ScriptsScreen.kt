@@ -121,7 +121,7 @@ fun ScriptsScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Seleccionar aplicación instalada") },
-                        placeholder = { Text("Elige una app") },
+                        placeholder = { Text("Elige una aplicación") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
                         modifier = Modifier.fillMaxWidth()
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
@@ -387,7 +387,7 @@ fun ScriptListTab(
         // PREDEFINED SCRIPTS SECTION
         item {
             Text(
-                "🛡️ Scripts Predefinidos",
+                "🛡️ Scripts predefinidos",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
@@ -463,7 +463,7 @@ fun ScriptListTab(
         // USER SCRIPTS SECTION
         item {
             Text(
-                "📝 Mis Scripts",
+                "📝 Mis scripts",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
@@ -680,7 +680,7 @@ fun LogsTab(
                         .fillMaxSize()
                         .wrapContentSize(Alignment.Center)
                 ) {
-                    Text("Sin logs", color = MaterialTheme.colorScheme.outline)
+                    Text("Sin registros", color = MaterialTheme.colorScheme.outline)
                 }
             } else {
                 LazyColumn(
