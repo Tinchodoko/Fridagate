@@ -260,105 +260,46 @@ private fun VersionSelector(
     onCustomVersion: (String) -> Unit,
     enabled: Boolean
 ) {
-    // Controls whether the dropdown is expanded or collapsed
     var expanded by remember { mutableStateOf(false) }
-    // Controls whether the custom version input dialog is shown
-    var showCustomDialog by remember { mutableStateOf(false) }
+    val latestVersion = releases.firstOrNull()?.version ?: "No disponible"
+    val versions = listOf("16.7.19" to "Recommended", latestVersion to "Latest")
+        .distinctBy { it.first }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Version to Install",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Text("Version to Install", style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
-
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { if (enabled) expanded = !expanded }
             ) {
-                // The text field that shows the currently selected version
                 OutlinedTextField(
-                    value = if (selectedVersion.isEmpty()) "Select version..." else selectedVersion,
-                    onValueChange = {},
-                    readOnly = true, // User can't type here — must use the dropdown
-                    trailingIcon = {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand")
+                    value = when (selectedVersion) {
+                        "16.7.19" -> "16.7.19 (Recommended)"
+                        latestVersion -> "$latestVersion (Latest)"
+                        else -> selectedVersion.ifEmpty { "Select version..." }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // menuAnchor links this text field to the dropdown menu
-                        // ExposedDropdownMenuAnchorType.PrimaryNotEditable = field is read-only (no typing)
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand") },
+                    modifier = Modifier.fillMaxWidth()
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled),
                     enabled = enabled
                 )
-
-                // The dropdown list
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    // List all available releases
-                    releases.forEach { release ->
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    versions.forEach { (version, label) ->
                         DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(text = release.version, fontWeight = FontWeight.Bold)
-                                    Text(
-                                        text = release.releaseDate,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            },
+                            text = { Text("$version ($label)", fontWeight = FontWeight.Bold) },
                             onClick = {
-                                onVersionSelected(release.version)
+                                onVersionSelected(version)
                                 expanded = false
                             }
                         )
                     }
-
-                    // Special option at the bottom to enter a custom version
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text("⚙ Custom version...") },
-                        onClick = {
-                            expanded = false
-                            showCustomDialog = true
-                        }
-                    )
                 }
             }
         }
-    }
-
-    // Custom version input dialog
-    if (showCustomDialog) {
-        var customInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showCustomDialog = false },
-            title = { Text("Enter Custom Version") },
-            text = {
-                OutlinedTextField(
-                    value = customInput,
-                    onValueChange = { customInput = it },
-                    label = { Text("Version (e.g. 16.5.9)") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (customInput.isNotEmpty()) {
-                        onCustomVersion(customInput)
-                        showCustomDialog = false
-                    }
-                }) { Text("Set") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCustomDialog = false }) { Text("Cancel") }
-            }
-        )
     }
 }
 
