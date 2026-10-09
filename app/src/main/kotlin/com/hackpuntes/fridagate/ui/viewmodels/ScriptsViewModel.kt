@@ -198,7 +198,12 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
 
     fun setUserScriptEnabled(scriptId: String, enabled: Boolean) = viewModelScope.launch {
         val script = _scripts.value.firstOrNull { it.id == scriptId } ?: return@launch
-        updateScript(script.copy(enabledForLaunch = enabled))
+        val updated = script.copy(enabledForLaunch = enabled)
+        _scripts.update { current -> current.map { if (it.id == scriptId) updated else it } }
+        if (!repository.updateScript(updated)) {
+            addLog("❌ No se pudo guardar el estado del script ${script.name}")
+            loadScripts()
+        }
     }
 
     fun launchEnabledScripts(
