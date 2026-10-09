@@ -41,6 +41,7 @@ import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
 import com.hackpuntes.fridagate.utils.ScriptUtils
 import com.hackpuntes.fridagate.utils.RootUtils
 import com.hackpuntes.fridagate.utils.FrameworkDetector
+import com.hackpuntes.fridagate.utils.FrameworkTestScript
 import com.hackpuntes.fridagate.utils.FrameworkInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -122,6 +123,7 @@ fun ScriptsScreen(
     var targetMenuExpanded by remember { mutableStateOf(false) }
 
     var detectedFrameworks by remember { mutableStateOf<Map<String, FrameworkInfo>>(emptyMap()) }
+    var frameworkTestEnabled by remember(targetPackage) { mutableStateOf(false) }
 
     // Analiza únicamente la aplicación seleccionada. Cambiar o quitar la selección
     // cancela esta corrutina y evita recorrer todas las aplicaciones del dispositivo.
@@ -422,10 +424,13 @@ fun ScriptsScreen(
                         viewModel.addLog("Script predefinido cambiado: $scriptName")
                     },
                     bypassScripts = extrasViewModel.scripts,
-                    onLaunchWithBypass = {
+                    onLaunchWithBypass = { frameworkTestScript ->
                         val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
-                        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts)
+                        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts, frameworkTestScript)
                     },
+                    frameworkInfo = detectedFrameworks[targetPackage],
+                    frameworkTestEnabled = frameworkTestEnabled,
+                    onToggleFrameworkTest = { frameworkTestEnabled = it },
                     bypassLoading = bypassLoading || isExecuting,
                     isRootAvailable = isRootAvailable,
                     onToggleUserScript = { script, enabled -> viewModel.setUserScriptEnabled(script.id, enabled) },
@@ -457,13 +462,10 @@ fun ScriptsScreen(
                 )
                 2 -> LogsTab(
                     logs = (logs + bypassLogs).takeLast(500),
-                    isExecuting = isExecuting,
                     onClearLogs = {
                         viewModel.clearLogs()
                         extrasViewModel.clearLogs()
                     },
-                    onExecute = { viewModel.executeScript(context, targetPackage) },
-                    onStop = { viewModel.stopScript() },
                     onExportLogs = {
                         viewModel.exportLogs(
                             context = context,
@@ -586,7 +588,10 @@ fun ScriptListTab(
     enabledBypassScripts: Set<String>,
     onToggleBypassScript: (String) -> Unit,
     bypassScripts: List<ScriptUtils.BypassScript>,
-    onLaunchWithBypass: () -> Unit,
+    onLaunchWithBypass: (FridaScript?) -> Unit,
+    frameworkInfo: FrameworkInfo?,
+    frameworkTestEnabled: Boolean,
+    onToggleFrameworkTest: (Boolean) -> Unit,
     bypassLoading: Boolean,
     isRootAvailable: Boolean,
     onToggleUserScript: (FridaScript, Boolean) -> Unit,
@@ -641,6 +646,62 @@ fun ScriptListTab(
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
         }
+        if (frameworkInfo != null && selectedTargetApp.isNotBlank()) {
+            item {
+                val testCode = remember(frameworkInfo.name, frameworkInfo.category) {
+                    FrameworkTestScript.build(frameworkInfo.name, frameworkInfo.category)
+                }
+                var showTestSource by remember(selectedTargetApp, frameworkInfo.name) { mutableStateOf(false) }
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "🧪 Script Test By Tinchodoko — ${frameworkInfo.name}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "Muestra “Hola Mundo” y registra solo el primer toque Android en los logs.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = frameworkTestEnabled,
+                                onCheckedChange = onToggleFrameworkTest,
+                                enabled = !bypassLoading
+                            )
+                        }
+                        TextButton(onClick = { showTestSource = !showTestSource }) {
+                            Text(if (showTestSource) "Ocultar código" else "Ver código de prueba")
+                        }
+                        if (showTestSource) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                LazyColumn(modifier = Modifier.padding(8.dp)) {
+                                    items(testCode.lines()) { line ->
+                                        Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         items(bypassScripts) { script ->
             var showSource by remember(script.id) { mutableStateOf(false) }
             Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
@@ -693,10 +754,20 @@ fun ScriptListTab(
         }
         item {
             Button(
-                onClick = onLaunchWithBypass,
+                onClick = {
+                    val testScript = if (frameworkTestEnabled && frameworkInfo != null) {
+                        FridaScript(
+                            name = "Script Test By Tinchodoko ${frameworkInfo.name}",
+                            code = FrameworkTestScript.build(frameworkInfo.name, frameworkInfo.category),
+                            description = "Prueba de banner y primer toque",
+                            enabledForLaunch = true
+                        )
+                    } else null
+                    onLaunchWithBypass(testScript)
+                },
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 enabled = isRootAvailable && !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() &&
-                (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch })
+                (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch } || (frameworkTestEnabled && frameworkInfo != null))
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -870,29 +941,6 @@ fun EditorTab(
             singleLine = true
         )
         
-        // Templates buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Button(
-                onClick = { viewModel.insertBasicTemplate() },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(4.dp)
-            ) {
-                Text("📄 Básico", fontSize = 10.sp)
-            }
-            Button(
-                onClick = { viewModel.insertIL2CPPTemplate() },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(4.dp)
-            ) {
-                Text("🔗 IL2CPP", fontSize = 10.sp)
-            }
-        }
-        
         // Code editor
         TextField(
             value = editorCode,
@@ -927,10 +975,7 @@ fun EditorTab(
 @Composable
 fun LogsTab(
     logs: List<String>,
-    isExecuting: Boolean,
     onClearLogs: () -> Unit,
-    onExecute: () -> Unit,
-    onStop: () -> Unit,
     onExportLogs: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -977,31 +1022,8 @@ fun LogsTab(
             }
         }
         
-        // Action buttons
+        // Solo acciones propias del registro: limpiar y exportar.
         Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Button(
-                    onClick = onExecute,
-                    enabled = !isExecuting,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("▶️ Ejecutar", fontSize = 11.sp)
-                }
-                Button(
-                    onClick = onStop,
-                    enabled = isExecuting,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("⏹️ Detener", fontSize = 11.sp)
-                }
-            }
-            
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
