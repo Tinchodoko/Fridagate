@@ -78,10 +78,14 @@ fun ScriptsScreen(
     ) { uri ->
         if (uri != null) {
             runCatching {
-                val code = context.contentResolver.openInputStream(uri)
-                    ?.bufferedReader()?.use { it.readText() } ?: ""
                 val name = uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.js"
-                viewModel.importScript(name, code)
+                if (!name.endsWith(".js", ignoreCase = true)) {
+                    viewModel.addLog("⚠️ Selecciona un archivo con extensión .js")
+                } else {
+                    val code = context.contentResolver.openInputStream(uri)
+                        ?.bufferedReader()?.use { it.readText() } ?: ""
+                    viewModel.importScript(name, code)
+                }
             }.onFailure {
                 viewModel.addLog("❌ No se pudo importar el archivo .js: ${it.message}")
             }
