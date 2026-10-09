@@ -1,5 +1,6 @@
 package com.hackpuntes.fridagate.ui.viewmodels
 
+import androidx.lifecycle.viewModelScope
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
