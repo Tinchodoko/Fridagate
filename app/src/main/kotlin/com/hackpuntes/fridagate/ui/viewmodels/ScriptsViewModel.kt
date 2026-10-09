@@ -135,13 +135,23 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
     }
     
-    fun importScript(name: String, code: String) {
-        val cleanName = name.substringBeforeLast('.', name).ifBlank { "Imported Script" }
+    fun importScript(name: String, code: String) = viewModelScope.launch {
+        val cleanName = name.substringBeforeLast('.', name).ifBlank { "Script importado" }
         if (code.isBlank()) {
             _message.value = "⚠️ El archivo está vacío"
-            return
+            return@launch
         }
-        createScript(cleanName, code)
+        val script = FridaScript(
+            name = cleanName,
+            code = code,
+            supportsIL2CPP = code.contains("frida-il2cpp-bridge", ignoreCase = true)
+        )
+        if (repository.createScript(script)) {
+            _scripts.value = repository.getAllScripts()
+            _message.value = "✅ Script importado: $cleanName"
+        } else {
+            _message.value = "❌ No se pudo guardar el script importado. Comprueba el almacenamiento."
+        }
     }
 
     // ==================== EXECUTION ====================
