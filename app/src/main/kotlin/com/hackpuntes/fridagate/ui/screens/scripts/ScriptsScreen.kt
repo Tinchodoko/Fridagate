@@ -200,24 +200,67 @@ fun ScriptsScreen(
                         }
                     }
                 }
-                ExposedDropdownMenuBox(
-                    expanded = targetMenuExpanded,
-                    onExpandedChange = { if (isRootAvailable) targetMenuExpanded = !targetMenuExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = if (targetPackage.isBlank()) "" else "Cambiar aplicación de destino",
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = isRootAvailable,
-                        label = { Text("Seleccionar una app") },
-                        placeholder = { Text("Elige una aplicación") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
+                val selectedApp = allInstalledApps.firstOrNull { it.second == targetPackage }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (targetPackage.isBlank()) {
+                        OutlinedButton(
+                            onClick = { if (isRootAvailable) targetMenuExpanded = true },
+                            enabled = isRootAvailable,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Text("Seleccionar una app", modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Abrir selector de aplicaciones")
+                        }
+                    } else {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            Text(
+                                selectedApp?.first ?: targetPackage,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    targetPackage,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 2
+                                )
+                                AppPackageIcon(targetPackage)
+                                IconButton(
+                                    onClick = {
+                                        val removedPackage = targetPackage
+                                        extrasViewModel.setTargetPackage("")
+                                        viewModel.addLog("Aplicación de destino retirada: $removedPackage. Análisis detenido.")
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Quitar aplicación seleccionada y detener análisis",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { if (isRootAvailable) targetMenuExpanded = true },
+                                    enabled = isRootAvailable,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = "Cambiar aplicación de destino"
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    DropdownMenu(
                         expanded = targetMenuExpanded,
                         onDismissRequest = { targetMenuExpanded = false },
                         modifier = Modifier.heightIn(max = 320.dp)
@@ -230,7 +273,7 @@ fun ScriptsScreen(
                                         Text(
                                             packageName,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.outline,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1
                                         )
                                     }
@@ -250,49 +293,17 @@ fun ScriptsScreen(
                 }
 
                 if (targetPackage.isNotBlank()) {
-                    val selectedApp = allInstalledApps.firstOrNull { it.second == targetPackage }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                selectedApp?.first ?: targetPackage,
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 2
-                            )
-                            Text(
-                                targetPackage,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                        AppPackageIcon(targetPackage)
-                        IconButton(
-                            onClick = {
-                                val removedPackage = targetPackage
-                                extrasViewModel.setTargetPackage("")
-                                viewModel.addLog("Aplicación de destino retirada: $removedPackage. Análisis detenido.")
-                            },
-                            modifier = Modifier.padding(start = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Quitar aplicación seleccionada y detener análisis",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-
                     val framework = detectedFrameworks[targetPackage]
                     Card(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
                         )
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                            val isGameEngine = framework?.category?.let { it in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold") } == true
+                            val isGameEngine = framework?.category?.let {
+                                it in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold")
+                            } == true
                             Text(
                                 if (isGameEngine) "MOTOR DE JUEGO" else "FRAMEWORK / MOTOR DE JUEGO",
                                 style = MaterialTheme.typography.labelLarge,
