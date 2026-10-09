@@ -4,7 +4,6 @@ package com.hackpuntes.fridagate.ui.screens.scripts
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,15 +43,6 @@ fun ScriptsScreen(
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
 
-    val installedApps = remember(context) {
-        context.packageManager.getInstalledApplications(0)
-            .filter { it.packageName != context.packageName }
-            .map { info ->
-                context.packageManager.getApplicationLabel(info).toString() to info.packageName
-            }
-            .sortedBy { it.first.lowercase(Locale.getDefault()) }
-    }
-    var targetMenuExpanded by remember { mutableStateOf(false) }
     val importJsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -136,6 +126,7 @@ fun ScriptsScreen(
                     selectedScript = selectedScript,
                     selectedTargetApp = selectedTargetApp,
                     onSelectTargetApp = { selectedTargetApp = it },
+                    onImportScript = { importJsLauncher.launch(arrayOf("*/*")) },
                     rootBypassEnabled = rootBypassEnabled,
                     onRootBypassToggle = { rootBypassEnabled = it },
                     sslBypassEnabled = sslBypassEnabled,
@@ -208,6 +199,7 @@ fun ScriptListTab(
     selectedScript: FridaScript?,
     selectedTargetApp: String?,
     onSelectTargetApp: (String) -> Unit,
+    onImportScript: () -> Unit,
     rootBypassEnabled: Boolean,
     onRootBypassToggle: (Boolean) -> Unit,
     sslBypassEnabled: Boolean,
@@ -216,6 +208,17 @@ fun ScriptListTab(
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
 ) {
+    val context = LocalContext.current
+    val installedApps = remember(context) {
+        context.packageManager.getInstalledApplications(0)
+            .filter { it.packageName != context.packageName }
+            .map { info ->
+                context.packageManager.getApplicationLabel(info).toString() to info.packageName
+            }
+            .sortedBy { it.first.lowercase(Locale.getDefault()) }
+    }
+    var targetMenuExpanded by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -284,7 +287,7 @@ fun ScriptListTab(
         // IMPORT BUTTON
         item {
             Button(
-                onClick = { importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "text/plain")) },
+                onClick = onImportScript,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
