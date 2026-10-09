@@ -20,6 +20,14 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    # Reuse one debug keystore across CI builds so Android can update an
+    # already-installed FridaGate APK instead of rejecting a changed signature.
+    - name: Restore stable debug signing key
+      uses: actions/cache@v4
+      with:
+        path: ~/.android/debug.keystore
+        key: fridagate-debug-keystore-v1
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
