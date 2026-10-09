@@ -40,6 +40,7 @@ class ScriptRepository(private val context: Context) {
                 updatedAt=${script.updatedAt}
                 supportsIL2CPP=${script.supportsIL2CPP}
                 tags=${script.tags.joinToString(",")}
+                enabledForLaunch=${script.enabledForLaunch}
             """.trimIndent()
             metadata.writeText(metaData)
             
@@ -67,7 +68,8 @@ class ScriptRepository(private val context: Context) {
                 createdAt = metadata["createdAt"]?.toLongOrNull() ?: System.currentTimeMillis(),
                 updatedAt = metadata["updatedAt"]?.toLongOrNull() ?: System.currentTimeMillis(),
                 supportsIL2CPP = metadata["supportsIL2CPP"]?.toBoolean() ?: false,
-                tags = metadata["tags"]?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+                tags = metadata["tags"]?.split(",")?.filter { it.isNotEmpty() } ?: emptyList(),
+                enabledForLaunch = metadata["enabledForLaunch"]?.toBoolean() ?: false
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -91,6 +93,7 @@ class ScriptRepository(private val context: Context) {
                 updatedAt=${updatedScript.updatedAt}
                 supportsIL2CPP=${updatedScript.supportsIL2CPP}
                 tags=${updatedScript.tags.joinToString(",")}
+                enabledForLaunch=${updatedScript.enabledForLaunch}
             """.trimIndent()
             metadata.writeText(metaData)
             
