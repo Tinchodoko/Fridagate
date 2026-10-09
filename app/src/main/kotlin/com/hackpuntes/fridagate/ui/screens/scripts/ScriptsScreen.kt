@@ -375,7 +375,7 @@ fun ScriptListTab(
             Button(
                 onClick = onLaunchWithBypass,
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
-                enabled = !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank()
+                enabled = !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() && enabledBypassScripts.isNotEmpty()
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
