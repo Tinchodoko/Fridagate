@@ -102,63 +102,6 @@ fun ExtrasScreen() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Composable
-private fun EnvironmentCard(
-    isFridaRunning: Boolean,
-    isFridaInjectInstalled: Boolean,
-    fridaInjectVersion: String?,
-    isLoading: Boolean,
-    onRefresh: () -> Unit,
-    onDownload: () -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Environment", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                IconButton(onClick = onRefresh, enabled = !isLoading) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                }
-            }
-
-            EnvRow("frida-server",   if (isFridaRunning) "● Running" else "● Stopped", isFridaRunning)
-            EnvRow(
-                label    = "frida-inject",
-                value    = if (isFridaInjectInstalled) "● v${fridaInjectVersion ?: "?"}" else "● Not installed",
-                isActive = isFridaInjectInstalled
-            )
-
-            if (!isFridaInjectInstalled) {
-                Text(
-                    text  = "Required for on-device launch. Downloaded from GitHub at the same version as frida-server.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedButton(
-                    onClick  = onDownload,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled  = !isLoading
-                ) {
-                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Download frida-inject")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EnvRow(label: String, value: String, isActive: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Text(value, fontWeight = FontWeight.Bold, color = if (isActive) Color(0xFF4CAF50) else Color(0xFFF44336))
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TargetPackageCard(
