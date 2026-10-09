@@ -56,20 +56,19 @@ object ScriptUtils {
     val SCRIPTS = listOf(
         BypassScript(
             id          = "root_bypass",
-            name        = "Root Detection Bypass",
-            description = "Hooks File.exists(), Runtime.exec(), SystemProperties, " +
-                          "and PackageManager to hide all signs of root access: " +
-                          "su binaries, Magisk, SuperSU, and build flags.",
+            name        = "Omisión de detección de root",
+            description = "Intercepta File.exists(), Runtime.exec(), SystemProperties y PackageManager " +
+                          "para ocultar indicios de acceso root, como su, Magisk, SuperSU y marcas de compilación.",
             category    = "root",
             assetPath   = "scripts/fridantiroot.js",
             fileName    = "fridantiroot.js"
         ),
         BypassScript(
             id          = "ssl_bypass",
-            name        = "Universal SSL Pinning Bypass",
-            description = "Bypasses certificate pinning for TrustManager, OkHttp3/2, " +
-                          "Conscrypt, HostnameVerifier, Android Network Security Config, " +
-                          "and TrustKit. Works on most apps without modifications.",
+            name        = "Omisión universal de SSL Pinning",
+            description = "Omite la validación de certificados en TrustManager, OkHttp 2/3, Conscrypt, " +
+                          "HostnameVerifier, la configuración de seguridad de red de Android y TrustKit. " +
+                          "Compatible con muchas aplicaciones sin modificarlas.",
             category    = "ssl",
             assetPath   = "scripts/universal-android-ssl-pinning-bypass-with-frida.js",
             fileName    = "universal-android-ssl-pinning-bypass-with-frida.js"
