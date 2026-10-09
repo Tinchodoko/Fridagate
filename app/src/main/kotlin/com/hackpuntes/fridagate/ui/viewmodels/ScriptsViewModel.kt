@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.data.repository.ScriptRepository
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
+import com.hackpuntes.fridagate.utils.ScriptUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -192,6 +193,44 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             addLog("❌ Error de inyección: ${e.message}")
         } finally {
             _isExecuting.value = false
+        }
+    }
+
+    fun setUserScriptEnabled(scriptId: String, enabled: Boolean) = viewModelScope.launch {
+        val script = _scripts.value.firstOrNull { it.id == scriptId } ?: return@launch
+        updateScript(script.copy(enabledForLaunch = enabled))
+    }
+
+    fun launchEnabledScripts(
+        context: Context,
+        packageName: String,
+        enabledBuiltInScripts: List<ScriptUtils.BypassScript>
+    ) = viewModelScope.launch {
+        if (packageName.isBlank()) {
+            addLog("❌ Error: Selecciona una aplicación de destino primero")
+            return@launch
+        }
+        val enabledUserScripts = _scripts.value.filter { it.enabledForLaunch }
+        if (enabledBuiltInScripts.isEmpty() && enabledUserScripts.isEmpty()) {
+            addLog("⚠️ Activa al menos un script antes de lanzar la aplicación")
+            return@launch
+        }
+
+        _isExecuting.value = true
+        addLog("▶️ Lanzando $packageName con ${enabledBuiltInScripts.size + enabledUserScripts.size} script(s) activado(s)")
+        try {
+            val result = FridaInjectUtils.launchWithCombinedScripts(
+                context = context,
+                bypassScripts = enabledBuiltInScripts,
+                customScripts = enabledUserScripts,
+                packageName = packageName
+            )
+            result.forEach { addLog(it) }
+        } catch (e: Exception) {
+            addLog("❌ Error de inyección: ${e.message}")
+        } finally {
+            _isExecuting.value = false
+            loadScripts()
         }
     }
 
