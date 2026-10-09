@@ -239,12 +239,13 @@ object FridaInjectUtils {
             localFile.writeText(source)
             val devicePath = "/data/local/tmp/fridagate_enabled_scripts.js"
             val copyResult = RootUtils.executeSuCommand(
-                "cp \"${localFile.absolutePath}\" $devicePath && chmod 644 $devicePath"
+                "cp \"${localFile.absolutePath}\" $devicePath && chmod 644 $devicePath && test -s $devicePath && echo SCRIPT_STAGE_OK"
             )
             localFile.delete()
-            if (copyResult.contains("Permission denied", ignoreCase = true) ||
+            if (!copyResult.contains("SCRIPT_STAGE_OK") ||
+                copyResult.contains("Permission denied", ignoreCase = true) ||
                 copyResult.contains("No such file", ignoreCase = true)) {
-                return@withContext listOf("ERROR: Could not stage scripts: $copyResult")
+                return@withContext listOf("ERROR: Could not stage scripts at $devicePath: $copyResult")
             }
 
             lines += "Enabled scripts: ${bypassScripts.size + customScripts.size}"
