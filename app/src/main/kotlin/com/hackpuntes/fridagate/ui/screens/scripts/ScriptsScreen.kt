@@ -257,10 +257,13 @@ fun ScriptsScreen(
     }
     
     if (showConfirmExport && scriptToExport != null) {
+        val exportName = scriptToExport!!.name.let {
+            if (it.endsWith(".js", ignoreCase = true)) it else "$it.js"
+        }
         AlertDialog(
             onDismissRequest = { showConfirmExport = false },
             title = { Text("Exportar script") },
-            text = { Text("¿Deseas exportar el archivo \"${scriptToExport!!.name}.js\" a la carpeta de Descargas?") },
+            text = { Text("¿Deseas exportar el archivo \"$exportName\" a la carpeta de Descargas?") },
             confirmButton = {
                 Button(onClick = {
                     viewModel.exportScriptToDownloads(context, scriptToExport!!)
