@@ -600,19 +600,26 @@ object FridaUtils {
     suspend fun isFridaServerRunning(): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Try "ps -A" first (modern Android)
-                var result = RootUtils.executeSuCommand("ps -A | grep frida-server")
-                if (result.contains("frida-server")) return@withContext true
+                // Prefer pidof: unlike grep, it cannot match its own command line.
+                val pidResult = RootUtils.executeSuCommand("pidof frida-server").trim()
+                if (pidResult.split(Regex("\\s+")).any { it.isNotBlank() && it.all(Char::isDigit) }) {
+                    return@withContext true
+                }
 
-                // Try "ps" without -A (older Android)
-                result = RootUtils.executeSuCommand("ps | grep frida-server")
-                if (result.contains("frida-server")) return@withContext true
-
-                // Try pidof: returns the PID if the process exists, empty if not
-                result = RootUtils.executeSuCommand("pidof frida-server")
-                if (result.trim().isNotEmpty()) return@withContext true
-
-                false
+                // Fallback for Android builds without pidof. Exclude grep itself so the
+                // status check cannot report a server that is not actually running.
+                val processLists = listOf(
+                    RootUtils.executeSuCommand("ps -A"),
+                    RootUtils.executeSuCommand("ps")
+                )
+                processLists.any { output ->
+                    output.lineSequence().any { line ->
+                        line.contains("frida-server") &&
+                            !line.contains("grep") &&
+                            !line.contains("sh -c") &&
+                            !line.contains("toybox")
+                    }
+                }
             } catch (e: Exception) {
                 false
             }
