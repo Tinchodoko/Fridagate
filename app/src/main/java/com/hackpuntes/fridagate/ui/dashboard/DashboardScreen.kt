@@ -24,6 +24,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hackpuntes.fridagate.data.AppPreferences
 import com.hackpuntes.fridagate.utils.FridaUtils
+import com.hackpuntes.fridagate.utils.FridaInjectUtils
 import com.hackpuntes.fridagate.utils.ProxyUtils
 import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +51,8 @@ import kotlinx.coroutines.launch
  */
 class DashboardViewModel(context: Context) : ViewModel() {
 
-    private val prefs = AppPreferences(context.applicationContext)
+    private val appContext = context.applicationContext
+    private val prefs = AppPreferences(appContext)
 
     // ── Status flags ──────────────────────────────────────────────────────────
 
@@ -184,6 +186,97 @@ class DashboardViewModel(context: Context) : ViewModel() {
      *  1. Stop frida-server
      *  2. Disable iptables proxy
      */
+    /**
+     * Instala y prepara en secuencia los componentes principales de FridaGate.
+     * Requiere root y conexión a Internet. Usa la misma versión para server e inject.
+     */
+    fun smartInstallAll() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val version = "16.7.19"
+            try {
+                addLog("── INSTALACIÓN INTELIGENTE ─────────")
+                if (!RootUtils.isRootAvailable()) {
+                    _isRootAvailable.value = false
+                    addLog("ERROR: Se necesita acceso root para instalar Frida y configurar el proxy")
+                    return@launch
+                }
+                _isRootAvailable.value = true
+
+                if (!FridaUtils.isFridaServerInstalled() ||
+                    FridaUtils.getInstalledFridaVersion() != version
+                ) {
+                    addLog("Descargando e instalando frida-server $version...")
+                    val url = FridaUtils.getFridaServerUrl(version, FridaUtils.getDeviceArchitecture())
+                    if (url == null) {
+                        addLog("ERROR: No se encontró la descarga de frida-server")
+                        return@launch
+                    }
+                    val file = FridaUtils.downloadFridaServerFromUrl(appContext, url)
+                    if (file == null) {
+                        addLog("ERROR: No se pudo descargar frida-server")
+                        return@launch
+                    }
+                    val installed = FridaUtils.installFridaServer(file, version)
+                    file.delete()
+                    if (!installed) {
+                        addLog("ERROR: Falló la instalación de frida-server")
+                        return@launch
+                    }
+                    addLog("frida-server $version instalado")
+                } else {
+                    addLog("frida-server $version ya está instalado")
+                }
+                _isFridaInstalled.value = FridaUtils.isFridaServerInstalled()
+
+                if (!FridaInjectUtils.isFridaInjectInstalled() ||
+                    FridaInjectUtils.getInstalledVersion() != version
+                ) {
+                    addLog("Descargando e instalando frida-inject $version...")
+                    if (!FridaInjectUtils.downloadAndInstall(appContext, version)) {
+                        addLog("ERROR: Falló la instalación de frida-inject")
+                        return@launch
+                    }
+                    addLog("frida-inject $version instalado")
+                } else {
+                    addLog("frida-inject $version ya está instalado")
+                }
+
+                addLog("Iniciando frida-server...")
+                _isFridaRunning.value = FridaUtils.startFridaServer()
+                if (!_isFridaRunning.value) {
+                    addLog("ERROR: No se pudo iniciar frida-server")
+                    return@launch
+                }
+                addLog("frida-server iniciado")
+
+                val ip = prefs.burpIp.first()
+                val httpPort = prefs.burpHttpPort.first()
+                val httpsPort = prefs.burpHttpsPort.first()
+                addLog("Activando proxy iptables hacia $ip:$httpPort...")
+                _isProxyActive.value = ProxyUtils.enableIptablesProxy(ip, httpPort, httpsPort)
+                if (!_isProxyActive.value) {
+                    addLog("ERROR: No se pudo activar el proxy iptables")
+                    return@launch
+                }
+                addLog("Proxy iptables activado")
+
+                addLog("Configurando proxy del sistema...")
+                val systemProxySet = ProxyUtils.setSystemProxy(ip, httpPort)
+                if (systemProxySet) addLog("Proxy del sistema configurado")
+                else addLog("ADVERTENCIA: No se pudo configurar el proxy del sistema")
+
+                _isBurpReachable.value = ProxyUtils.isBurpReachable(ip, httpPort)
+                addLog(if (_isBurpReachable.value) "Burp Suite está accesible" else "ADVERTENCIA: Burp no responde; comprueba que esté abierto en tu PC")
+                addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ─")
+            } catch (e: Exception) {
+                addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun deactivateAll() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -279,6 +372,7 @@ fun DashboardScreen() {
             OneTabActionsCard(
                 isLoading = isLoading,
                 onActivateAll = { viewModel.activateAll() },
+                onSmartInstall = { viewModel.smartInstallAll() },
                 onDeactivateAll = { viewModel.deactivateAll() },
                 onRefresh = { viewModel.refreshStatus() }
             )
@@ -387,6 +481,7 @@ private fun StatusIndicatorRow(
 private fun OneTabActionsCard(
     isLoading: Boolean,
     onActivateAll: () -> Unit,
+    onSmartInstall: () -> Unit,
     onDeactivateAll: () -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -418,6 +513,20 @@ private fun OneTabActionsCard(
                     text = "▶  ACTIVAR TODO",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
+                )
+            }
+
+            // SMART INSTALL — installs Frida server + inject and configures the proxy
+            Button(
+                onClick = onSmartInstall,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text(
+                    text = "⚙  INSTALACIÓN INTELIGENTE",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
                 )
             }
 
