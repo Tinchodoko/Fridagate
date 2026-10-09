@@ -322,7 +322,7 @@ private fun StatusOverviewCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "System Status",
+                text = "Estado del sistema",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -396,12 +396,12 @@ private fun OneTabActionsCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Quick Actions",
+                text = "Acciones rápidas",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "ACTIVATE ALL starts frida-server and enables the iptables proxy in one tap.",
+                text = "ACTIVAR TODO inicia frida-server y habilita el proxy iptables con un solo toque.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -415,7 +415,7 @@ private fun OneTabActionsCard(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
                 Text(
-                    text = "▶  ACTIVATE ALL",
+                    text = "▶  ACTIVAR TODO",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -429,7 +429,7 @@ private fun OneTabActionsCard(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
             ) {
                 Text(
-                    text = "■  DEACTIVATE ALL",
+                    text = "■  DESACTIVAR TODO",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -441,7 +441,7 @@ private fun OneTabActionsCard(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
             ) {
-                Text("Refresh Status")
+                Text("Actualizar estado")
             }
         }
     }
@@ -465,8 +465,8 @@ private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Log", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                TextButton(onClick = onClear) { Text("Clear") }
+                Text("Registro", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                TextButton(onClick = onClear) { Text("Limpiar") }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -479,7 +479,7 @@ private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit) {
                     .padding(8.dp)
             ) {
                 if (logs.isEmpty()) {
-                    Text("No logs yet...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text("Todavía no hay registros...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                 } else {
                     LazyColumn(state = listState) {
                         items(logs) { line ->

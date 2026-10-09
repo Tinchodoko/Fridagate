@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
+import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
 import com.hackpuntes.fridagate.utils.FridaUtils
 
 /**
@@ -58,6 +60,17 @@ fun FridaScreen(
 
     // Context is needed for operations that require it (e.g., file download)
     val context = LocalContext.current
+
+    val extrasViewModel: ExtrasViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                ExtrasViewModel(context) as T
+        }
+    )
+    val injectInstalled by extrasViewModel.isFridaInjectInstalled.collectAsState()
+    val injectVersion by extrasViewModel.fridaInjectVersion.collectAsState()
+    val injectLoading by extrasViewModel.isLoading.collectAsState()
 
     // State for showing/hiding the custom flags dialog
     var showCustomFlagsDialog by remember { mutableStateOf(false) }
@@ -99,6 +112,10 @@ fun FridaScreen(
 
             // ── Section: Action Buttons ───────────────────────────────────────
             ActionButtons(
+                isInjectInstalled = injectInstalled,
+                injectVersion = injectVersion,
+                isInjectLoading = injectLoading,
+                onDownloadInject = { extrasViewModel.downloadFridaInject() },
                 isInstalled = isInstalled,
                 isRunning = isRunning,
                 isLoading = isLoading,
@@ -161,7 +178,7 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Device",
+                text = "Dispositivo",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -177,7 +194,7 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
             if (!isRootAvailable) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "⚠ Root access not available — frida-server requires root",
+                    text = "⚠ No hay acceso root: frida-server requiere permisos root",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -200,21 +217,21 @@ private fun StatusCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Server Status",
+                text = "Estado del servidor",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            StatusRow(label = "Installed", value = if (isInstalled) "Yes" else "No", isActive = isInstalled)
-            StatusRow(label = "Running",   value = if (isRunning) "Yes" else "No",   isActive = isRunning)
-            StatusRow(label = "Version",   value = installedVersion, isActive = installedVersion != "Not installed")
+            StatusRow(label = "Instalado", value = if (isInstalled) "Sí" else "No", isActive = isInstalled)
+            StatusRow(label = "En ejecución", value = if (isRunning) "Sí" else "No", isActive = isRunning)
+            StatusRow(label = "Versión", value = installedVersion, isActive = installedVersion != "No instalado")
 
             // Show active flags only when the server is running
             if (isRunning) {
                 StatusRow(
-                    label = "Flags",
-                    value = if (activeFlags.isBlank()) "default" else activeFlags,
+                    label = "Parámetros",
+                    value = if (activeFlags.isBlank()) "predeterminados" else activeFlags,
                     isActive = true
                 )
             }
@@ -263,13 +280,13 @@ private fun VersionSelector(
     var expanded by remember { mutableStateOf(false) }
     val latestVersion = releases.firstOrNull()?.version
     val versions = buildList {
-        add("16.7.19" to "Recommended")
-        latestVersion?.let { add(it to "Latest") }
+        add("16.7.19" to "Recomendada")
+        latestVersion?.let { add(it to "Última") }
     }.distinctBy { it.first }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Version to Install", style = MaterialTheme.typography.titleSmall,
+            Text("Versión para instalar", style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
@@ -278,13 +295,13 @@ private fun VersionSelector(
             ) {
                 OutlinedTextField(
                     value = when (selectedVersion) {
-                        "16.7.19" -> "16.7.19 (Recommended)"
+                        "16.7.19" -> "16.7.19 (Recomendada)"
                         latestVersion -> if (latestVersion != null) "$latestVersion (Latest)" else "16.7.19 (Recommended)"
-                        else -> selectedVersion.ifEmpty { "Select version..." }
+                        else -> selectedVersion.ifEmpty { "Seleccionar versión..." }
                     },
                     onValueChange = {},
                     readOnly = true,
-                    trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand") },
+                    trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expandir") },
                     modifier = Modifier.fillMaxWidth()
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled),
                     enabled = enabled
@@ -311,6 +328,10 @@ private fun VersionSelector(
  */
 @Composable
 private fun ActionButtons(
+    isInjectInstalled: Boolean,
+    injectVersion: String?,
+    isInjectLoading: Boolean,
+    onDownloadInject: () -> Unit,
     isInstalled: Boolean,
     isRunning: Boolean,
     isLoading: Boolean,
@@ -328,10 +349,21 @@ private fun ActionButtons(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Actions",
+                text = "Frida Environments",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Entorno de Frida", style = MaterialTheme.typography.titleMedium)
+            StatusRow("frida-server", if (isRunning) "● En ejecución" else "● Detenido", isRunning)
+            StatusRow("frida-inject", if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado", isInjectInstalled)
+            if (!isInjectInstalled) {
+                Text("Necesario para lanzar scripts desde el dispositivo. Se instala con la misma versión que frida-server.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = onDownloadInject, enabled = !isInjectLoading && !isLoading, modifier = Modifier.fillMaxWidth()) {
+                    Text("Descargar frida-inject")
+                }
+            }
+            Divider()
 
             // Install button — always visible, disabled when root is unavailable or loading
             Button(
@@ -339,7 +371,7 @@ private fun ActionButtons(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable
             ) {
-                Text("Install / Update Frida Server")
+                Text("Instalar / actualizar Frida Server")
             }
 
             // Start/Stop/Custom buttons — only shown when frida-server is installed
@@ -356,7 +388,7 @@ private fun ActionButtons(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4CAF50) // Green
                         )
-                    ) { Text("Start") }
+                    ) { Text("Iniciar") }
 
                     // Stop button — disabled when not running
                     Button(
@@ -366,7 +398,7 @@ private fun ActionButtons(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFF44336) // Red
                         )
-                    ) { Text("Stop") }
+                    ) { Text("Detener") }
                 }
 
                 // Custom flags button — disabled when already running
@@ -374,7 +406,7 @@ private fun ActionButtons(
                     onClick = onStartCustom,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading && !isRunning
-                ) { Text("Start with Custom Flags") }
+                ) { Text("Iniciar con parámetros personalizados") }
 
                 // Uninstall button
                 OutlinedButton(
@@ -384,7 +416,7 @@ private fun ActionButtons(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
-                ) { Text("Uninstall") }
+                ) { Text("Desinstalar") }
             }
 
             // Refresh button — always available
@@ -395,7 +427,7 @@ private fun ActionButtons(
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Refresh Status")
+                Text("Actualizar estado")
             }
         }
     }
@@ -432,11 +464,11 @@ private fun LogPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Log",
+                    text = "Registro",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
-                TextButton(onClick = onClear) { Text("Clear") }
+                TextButton(onClick = onClear) { Text("Limpiar") }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -454,7 +486,7 @@ private fun LogPanel(
             ) {
                 if (logs.isEmpty()) {
                     Text(
-                        text = "No logs yet...",
+                        text = "Todavía no hay registros...",
                         color = Color(0xFF666666),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp
@@ -495,13 +527,13 @@ private fun CustomFlagsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Start with Custom Flags") },
+        title = { Text("Iniciar con parámetros personalizados") },
         text = {
             Column {
                 OutlinedTextField(
                     value = flags,
                     onValueChange = { flags = it },
-                    label = { Text("Insert Flags Here") },
+                    label = { Text("Introduce los parámetros aquí") },
                     placeholder = { Text("-l 0.0.0.0:27042") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -509,7 +541,7 @@ private fun CustomFlagsDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 // Help text showing common flags
                 Text(
-                    text = "Common flags:\n" +
+                    text = "Parámetros habituales:\n" +
                             "-l ADDRESS  Listen on address\n" +
                             "--token=TOKEN  Require auth token\n" +
                             "-D  Daemonize",
@@ -519,10 +551,10 @@ private fun CustomFlagsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(flags) }) { Text("Start") }
+            Button(onClick = { onConfirm(flags) }) { Text("Iniciar") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
 }

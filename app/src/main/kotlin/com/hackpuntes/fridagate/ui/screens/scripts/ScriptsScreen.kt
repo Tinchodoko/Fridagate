@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.provider.OpenableColumns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -79,7 +80,9 @@ fun ScriptsScreen(
     ) { uri ->
         if (uri != null) {
             runCatching {
-                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.js"
+                val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Script.js"
                 if (!name.endsWith(".js", ignoreCase = true)) {
                     viewModel.addLog("⚠️ Selecciona un archivo con extensión .js")
                 } else {
@@ -96,6 +99,8 @@ fun ScriptsScreen(
     var selectedTab by remember { mutableStateOf(0) }
     var showConfirmDelete by remember { mutableStateOf(false) }
     var scriptToDelete by remember { mutableStateOf<FridaScript?>(null) }
+    var showConfirmExport by remember { mutableStateOf(false) }
+    var scriptToExport by remember { mutableStateOf<FridaScript?>(null) }
     
     Column(
         modifier = Modifier
@@ -105,7 +110,7 @@ fun ScriptsScreen(
         // Target app selector is intentionally above the Script Manager header.
         Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
             Column(modifier = Modifier.padding(10.dp)) {
-                Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
+                Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
                 ExposedDropdownMenuBox(
                     expanded = targetMenuExpanded,
                     onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
@@ -116,7 +121,7 @@ fun ScriptsScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Seleccionar aplicación instalada") },
-                        placeholder = { Text("Elige una app") },
+                        placeholder = { Text("Elige una aplicación") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
                         modifier = Modifier.fillMaxWidth()
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
@@ -151,10 +156,10 @@ fun ScriptsScreen(
 
         // Header
         TopAppBar(
-            title = { Text("📝 Script Manager") },
+            title = { Text("📝 Administrador de scripts") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, "Back")
+                    Icon(Icons.Default.ArrowBack, "Volver")
                 }
             },
             actions = {
@@ -174,7 +179,7 @@ fun ScriptsScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Tab(
-                text = { Text("Scripts", fontSize = 12.sp) },
+                text = { Text("Mis scripts", fontSize = 12.sp) },
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
                 icon = { Icon(Icons.Default.List, null) }
@@ -186,7 +191,7 @@ fun ScriptsScreen(
                 icon = { Icon(Icons.Default.Edit, null) }
             )
             Tab(
-                text = { Text("Logs", fontSize = 12.sp) },
+                text = { Text("Registros", fontSize = 12.sp) },
                 selected = selectedTab == 2,
                 onClick = { selectedTab = 2 },
                 icon = { Icon(Icons.Default.Info, null) }
@@ -204,7 +209,11 @@ fun ScriptsScreen(
                     scripts = scripts,
                     selectedScript = selectedScript,
                     selectedTargetApp = targetPackage,
-                    onImportScript = { importJsLauncher.launch(arrayOf("*/*")) },
+                    onImportScript = { importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*")) },
+                    onExportScript = { script ->
+                        scriptToExport = script
+                        showConfirmExport = true
+                    },
                     enabledBypassScripts = enabledBypassScripts,
                     onToggleBypassScript = { extrasViewModel.toggleScript(it) },
                     bypassScripts = extrasViewModel.scripts,
@@ -241,7 +250,7 @@ fun ScriptsScreen(
                         viewModel.clearLogs()
                         extrasViewModel.clearLogs()
                     },
-                    onExecute = { viewModel.executeScript() },
+                    onExecute = { viewModel.executeScript(context, targetPackage) },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
                         viewModel.exportLogs(context)
@@ -251,11 +260,31 @@ fun ScriptsScreen(
         }
     }
     
+    if (showConfirmExport && scriptToExport != null) {
+        val exportName = scriptToExport!!.name.let {
+            if (it.endsWith(".js", ignoreCase = true)) it else "$it.js"
+        }
+        AlertDialog(
+            onDismissRequest = { showConfirmExport = false },
+            title = { Text("Exportar script") },
+            text = { Text("¿Deseas exportar el archivo \"$exportName\" a la carpeta de Descargas?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.exportScriptToDownloads(context, scriptToExport!!)
+                    showConfirmExport = false
+                }) { Text("Exportar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmExport = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     // Dialog de confirmación de eliminación
     if (showConfirmDelete && scriptToDelete != null) {
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
-            title = { Text("Eliminar Script") },
+            title = { Text("Eliminar script") },
             text = { Text("¿Eliminar '${scriptToDelete!!.name}'?") },
             confirmButton = {
                 Button(onClick = {
@@ -282,6 +311,7 @@ fun ScriptListTab(
     selectedScript: FridaScript?,
     selectedTargetApp: String,
     onImportScript: () -> Unit,
+    onExportScript: (FridaScript) -> Unit,
     enabledBypassScripts: Set<String>,
     onToggleBypassScript: (String) -> Unit,
     bypassScripts: List<ScriptUtils.BypassScript>,
@@ -304,7 +334,7 @@ fun ScriptListTab(
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text("Permiso para guardar scripts", style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Para guardar tus archivos en Documents/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
+                            "Para guardar tus archivos en Documentos/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -337,7 +367,7 @@ fun ScriptListTab(
                     .padding(8.dp)
             ) {
                 Icon(Icons.Default.Add, null, modifier = Modifier.padding(end = 8.dp))
-                Text("Nuevo Script")
+                Text("Nuevo script")
             }
         }
         
@@ -353,7 +383,7 @@ fun ScriptListTab(
                 )
             ) {
                 Icon(Icons.Default.CloudDownload, null, modifier = Modifier.padding(end = 8.dp))
-                Text("📂 Importar .js")
+                Text("📂 Importar archivo .js")
             }
         }
         
@@ -365,7 +395,7 @@ fun ScriptListTab(
         // PREDEFINED SCRIPTS SECTION
         item {
             Text(
-                "🛡️ Scripts Predefinidos",
+                "🛡️ Scripts predefinidos",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
@@ -421,11 +451,11 @@ fun ScriptListTab(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Launch with Bypass")
+                Text("Lanzar aplicación")
             }
             if (!fridaInjectReady) {
                 Text(
-                    "Instala frida-inject desde Extras para habilitar la inyección.",
+                    "Instala frida-inject desde la pestaña Frida para habilitar la inyección.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(horizontal = 12.dp)
@@ -441,7 +471,7 @@ fun ScriptListTab(
         // USER SCRIPTS SECTION
         item {
             Text(
-                "📝 Mis Scripts",
+                "📝 Mis scripts",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
@@ -468,6 +498,7 @@ fun ScriptListTab(
                     script = script,
                     isSelected = selectedScript?.id == script.id,
                     onSelect = { onSelectScript(script) },
+                    onExport = { onExportScript(script) },
                     onDelete = { onDeleteScript(script) }
                 )
             }
@@ -480,6 +511,7 @@ fun ScriptListItem(
     script: FridaScript,
     isSelected: Boolean,
     onSelect: () -> Unit,
+    onExport: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -529,6 +561,13 @@ fun ScriptListItem(
                 )
             }
             
+            IconButton(onClick = onExport) {
+                Icon(
+                    Icons.Default.Save,
+                    contentDescription = "Exportar script a Descargas",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
@@ -646,7 +685,7 @@ fun LogsTab(
                         .fillMaxSize()
                         .wrapContentSize(Alignment.Center)
                 ) {
-                    Text("Sin logs", color = MaterialTheme.colorScheme.outline)
+                    Text("Sin registros", color = MaterialTheme.colorScheme.outline)
                 }
             } else {
                 LazyColumn(

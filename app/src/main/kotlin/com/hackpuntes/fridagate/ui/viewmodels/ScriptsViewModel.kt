@@ -1,15 +1,21 @@
 package com.hackpuntes.fridagate.ui.viewmodels
 
 import android.content.Context
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.data.repository.ScriptRepository
+import com.hackpuntes.fridagate.utils.FridaInjectUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -134,13 +140,23 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
     }
     
-    fun importScript(name: String, code: String) {
-        val cleanName = name.substringBeforeLast('.', name).ifBlank { "Imported Script" }
+    fun importScript(name: String, code: String) = viewModelScope.launch {
+        val cleanName = name.substringBeforeLast('.', name).ifBlank { "Script importado" }
         if (code.isBlank()) {
             _message.value = "⚠️ El archivo está vacío"
-            return
+            return@launch
         }
-        createScript(cleanName, code)
+        val script = FridaScript(
+            name = cleanName,
+            code = code,
+            supportsIL2CPP = code.contains("frida-il2cpp-bridge", ignoreCase = true)
+        )
+        if (repository.createScript(script)) {
+            _scripts.value = repository.getAllScripts()
+            _message.value = "✅ Script importado: $cleanName"
+        } else {
+            _message.value = "❌ No se pudo guardar el script importado. Comprueba el almacenamiento."
+        }
     }
 
     // ==================== EXECUTION ====================
@@ -149,41 +165,42 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         _targetAppPid.value = pid
     }
     
-    fun executeScript() = viewModelScope.launch {
+    fun executeScript(context: Context, packageName: String) = viewModelScope.launch {
         val script = _selectedScript.value
-        val pid = _targetAppPid.value
-        
-        if (script == null) {
-            addLog("❌ Error: No hay script seleccionado")
+        val code = _editorCode.value
+
+        if (code.isBlank()) {
+            addLog("❌ Error: No hay código para ejecutar")
             return@launch
         }
-        
-        if (pid == null) {
-            addLog("❌ Error: Selecciona una app primero")
+        if (packageName.isBlank()) {
+            addLog("❌ Error: Selecciona una app de destino primero")
             return@launch
         }
-        
+
         _isExecuting.value = true
-        addLog("▶️ Ejecutando: ${script.name} en PID $pid")
-        
+        addLog("▶️ Ejecutando: ${script?.name ?: "Script del editor"} en $packageName")
         try {
-            addLog("📝 Inyectando script...")
-            kotlinx.coroutines.delay(1000)
-            addLog("✅ Script inyectado correctamente")
-            addLog("🔄 Esperando respuestas...")
+            val result = FridaInjectUtils.launchWithCustomScript(
+                context = context,
+                scriptName = script?.name ?: "Script del editor",
+                scriptCode = code,
+                packageName = packageName
+            )
+            result.forEach { addLog(it) }
         } catch (e: Exception) {
-            addLog("❌ Error: ${e.message}")
+            addLog("❌ Error de inyección: ${e.message}")
         } finally {
             _isExecuting.value = false
-            addLog("⏹️ Ejecución finalizada")
         }
     }
-    
-    fun stopScript() {
+
+    fun stopScript() = viewModelScope.launch {
+        val result = FridaInjectUtils.stopCustomScript()
+        result.forEach { addLog(it) }
         _isExecuting.value = false
-        addLog("⏹️ Script detenido por usuario")
     }
-    
+
     // ==================== LOGS ====================
     
     fun addLog(message: String) {
@@ -238,6 +255,41 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
     }
     
+    fun exportScriptToDownloads(context: Context, script: FridaScript) = viewModelScope.launch(Dispatchers.IO) {
+        val safeName = script.name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifBlank { "script" }
+        val fileName = if (safeName.endsWith(".js", ignoreCase = true)) safeName else "$safeName.js"
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "text/javascript")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: throw IllegalStateException("No se pudo crear el archivo en Descargas")
+                try {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(script.code) }
+                        ?: throw IllegalStateException("No se pudo escribir el archivo")
+                    values.clear()
+                    values.put(MediaStore.Downloads.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
+                    _message.value = "✅ Exportado a Descargas/$fileName"
+                } catch (e: Exception) {
+                    context.contentResolver.delete(uri, null, null)
+                    throw e
+                }
+            } else {
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("No se pudo acceder a Descargas")
+                File(dir, fileName).writeText(script.code)
+                _message.value = "✅ Exportado a Descargas/$fileName"
+            }
+        } catch (e: Exception) {
+            _message.value = "❌ Error al exportar: ${e.message}"
+        }
+    }
+
     fun clearMessage() {
         _message.value = ""
     }

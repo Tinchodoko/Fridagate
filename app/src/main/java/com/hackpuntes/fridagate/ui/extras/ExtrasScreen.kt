@@ -55,71 +55,13 @@ fun ExtrasScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // ── Beta warning banner ────────────────────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFE65100),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Experimental — el soporte puede variar según la aplicación.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE65100)
-                    )
-                }
-            }
-
-            // ── Banner ─────────────────────────────────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Science,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Column {
-                        Text(
-                            text = "Estado del entorno Frida",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "Consulta el estado de frida-server y frida-inject.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
-
-            // ── Environment ────────────────────────────────────────────────────
-            EnvironmentCard(
-                isFridaRunning         = isFridaRunning,
-                isFridaInjectInstalled = isFridaInjectInstalled,
-                fridaInjectVersion     = fridaInjectVersion,
-                isLoading              = isLoading,
-                onRefresh              = { viewModel.refreshStatus() },
-                onDownload             = { viewModel.downloadFridaInject() }
+            Text(
+                text = "No hay herramientas adicionales disponibles por ahora.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 24.dp)
             )
+
 
         }
 
@@ -133,63 +75,6 @@ fun ExtrasScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun EnvironmentCard(
-    isFridaRunning: Boolean,
-    isFridaInjectInstalled: Boolean,
-    fridaInjectVersion: String?,
-    isLoading: Boolean,
-    onRefresh: () -> Unit,
-    onDownload: () -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Environment", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                IconButton(onClick = onRefresh, enabled = !isLoading) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                }
-            }
-
-            EnvRow("frida-server",   if (isFridaRunning) "● Running" else "● Stopped", isFridaRunning)
-            EnvRow(
-                label    = "frida-inject",
-                value    = if (isFridaInjectInstalled) "● v${fridaInjectVersion ?: "?"}" else "● Not installed",
-                isActive = isFridaInjectInstalled
-            )
-
-            if (!isFridaInjectInstalled) {
-                Text(
-                    text  = "Required for on-device launch. Downloaded from GitHub at the same version as frida-server.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedButton(
-                    onClick  = onDownload,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled  = !isLoading
-                ) {
-                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Download frida-inject")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EnvRow(label: String, value: String, isActive: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Text(value, fontWeight = FontWeight.Bold, color = if (isActive) Color(0xFF4CAF50) else Color(0xFFF44336))
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -205,7 +90,7 @@ private fun TargetPackageCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Target App", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text("Aplicación de destino", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 
             ExposedDropdownMenuBox(
                 expanded = expanded && enabled,
@@ -215,8 +100,8 @@ private fun TargetPackageCard(
                     value         = if (selected.isEmpty()) "" else if (displayName != selected) "$displayName\n$selected" else selected,
                     onValueChange = {},
                     readOnly      = true,
-                    label         = { Text("Select app") },
-                    placeholder   = { Text("No app selected") },
+                    label         = { Text("Seleccionar aplicación") },
+                    placeholder   = { Text("Ninguna aplicación seleccionada") },
                     trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier      = Modifier
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
@@ -232,7 +117,7 @@ private fun TargetPackageCard(
                 ) {
                     if (apps.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("Loading apps...", style = MaterialTheme.typography.bodySmall) },
+                            text = { Text("Cargando aplicaciones...", style = MaterialTheme.typography.bodySmall) },
                             onClick = {}
                         )
                     } else {
@@ -322,7 +207,7 @@ private fun ScriptRow(
                 contentDescription = null, modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
-            Text(if (showSource) "Hide script" else "View script", style = MaterialTheme.typography.labelSmall)
+            Text(if (showSource) "Ocultar script" else "Ver script", style = MaterialTheme.typography.labelSmall)
         }
 
         AnimatedVisibility(visible = showSource) {
@@ -355,14 +240,14 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, onRefresh: () -> U
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Log", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text("Registro", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Row {
                     TextButton(onClick = onRefresh) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Refresh")
+                        Text("Actualizar")
                     }
-                    TextButton(onClick = onClear) { Text("Clear") }
+                    TextButton(onClick = onClear) { Text("Limpiar") }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -374,7 +259,7 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, onRefresh: () -> U
                     .padding(8.dp)
             ) {
                 if (logs.isEmpty()) {
-                    Text("No logs yet...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text("Todavía no hay registros...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                 } else {
                     LazyColumn(state = listState) {
                         items(logs) { line ->

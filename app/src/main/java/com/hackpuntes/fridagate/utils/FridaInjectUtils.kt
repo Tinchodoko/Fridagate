@@ -182,6 +182,74 @@ object FridaInjectUtils {
     }
 
     /**
+     * Injects a user-authored JavaScript file into a selected app using frida-inject.
+     * The script is copied to the root-readable staging directory before injection.
+     */
+    suspend fun launchWithCustomScript(
+        context: Context,
+        scriptName: String,
+        scriptCode: String,
+        packageName: String
+    ): List<String> = withContext(Dispatchers.IO) {
+        val lines = mutableListOf<String>()
+        if (scriptCode.isBlank()) return@withContext listOf("ERROR: Script is empty")
+        if (!packageName.matches(Regex("[A-Za-z0-9._]+"))) {
+            return@withContext listOf("ERROR: Invalid target package name")
+        }
+
+        try {
+            val localFile = File(context.filesDir, "fridagate_custom.js")
+            localFile.writeText(scriptCode)
+            val devicePath = "/data/local/tmp/fridagate_custom.js"
+            val copyResult = RootUtils.executeSuCommand(
+                "cp \"${localFile.absolutePath}\" $devicePath && chmod 644 $devicePath"
+            )
+            localFile.delete()
+            if (copyResult.contains("Permission denied", ignoreCase = true) ||
+                copyResult.contains("No such file", ignoreCase = true)) {
+                return@withContext listOf("ERROR: Could not stage custom script: $copyResult")
+            }
+
+            lines += "Staged $scriptName → $devicePath"
+            RootUtils.executeSuCommand("am force-stop $packageName")
+            Thread.sleep(600)
+            RootUtils.executeSuCommand("rm -f $INJECT_LOG")
+
+            val injectCmd = "$INJECT_BINARY_PATH -f $packageName -s $devicePath -e > $INJECT_LOG 2>&1 &"
+            Runtime.getRuntime().exec(arrayOf("su", "-c", injectCmd))
+            lines += "Launching $scriptName in $packageName..."
+            Thread.sleep(4000)
+
+            val injectLog = RootUtils.executeSuCommand("cat $INJECT_LOG").trim()
+            if (injectLog.isNotEmpty()) {
+                lines += "frida-inject output:"
+                injectLog.lines().filter { it.isNotBlank() }.forEach { lines += "  $it" }
+            }
+
+            val pid = findProcessId(packageName)
+            if (pid != null) {
+                lines += "✓ $packageName is running (PID $pid)"
+            } else {
+                lines += "Process not found — trying attach fallback..."
+                lines += attachByName(packageName, devicePath)
+            }
+        } catch (e: Exception) {
+            lines += "ERROR injecting custom script: ${e.message}"
+        }
+        lines
+    }
+
+    /** Stops a custom-script frida-inject process without touching the predefined bypass injection. */
+    suspend fun stopCustomScript(): List<String> = withContext(Dispatchers.IO) {
+        try {
+            RootUtils.executeSuCommand("pkill -f '[f]ridagate_custom.js'")
+            listOf("Stop request sent for the custom script injection.")
+        } catch (e: Exception) {
+            listOf("ERROR stopping custom script: ${e.message}")
+        }
+    }
+
+    /**
      * Fallback: launch via monkey then attach by process name.
      * Used when frida-inject -f does not spawn the app.
      */
