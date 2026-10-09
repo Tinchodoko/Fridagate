@@ -46,6 +46,7 @@ import com.hackpuntes.fridagate.utils.FrameworkInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -134,6 +135,15 @@ fun ScriptsScreen(
             FrameworkDetector.detect(context, packageName)
         }
         detectedFrameworks = detectedFrameworks + (packageName to info)
+    }
+
+    LaunchedEffect(selectedTab, targetPackage) {
+        if (selectedTab == 2) {
+            repeat(300) {
+                viewModel.refreshInjectionLogs()
+                delay(1200)
+            }
+        }
     }
 
     val importJsLauncher = rememberLauncherForActivityResult(
