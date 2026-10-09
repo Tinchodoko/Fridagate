@@ -64,14 +64,10 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
 
     fun setTargetPackage(pkg: String) { _targetPackage.value = pkg }
 
-    /** Toggles a script on/off. At least one must remain enabled. */
+    /** Toggles a predefined script independently; both scripts may be disabled. */
     fun toggleScript(id: String) {
         val current = _enabledScripts.value
-        _enabledScripts.value = if (current.contains(id)) {
-            if (current.size > 1) current - id else current   // keep at least one
-        } else {
-            current + id
-        }
+        _enabledScripts.value = if (current.contains(id)) current - id else current + id
     }
 
     /** Downloads frida-inject at the same version as frida-server */

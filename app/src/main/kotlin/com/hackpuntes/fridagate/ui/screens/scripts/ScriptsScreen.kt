@@ -2,6 +2,13 @@
 
 package com.hackpuntes.fridagate.ui.screens.scripts
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,6 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
+import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
+import com.hackpuntes.fridagate.utils.ScriptUtils
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,19 +51,104 @@ fun ScriptsScreen(
     val isExecuting by viewModel.isExecuting.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
+    val extrasViewModel: ExtrasViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                ExtrasViewModel(context) as T
+        }
+    )
+    val targetPackage by extrasViewModel.targetPackage.collectAsState()
+    val enabledBypassScripts by extrasViewModel.enabledScripts.collectAsState()
+    val bypassLoading by extrasViewModel.isLoading.collectAsState()
+    val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
+    val bypassLogs by extrasViewModel.logs.collectAsState()
+
+    val installedApps = remember(context) {
+        context.packageManager.getInstalledApplications(0)
+            .filter { it.packageName != context.packageName }
+            .map { info ->
+                context.packageManager.getApplicationLabel(info).toString() to info.packageName
+            }
+            .sortedBy { it.first.lowercase(Locale.getDefault()) }
+    }
+    var targetMenuExpanded by remember { mutableStateOf(false) }
+
+    val importJsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.js"
+                if (!name.endsWith(".js", ignoreCase = true)) {
+                    viewModel.addLog("⚠️ Selecciona un archivo con extensión .js")
+                } else {
+                    val code = context.contentResolver.openInputStream(uri)
+                        ?.bufferedReader()?.use { it.readText() } ?: ""
+                    viewModel.importScript(name, code)
+                }
+            }.onFailure {
+                viewModel.addLog("❌ No se pudo importar el archivo .js: ${it.message}")
+            }
+        }
+    }
     
     var selectedTab by remember { mutableStateOf(0) }
     var showConfirmDelete by remember { mutableStateOf(false) }
     var scriptToDelete by remember { mutableStateOf<FridaScript?>(null) }
-    var selectedTargetApp by remember { mutableStateOf<String?>(null) }
-    var rootBypassEnabled by remember { mutableStateOf(false) }
-    var sslBypassEnabled by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // Target app selector is intentionally above the Script Manager header.
+        Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
+                ExposedDropdownMenuBox(
+                    expanded = targetMenuExpanded,
+                    onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = installedApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
+                            ?: targetPackage,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Seleccionar aplicación instalada") },
+                        placeholder = { Text("Elige una app") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = targetMenuExpanded,
+                        onDismissRequest = { targetMenuExpanded = false },
+                        modifier = Modifier.heightIn(max = 320.dp)
+                    ) {
+                        installedApps.forEach { (label, packageName) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(label)
+                                        Text(packageName, style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline)
+                                    }
+                                },
+                                onClick = {
+                                    extrasViewModel.setTargetPackage(packageName)
+                                    targetMenuExpanded = false
+                                }
+                            )
+                        }
+                        if (installedApps.isEmpty()) {
+                            DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
+                        }
+                    }
+                }
+            }
+        }
+
         // Header
         TopAppBar(
             title = { Text("📝 Script Manager") },
@@ -107,12 +203,14 @@ fun ScriptsScreen(
                 0 -> ScriptListTab(
                     scripts = scripts,
                     selectedScript = selectedScript,
-                    selectedTargetApp = selectedTargetApp,
-                    onSelectTargetApp = { selectedTargetApp = it },
-                    rootBypassEnabled = rootBypassEnabled,
-                    onRootBypassToggle = { rootBypassEnabled = it },
-                    sslBypassEnabled = sslBypassEnabled,
-                    onSslBypassToggle = { sslBypassEnabled = it },
+                    selectedTargetApp = targetPackage,
+                    onImportScript = { importJsLauncher.launch(arrayOf("*/*")) },
+                    enabledBypassScripts = enabledBypassScripts,
+                    onToggleBypassScript = { extrasViewModel.toggleScript(it) },
+                    bypassScripts = extrasViewModel.scripts,
+                    onLaunchWithBypass = { extrasViewModel.launch() },
+                    bypassLoading = bypassLoading,
+                    fridaInjectReady = fridaInjectReady,
                     onSelectScript = { script ->
                         viewModel.selectScript(script)
                         selectedTab = 1
@@ -137,9 +235,12 @@ fun ScriptsScreen(
                     }
                 )
                 2 -> LogsTab(
-                    logs = logs,
+                    logs = (logs + bypassLogs).takeLast(500),
                     isExecuting = isExecuting,
-                    onClearLogs = { viewModel.clearLogs() },
+                    onClearLogs = {
+                        viewModel.clearLogs()
+                        extrasViewModel.clearLogs()
+                    },
                     onExecute = { viewModel.executeScript() },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
@@ -179,49 +280,54 @@ fun ScriptsScreen(
 fun ScriptListTab(
     scripts: List<FridaScript>,
     selectedScript: FridaScript?,
-    selectedTargetApp: String?,
-    onSelectTargetApp: (String) -> Unit,
-    rootBypassEnabled: Boolean,
-    onRootBypassToggle: (Boolean) -> Unit,
-    sslBypassEnabled: Boolean,
-    onSslBypassToggle: (Boolean) -> Unit,
+    selectedTargetApp: String,
+    onImportScript: () -> Unit,
+    enabledBypassScripts: Set<String>,
+    onToggleBypassScript: (String) -> Unit,
+    bypassScripts: List<ScriptUtils.BypassScript>,
+    onLaunchWithBypass: () -> Unit,
+    bypassLoading: Boolean,
+    fridaInjectReady: Boolean,
     onSelectScript: (FridaScript) -> Unit,
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
 ) {
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        // TARGET APP SECTION
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
-                    
-                    TextField(
-                        value = selectedTargetApp ?: "Selecciona una app",
-                        onValueChange = {},
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        enabled = false,
-                        textStyle = MaterialTheme.typography.bodySmall
-                    )
-                    
-                    Text(
-                        "Nota: Conecta tu dispositivo con ADB",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+        // Android 11+ requires explicit all-files access for the public Documents folder.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Permiso para guardar scripts", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Para guardar tus archivos en Documents/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                runCatching { context.startActivity(intent) }
+                                    .onFailure {
+                                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                                    }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Conceder permiso de almacenamiento")
+                        }
+                    }
                 }
             }
         }
-        
+
         // NEW SCRIPT BUTTON
         item {
             Button(
@@ -238,7 +344,7 @@ fun ScriptListTab(
         // IMPORT BUTTON
         item {
             Button(
-                onClick = {},
+                onClick = onImportScript,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
@@ -264,73 +370,69 @@ fun ScriptListTab(
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
         }
-        
-        // Root Detection Bypass Toggle
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Root Detection Bypass",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            "Script de Frida",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
+        items(bypassScripts) { script ->
+            var showSource by remember(script.id) { mutableStateOf(false) }
+            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(script.name, style = MaterialTheme.typography.bodyMedium)
+                            Text(script.description, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline)
+                        }
+                        Switch(
+                            checked = enabledBypassScripts.contains(script.id),
+                            onCheckedChange = { onToggleBypassScript(script.id) },
+                            enabled = !bypassLoading
                         )
                     }
-                    Switch(
-                        checked = rootBypassEnabled,
-                        onCheckedChange = onRootBypassToggle
-                    )
+                    TextButton(onClick = { showSource = !showSource }) {
+                        Text(if (showSource) "Ocultar código" else "Ver código (solo lectura)")
+                    }
+                    if (showSource) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            val source = remember(script.id) {
+                                runCatching {
+                                    context.assets.open(script.assetPath).bufferedReader().use { it.readText() }
+                                }.getOrDefault("No se pudo leer el script.")
+                            }
+                            LazyColumn(modifier = Modifier.padding(8.dp)) {
+                                items(source.lines()) { line ->
+                                    Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-        
-        // SSL Pinning Bypass Toggle
         item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
+            Button(
+                onClick = onLaunchWithBypass,
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                enabled = !bypassLoading && fridaInjectReady && selectedTargetApp.isNotBlank() && enabledBypassScripts.isNotEmpty()
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "SSL Pinning Bypass",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            "Script de Frida",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    Switch(
-                        checked = sslBypassEnabled,
-                        onCheckedChange = onSslBypassToggle
-                    )
-                }
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Launch with Bypass")
+            }
+            if (!fridaInjectReady) {
+                Text(
+                    "Instala frida-inject desde Extras para habilitar la inyección.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
             }
         }
-        
+
         // DIVIDER
         item {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
