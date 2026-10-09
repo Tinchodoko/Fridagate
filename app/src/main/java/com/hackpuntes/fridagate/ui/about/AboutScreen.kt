@@ -81,13 +81,6 @@ fun AboutScreen(onBack: () -> Unit) {
             )
             
             Text(
-                "",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            
-            Text(
                 "Gracias a Javier Olmedo por su trabajo y aporte a este proyecto 🙏",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary,
