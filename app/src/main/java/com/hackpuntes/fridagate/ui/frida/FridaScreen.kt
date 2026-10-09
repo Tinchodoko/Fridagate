@@ -230,7 +230,7 @@ private fun StatusCard(
             // Show active flags only when the server is running
             if (isRunning) {
                 StatusRow(
-                    label = "Flags",
+                    label = "Parámetros",
                     value = if (activeFlags.isBlank()) "predeterminados" else activeFlags,
                     isActive = true
                 )
@@ -286,7 +286,7 @@ private fun VersionSelector(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Version to Install", style = MaterialTheme.typography.titleSmall,
+            Text("Versión para instalar", style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
@@ -486,7 +486,7 @@ private fun LogPanel(
             ) {
                 if (logs.isEmpty()) {
                     Text(
-                        text = "No logs yet...",
+                        text = "Todavía no hay registros...",
                         color = Color(0xFF666666),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp
@@ -527,13 +527,13 @@ private fun CustomFlagsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Start with Custom Flags") },
+        title = { Text("Iniciar con parámetros personalizados") },
         text = {
             Column {
                 OutlinedTextField(
                     value = flags,
                     onValueChange = { flags = it },
-                    label = { Text("Insert Flags Here") },
+                    label = { Text("Introduce los parámetros aquí") },
                     placeholder = { Text("-l 0.0.0.0:27042") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -551,10 +551,10 @@ private fun CustomFlagsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(flags) }) { Text("Start") }
+            Button(onClick = { onConfirm(flags) }) { Text("Iniciar") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
 }
