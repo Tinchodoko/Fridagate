@@ -277,7 +277,7 @@ fun ScriptsScreen(
     if (showConfirmDelete && scriptToDelete != null) {
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
-            title = { Text("Eliminar Script") },
+            title = { Text("Eliminar script") },
             text = { Text("¿Eliminar '${scriptToDelete!!.name}'?") },
             confirmButton = {
                 Button(onClick = {
