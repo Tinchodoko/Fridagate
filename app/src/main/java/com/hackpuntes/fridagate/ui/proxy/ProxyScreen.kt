@@ -365,7 +365,7 @@ private fun ProxyLogPanel(
                     TextButton(onClick = onRefresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Actualizar", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Refresh")
+                        Text("Actualizar")
                     }
                     TextButton(onClick = onClear) { Text("Limpiar") }
                 }
