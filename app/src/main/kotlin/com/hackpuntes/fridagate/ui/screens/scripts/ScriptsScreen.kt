@@ -39,12 +39,13 @@ fun ScriptsScreen(
     val logs by viewModel.logs.collectAsState()
     val isExecuting by viewModel.isExecuting.collectAsState()
     val message by viewModel.message.collectAsState()
-    val context = LocalContext.current
     
     var selectedTab by remember { mutableStateOf(0) }
-    var showNewScriptDialog by remember { mutableStateOf(false) }
     var showConfirmDelete by remember { mutableStateOf(false) }
     var scriptToDelete by remember { mutableStateOf<FridaScript?>(null) }
+    var selectedTargetApp by remember { mutableStateOf<String?>(null) }
+    var rootBypassEnabled by remember { mutableStateOf(false) }
+    var sslBypassEnabled by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier
@@ -105,6 +106,12 @@ fun ScriptsScreen(
                 0 -> ScriptListTab(
                     scripts = scripts,
                     selectedScript = selectedScript,
+                    selectedTargetApp = selectedTargetApp,
+                    onSelectTargetApp = { selectedTargetApp = it },
+                    rootBypassEnabled = rootBypassEnabled,
+                    onRootBypassToggle = { rootBypassEnabled = it },
+                    sslBypassEnabled = sslBypassEnabled,
+                    onSslBypassToggle = { sslBypassEnabled = it },
                     onSelectScript = { script ->
                         viewModel.selectScript(script)
                         selectedTab = 1
@@ -135,6 +142,7 @@ fun ScriptsScreen(
                     onExecute = { viewModel.executeScript() },
                     onStop = { viewModel.stopScript() },
                     onExportLogs = {
+                        val context = LocalContext.current
                         viewModel.exportLogs(context)
                     }
                 )
@@ -171,46 +179,195 @@ fun ScriptsScreen(
 fun ScriptListTab(
     scripts: List<FridaScript>,
     selectedScript: FridaScript?,
+    selectedTargetApp: String?,
+    onSelectTargetApp: (String) -> Unit,
+    rootBypassEnabled: Boolean,
+    onRootBypassToggle: (Boolean) -> Unit,
+    sslBypassEnabled: Boolean,
+    onSslBypassToggle: (Boolean) -> Unit,
     onSelectScript: (FridaScript) -> Unit,
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        // New Script Button
-        Button(
-            onClick = onNewScript,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            Icon(Icons.Default.Add, null, modifier = Modifier.padding(end = 8.dp))
-            Text("Nuevo Script")
+    LazyColumn(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // TARGET APP SECTION
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
+                    
+                    TextField(
+                        value = selectedTargetApp ?: "Selecciona una app",
+                        onValueChange = {},
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        enabled = false,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                    
+                    Text(
+                        "Nota: Conecta tu dispositivo con ADB",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+        
+        // NEW SCRIPT BUTTON
+        item {
+            Button(
+                onClick = onNewScript,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Icon(Icons.Default.Add, null, modifier = Modifier.padding(end = 8.dp))
+                Text("Nuevo Script")
+            }
+        }
+        
+        // IMPORT BUTTON
+        item {
+            Button(
+                onClick = {},
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Icon(Icons.Default.CloudDownload, null, modifier = Modifier.padding(end = 8.dp))
+                Text("📂 Importar .js")
+            }
+        }
+        
+        // DIVIDER
+        item {
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+        }
+        
+        // PREDEFINED SCRIPTS SECTION
+        item {
+            Text(
+                "🛡️ Scripts Predefinidos",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+            )
+        }
+        
+        // Root Detection Bypass Toggle
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Root Detection Bypass",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Script de Frida",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    Switch(
+                        checked = rootBypassEnabled,
+                        onCheckedChange = onRootBypassToggle
+                    )
+                }
+            }
+        }
+        
+        // SSL Pinning Bypass Toggle
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "SSL Pinning Bypass",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Script de Frida",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    Switch(
+                        checked = sslBypassEnabled,
+                        onCheckedChange = onSslBypassToggle
+                    )
+                }
+            }
+        }
+        
+        // DIVIDER
+        item {
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+        }
+        
+        // USER SCRIPTS SECTION
+        item {
+            Text(
+                "📝 Mis Scripts",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+            )
         }
         
         // Scripts List
         if (scripts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .wrapContentSize(Alignment.Center)
-            ) {
-                Text("No hay scripts. Crea uno nuevo.", color = MaterialTheme.colorScheme.outline)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(scripts) { script ->
-                    ScriptListItem(
-                        script = script,
-                        isSelected = selectedScript?.id == script.id,
-                        onSelect = { onSelectScript(script) },
-                        onDelete = { onDeleteScript(script) }
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp)
+                        .wrapContentSize(Alignment.Center)
+                ) {
+                    Text(
+                        "No hay scripts. Crea uno nuevo.",
+                        color = MaterialTheme.colorScheme.outline
                     )
                 }
+            }
+        } else {
+            items(scripts) { script ->
+                ScriptListItem(
+                    script = script,
+                    isSelected = selectedScript?.id == script.id,
+                    onSelect = { onSelectScript(script) },
+                    onDelete = { onDeleteScript(script) }
+                )
             }
         }
     }
@@ -226,6 +383,7 @@ fun ScriptListItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(8.dp)
             .clickable(onClick = onSelect)
             .background(
                 if (isSelected) MaterialTheme.colorScheme.primaryContainer
