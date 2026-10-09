@@ -2,6 +2,9 @@
 
 package com.hackpuntes.fridagate.ui.screens.scripts
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,6 +43,30 @@ fun ScriptsScreen(
     val isExecuting by viewModel.isExecuting.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
+
+    val installedApps = remember(context) {
+        context.packageManager.getInstalledApplications(0)
+            .filter { it.packageName != context.packageName }
+            .map { info ->
+                context.packageManager.getApplicationLabel(info).toString() to info.packageName
+            }
+            .sortedBy { it.first.lowercase(Locale.getDefault()) }
+    }
+    var targetMenuExpanded by remember { mutableStateOf(false) }
+    val importJsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val code = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.use { it.readText() } ?: ""
+                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.js"
+                viewModel.importScript(name, code)
+            }.onFailure {
+                viewModel.addLog("❌ No se pudo importar el archivo .js: ${it.message}")
+            }
+        }
+    }
     
     var selectedTab by remember { mutableStateOf(0) }
     var showConfirmDelete by remember { mutableStateOf(false) }
@@ -194,34 +221,53 @@ fun ScriptListTab(
     ) {
         // TARGET APP SECTION
         item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
+            Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
-                    
-                    TextField(
-                        value = selectedTargetApp ?: "Selecciona una app",
-                        onValueChange = {},
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        enabled = false,
-                        textStyle = MaterialTheme.typography.bodySmall
-                    )
-                    
-                    Text(
-                        "Nota: Conecta tu dispositivo con ADB",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    ExposedDropdownMenuBox(
+                        expanded = targetMenuExpanded,
+                        onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = installedApps.firstOrNull { it.second == selectedTargetApp }?.let { "${it.first} (${it.second})" }
+                                ?: selectedTargetApp.orEmpty(),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Seleccionar aplicación instalada") },
+                            placeholder = { Text("Elige una app") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
+                            modifier = Modifier.fillMaxWidth()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = targetMenuExpanded,
+                            onDismissRequest = { targetMenuExpanded = false },
+                            modifier = Modifier.heightIn(max = 320.dp)
+                        ) {
+                            installedApps.forEach { (label, packageName) ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(label)
+                                            Text(packageName, style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.outline)
+                                        }
+                                    },
+                                    onClick = {
+                                        onSelectTargetApp(packageName)
+                                        targetMenuExpanded = false
+                                    }
+                                )
+                            }
+                            if (installedApps.isEmpty()) {
+                                DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
+                            }
+                        }
+                    }
                 }
             }
         }
-        
+
         // NEW SCRIPT BUTTON
         item {
             Button(
@@ -238,7 +284,7 @@ fun ScriptListTab(
         // IMPORT BUTTON
         item {
             Button(
-                onClick = {},
+                onClick = { importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "text/plain")) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
