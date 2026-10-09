@@ -216,13 +216,14 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     fun launchEnabledScripts(
         context: Context,
         packageName: String,
-        enabledBuiltInScripts: List<ScriptUtils.BypassScript>
+        enabledBuiltInScripts: List<ScriptUtils.BypassScript>,
+        frameworkTestScript: FridaScript? = null
     ) = viewModelScope.launch {
         if (packageName.isBlank()) {
             addLog("❌ Error: Selecciona una aplicación de destino primero")
             return@launch
         }
-        val enabledUserScripts = _scripts.value.filter { it.enabledForLaunch }
+        val enabledUserScripts = _scripts.value.filter { it.enabledForLaunch } + listOfNotNull(frameworkTestScript)
         if (enabledBuiltInScripts.isEmpty() && enabledUserScripts.isEmpty()) {
             addLog("⚠️ Activa al menos un script antes de lanzar la aplicación")
             return@launch
@@ -230,6 +231,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
 
         _isExecuting.value = true
         addLog("▶️ Lanzando $packageName con ${enabledBuiltInScripts.size + enabledUserScripts.size} script(s) activado(s)")
+        frameworkTestScript?.let { addLog("🧪 Prueba de framework incluida: ${it.name}") }
         try {
             val result = FridaInjectUtils.launchWithCombinedScripts(
                 context = context,
