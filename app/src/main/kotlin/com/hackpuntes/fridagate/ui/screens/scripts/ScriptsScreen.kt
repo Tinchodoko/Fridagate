@@ -39,6 +39,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,364 +59,63 @@ fun ScriptsScreen(
     val isExecuting by viewModel.isExecuting.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
-    val extrasViewModel: ExtrasViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-                ExtrasViewModel(context) as T
-        }
-    )
-    val targetPackage by extrasViewModel.targetPackage.collectAsState()
-    val enabledBypassScripts by extrasViewModel.enabledScripts.collectAsState()
-    val bypassLoading by extrasViewModel.isLoading.collectAsState()
-    val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
-    val bypassLogs by extrasViewModel.logs.collectAsState()
-
-    val allInstalledApps = remember(context) {
-        context.packageManager.getInstalledApplications(0)
-            .filter { it.packageName != context.packageName }
-            .map { info ->
-                val flags = info.flags
-                val isSystem = (flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
-                    (flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-                Triple(
-                    context.packageManager.getApplicationLabel(info).toString(),
-                    info.packageName,
-                    isSystem
-                )
-            }
-            .sortedBy { it.first.lowercase(Locale.getDefault()) }
-    }
-    var appFilter by remember { mutableStateOf("Usuario") }
-    val installedApps = remember(allInstalledApps, appFilter) {
-        when (appFilter) {
-            "Sistema" -> allInstalledApps.filter { it.third }
-            "Usuario" -> allInstalledApps.filter { !it.third }
-            else -> allInstalledApps
-        }
-    }
-    var appFilterMenuExpanded by remember { mutableStateOf(false) }
-    var targetMenuExpanded by remember { mutableStateOf(false) }
-
-    val importJsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            runCatching {
-                val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-                    ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Script.js"
-                if (!name.endsWith(".js", ignoreCase = true)) {
-                    viewModel.addLog("⚠️ Selecciona un archivo con extensión .js")
-                } else {
-                    val code = context.contentResolver.openInputStream(uri)
-                        ?.bufferedReader()?.use { it.readText() } ?: ""
-                    viewModel.importScript(name, code)
-                }
-            }.onFailure {
-                viewModel.addLog("❌ No se pudo importar el archivo .js: ${it.message}")
-            }
-        }
-    }
-    
-    var selectedTab by remember { mutableStateOf(0) }
-    var showConfirmDelete by remember { mutableStateOf(false) }
-    var scriptToDelete by remember { mutableStateOf<FridaScript?>(null) }
-    var showConfirmExport by remember { mutableStateOf(false) }
-    var scriptToExport by remember { mutableStateOf<FridaScript?>(null) }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Target app selector is intentionally above the Script Manager header.
-        Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Column(modifier = Modifier.padding(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
-                    Box {
-                        TextButton(onClick = { appFilterMenuExpanded = true }) {
-                            Text(appFilter)
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Filtrar aplicaciones")
-                        }
-                        DropdownMenu(
-                            expanded = appFilterMenuExpanded,
-                            onDismissRequest = { appFilterMenuExpanded = false }
-                        ) {
-                            listOf("Usuario", "Sistema", "Usuario + Sistema").forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option) },
-                                    leadingIcon = {
-                                        if (appFilter == option) Icon(Icons.Default.Check, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        appFilter = option
-                                        appFilterMenuExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-                ExposedDropdownMenuBox(
-                    expanded = targetMenuExpanded,
-                    onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = allInstalledApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
-                            ?: targetPackage,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Seleccionar aplicación instalada") },
-                        placeholder = { Text("Elige una aplicación") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = targetMenuExpanded,
-                        onDismissRequest = { targetMenuExpanded = false },
-                        modifier = Modifier.heightIn(max = 320.dp)
-                    ) {
-                        installedApps.forEach { (label, packageName) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(label)
-                                        Text(packageName, style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.outline)
-                                    }
-                                },
-                                onClick = {
-                                    extrasViewModel.setTargetPackage(packageName)
-                                    targetMenuExpanded = false
-                                }
-                            )
-                        }
-                        if (installedApps.isEmpty()) {
-                            DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
-                        }
-                    }
-                }
-            }
-        }
-
-        // Header
-        TopAppBar(
-            title = { Text("📝 Administrador de scripts") },
-            navigationIcon = {
-                IconButton(
-                    onClick = {
-                        if (selectedTab != 0) selectedTab = 0 else onBack()
-                    }
-                ) {
-                    Icon(Icons.Default.ArrowBack, "Volver")
-                }
-            },
-            actions = {
-                if (message.isNotEmpty()) {
-                    Text(
-                        text = message,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
-                }
-            }
-        )
-        
-        // Tabs
-        TabRow(
-            selectedTabIndex = selectedTab,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Tab(
-                text = { Text("Mis scripts", fontSize = 12.sp) },
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
-                icon = { Icon(Icons.Default.List, null) }
-            )
-            Tab(
-                text = { Text("Editor", fontSize = 12.sp) },
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
-                icon = { Icon(Icons.Default.Edit, null) }
-            )
-            Tab(
-                text = { Text("Registros", fontSize = 12.sp) },
-                selected = selectedTab == 2,
-                onClick = { selectedTab = 2 },
-                icon = { Icon(Icons.Default.Info, null) }
-            )
-        }
-        
-        // Contenido
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(1f)
-        ) {
-            when (selectedTab) {
-                0 -> ScriptListTab(
-                    scripts = scripts,
-                    selectedScript = selectedScript,
-                    selectedTargetApp = targetPackage,
-                    onImportScript = { importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*")) },
-                    onExportScript = { script ->
-                        scriptToExport = script
-                        showConfirmExport = true
-                    },
-                    enabledBypassScripts = enabledBypassScripts,
-                    onToggleBypassScript = { extrasViewModel.toggleScript(it) },
-                    bypassScripts = extrasViewModel.scripts,
-                    onLaunchWithBypass = {
-                        val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
-                        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts)
-                    },
-                    bypassLoading = bypassLoading || isExecuting,
-                    onToggleUserScript = { script, enabled -> viewModel.setUserScriptEnabled(script.id, enabled) },
-                    fridaInjectReady = fridaInjectReady,
-                    onSelectScript = { script ->
-                        viewModel.selectScript(script)
-                        selectedTab = 1
-                    },
-                    onNewScript = {
-                        viewModel.createNewScript()
-                        selectedTab = 1
-                    },
-                    onDeleteScript = { script ->
-                        scriptToDelete = script
-                        showConfirmDelete = true
-                    }
-                )
-                1 -> EditorTab(
-                    viewModel = viewModel,
-                    selectedScript = selectedScript,
-                    editorCode = editorCode,
-                    onCodeChange = { viewModel.updateEditorCode(it) },
-                    onSave = { name ->
-                        viewModel.saveCurrentScript(name)
-                        viewModel.clearMessage()
-                    }
-                )
-                2 -> LogsTab(
-                    logs = (logs + bypassLogs).takeLast(500),
-                    isExecuting = isExecuting,
-                    onClearLogs = {
-                        viewModel.clearLogs()
-                        extrasViewModel.clearLogs()
-                    },
-                    onExecute = { viewModel.executeScript(context, targetPackage) },
-                    onStop = { viewModel.stopScript() },
-                    onExportLogs = {
-                        viewModel.exportLogs(
-                            context = context,
-                            logLines = (logs + bypassLogs).takeLast(500),
-                            packageName = targetPackage
-                        )
-                    }
-                )
-            }
-        }
-    }
-    
-    if (showConfirmExport && scriptToExport != null) {
-        val exportName = scriptToExport!!.name.let {
-            if (it.endsWith(".js", ignoreCase = true)) it else "$it.js"
-        }
-        AlertDialog(
-            onDismissRequest = { showConfirmExport = false },
-            title = { Text("Exportar script") },
-            text = { Text("¿Deseas exportar el archivo \"$exportName\" a la carpeta de Descargas?") },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.exportScriptToDownloads(context, scriptToExport!!)
-                    showConfirmExport = false
-                }) { Text("Exportar") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmExport = false }) { Text("Cancelar") }
-            }
-        )
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasStorageAccess by remember {
+        mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager())
     }
 
-    // Dialog de confirmación de eliminación
-    if (showConfirmDelete && scriptToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { showConfirmDelete = false },
-            title = { Text("Eliminar script") },
-            text = { Text("¿Eliminar '${scriptToDelete!!.name}'?") },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.deleteScript(scriptToDelete!!.id)
-                    showConfirmDelete = false
-                }) {
-                    Text("Eliminar")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showConfirmDelete = false }) {
-                    Text("Cancelar")
-                }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasStorageAccess = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+                    Environment.isExternalStorageManager()
             }
-        )
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-}
-
-// ==================== SCRIPT LIST TAB ====================
-
-@Composable
-fun ScriptListTab(
-    scripts: List<FridaScript>,
-    selectedScript: FridaScript?,
-    selectedTargetApp: String,
-    onImportScript: () -> Unit,
-    onExportScript: (FridaScript) -> Unit,
-    enabledBypassScripts: Set<String>,
-    onToggleBypassScript: (String) -> Unit,
-    bypassScripts: List<ScriptUtils.BypassScript>,
-    onLaunchWithBypass: () -> Unit,
-    bypassLoading: Boolean,
-    onToggleUserScript: (FridaScript, Boolean) -> Unit,
-    fridaInjectReady: Boolean,
-    onSelectScript: (FridaScript) -> Unit,
-    onNewScript: () -> Unit,
-    onDeleteScript: (FridaScript) -> Unit
-) {
-    val context = LocalContext.current
 
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Android 11+ requires explicit all-files access for the public Documents folder.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+        // Update the status as soon as Android returns from the permission settings.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             item {
                 Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text("Permiso para guardar scripts", style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Para guardar tus archivos en Documentos/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
+                            if (hasStorageAccess)
+                                "Permiso de almacenamiento concedido. Ya puedes guardar y exportar archivos."
+                            else
+                                "Para guardar tus archivos en Documentos/Fridagate2.0/Scripts, concede acceso a archivos desde los ajustes de Android.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (hasStorageAccess) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        OutlinedButton(
-                            onClick = {
-                                val intent = Intent(
-                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                    Uri.parse("package:${context.packageName}")
-                                )
-                                runCatching { context.startActivity(intent) }
-                                    .onFailure {
-                                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                                    }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Conceder permiso de almacenamiento")
+                        if (hasStorageAccess) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Permiso concedido", color = MaterialTheme.colorScheme.primary)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(
+                                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")
+                                    )
+                                    runCatching { context.startActivity(intent) }
+                                        .onFailure {
+                                            context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                                        }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Conceder permiso de almacenamiento")
+                            }
                         }
                     }
                 }
