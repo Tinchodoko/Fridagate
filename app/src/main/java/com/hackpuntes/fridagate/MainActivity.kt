@@ -134,12 +134,12 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
 
     // Main navigation tabs, including the previously disconnected Script Manager.
     val navItems = listOf(
-        BottomNavItem(Routes.DASHBOARD, "Inicio", Icons.Default.Home),
-        BottomNavItem(Routes.FRIDA,     "Frida",     Icons.Default.Star),
-        BottomNavItem(Routes.SCRIPTS,   "Scripts",   Icons.Default.Code),
-        BottomNavItem(Routes.PROXY,     "Proxy",     Icons.Default.Settings),
-        BottomNavItem(Routes.EXTRAS,    "Extras",    Icons.Default.Build),
-        BottomNavItem(Routes.ABOUT,     "Acerca de",     Icons.Default.Info)
+        BottomNavItem(Routes.DASHBOARD, "INICIO", Icons.Default.Home),
+        BottomNavItem(Routes.FRIDA,     "FRIDA",     Icons.Default.Star),
+        BottomNavItem(Routes.SCRIPTS,   "SCRIPTS",   Icons.Default.Code),
+        BottomNavItem(Routes.PROXY,     "PROXY",     Icons.Default.Settings),
+        BottomNavItem(Routes.EXTRAS,    "EXTRA INFO", Icons.Default.Build),
+        BottomNavItem(Routes.ABOUT,     "EXTRA INFO",     Icons.Default.Info)
     )
 
     Scaffold(
