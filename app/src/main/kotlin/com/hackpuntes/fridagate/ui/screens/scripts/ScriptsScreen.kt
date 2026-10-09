@@ -292,7 +292,7 @@ fun ScriptsScreen(
                         )
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                            val isGameEngine = framework?.category in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold")
+                            val isGameEngine = framework?.category?.let { it in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold") } == true
                             Text(
                                 if (isGameEngine) "MOTOR DE JUEGO" else "FRAMEWORK / MOTOR DE JUEGO",
                                 style = MaterialTheme.typography.labelLarge,
