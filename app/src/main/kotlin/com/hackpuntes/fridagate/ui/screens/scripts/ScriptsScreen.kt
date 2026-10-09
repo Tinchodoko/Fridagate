@@ -58,6 +58,16 @@ fun ScriptsScreen(
     val bypassLoading by extrasViewModel.isLoading.collectAsState()
     val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
 
+    val installedApps = remember(context) {
+        context.packageManager.getInstalledApplications(0)
+            .filter { it.packageName != context.packageName }
+            .map { info ->
+                context.packageManager.getApplicationLabel(info).toString() to info.packageName
+            }
+            .sortedBy { it.first.lowercase(Locale.getDefault()) }
+    }
+    var targetMenuExpanded by remember { mutableStateOf(false) }
+
     val importJsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -82,6 +92,53 @@ fun ScriptsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // Target app selector is intentionally above the Script Manager header.
+        Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
+                ExposedDropdownMenuBox(
+                    expanded = targetMenuExpanded,
+                    onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = installedApps.firstOrNull { it.second == targetPackage }?.let { "${it.first} (${it.second})" }
+                            ?: targetPackage,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Seleccionar aplicación instalada") },
+                        placeholder = { Text("Elige una app") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = targetMenuExpanded,
+                        onDismissRequest = { targetMenuExpanded = false },
+                        modifier = Modifier.heightIn(max = 320.dp)
+                    ) {
+                        installedApps.forEach { (label, packageName) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(label)
+                                        Text(packageName, style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline)
+                                    }
+                                },
+                                onClick = {
+                                    extrasViewModel.setTargetPackage(packageName)
+                                    targetMenuExpanded = false
+                                }
+                            )
+                        }
+                        if (installedApps.isEmpty()) {
+                            DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
+                        }
+                    }
+                }
+            }
+        }
+
         // Header
         TopAppBar(
             title = { Text("📝 Script Manager") },
@@ -137,7 +194,6 @@ fun ScriptsScreen(
                     scripts = scripts,
                     selectedScript = selectedScript,
                     selectedTargetApp = targetPackage,
-                    onSelectTargetApp = { extrasViewModel.setTargetPackage(it) },
                     onImportScript = { importJsLauncher.launch(arrayOf("*/*")) },
                     enabledBypassScripts = enabledBypassScripts,
                     onToggleBypassScript = { extrasViewModel.toggleScript(it) },
@@ -212,7 +268,6 @@ fun ScriptListTab(
     scripts: List<FridaScript>,
     selectedScript: FridaScript?,
     selectedTargetApp: String,
-    onSelectTargetApp: (String) -> Unit,
     onImportScript: () -> Unit,
     enabledBypassScripts: Set<String>,
     onToggleBypassScript: (String) -> Unit,
@@ -224,68 +279,9 @@ fun ScriptListTab(
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
 ) {
-    val context = LocalContext.current
-    val installedApps = remember(context) {
-        context.packageManager.getInstalledApplications(0)
-            .filter { it.packageName != context.packageName }
-            .map { info ->
-                context.packageManager.getApplicationLabel(info).toString() to info.packageName
-            }
-            .sortedBy { it.first.lowercase(Locale.getDefault()) }
-    }
-    var targetMenuExpanded by remember { mutableStateOf(false) }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        // TARGET APP SECTION
-        item {
-            Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("📱 Target App", style = MaterialTheme.typography.titleSmall)
-                    ExposedDropdownMenuBox(
-                        expanded = targetMenuExpanded,
-                        onExpandedChange = { targetMenuExpanded = !targetMenuExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = installedApps.firstOrNull { it.second == selectedTargetApp }?.let { "${it.first} (${it.second})" } ?: selectedTargetApp,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Seleccionar aplicación instalada") },
-                            placeholder = { Text("Elige una app") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = targetMenuExpanded) },
-                            modifier = Modifier.fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        )
-                        ExposedDropdownMenu(
-                            expanded = targetMenuExpanded,
-                            onDismissRequest = { targetMenuExpanded = false },
-                            modifier = Modifier.heightIn(max = 320.dp)
-                        ) {
-                            installedApps.forEach { (label, packageName) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(label)
-                                            Text(packageName, style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.outline)
-                                        }
-                                    },
-                                    onClick = {
-                                        onSelectTargetApp(packageName)
-                                        targetMenuExpanded = false
-                                    }
-                                )
-                            }
-                            if (installedApps.isEmpty()) {
-                                DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // NEW SCRIPT BUTTON
         item {
             Button(
