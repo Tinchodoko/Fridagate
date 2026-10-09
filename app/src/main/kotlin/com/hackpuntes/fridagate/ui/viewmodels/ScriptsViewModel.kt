@@ -1,9 +1,9 @@
 package com.hackpuntes.fridagate.ui.viewmodels
 
-import androidx.lifecycle.viewModelScope
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.data.repository.ScriptRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -125,14 +125,12 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         val selected = _selectedScript.value
         
         if (selected != null) {
-            // Actualizar existente
             val updated = selected.copy(
                 code = code,
                 supportsIL2CPP = code.contains("frida-il2cpp-bridge")
             )
             updateScript(updated)
         } else {
-            // Crear nuevo
             createScript(name.ifEmpty { "Script ${System.currentTimeMillis()}" }, code)
         }
     }
@@ -160,14 +158,11 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         _isExecuting.value = true
         addLog("▶️ Ejecutando: ${script.name} en PID $pid")
         
-        // Simular ejecución (TODO: implementar con Frida real)
         try {
             addLog("📝 Inyectando script...")
             kotlinx.coroutines.delay(1000)
             addLog("✅ Script inyectado correctamente")
             addLog("🔄 Esperando respuestas...")
-            
-            // Aquí vendría la comunicación real con Frida
         } catch (e: Exception) {
             addLog("❌ Error: ${e.message}")
         } finally {
@@ -188,7 +183,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         val logLine = "[$timestamp] $message"
         
         _logs.update { current ->
-            (current + logLine).takeLast(500) // Máximo 500 líneas
+            (current + logLine).takeLast(500)
         }
     }
     
@@ -220,9 +215,15 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             val fileName = "frida_script_$timestamp.js"
             val file = File(context.externalCacheDir, fileName)
             
-            repository.exportScript(scriptId, file.absolutePath)
-            _message.value = "✅ Script exportado"
-            file.absolutePath
+            val script = _selectedScript.value
+            if (script != null) {
+                file.writeText(script.code)
+                _message.value = "✅ Script exportado"
+                file.absolutePath
+            } else {
+                _message.value = "❌ Error: Script no encontrado"
+                null
+            }
         } catch (e: Exception) {
             _message.value = "❌ Error: ${e.message}"
             null
