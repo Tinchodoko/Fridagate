@@ -180,11 +180,12 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         }
     }
 
-    fun stopScript() {
+    fun stopScript() = viewModelScope.launch {
+        val result = FridaInjectUtils.stopCustomScript()
+        result.forEach { addLog(it) }
         _isExecuting.value = false
-        addLog("⏹️ Script detenido por usuario")
     }
-    
+
     // ==================== LOGS ====================
     
     fun addLog(message: String) {
