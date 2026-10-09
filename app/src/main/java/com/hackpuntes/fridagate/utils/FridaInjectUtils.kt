@@ -265,7 +265,7 @@ object FridaInjectUtils {
             Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
-            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo \\$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
             if (!launchResult.contains("INJECT_LAUNCHED")) {
                 lines += "ERROR: Could not start frida-inject as root."
@@ -354,6 +354,77 @@ object FridaInjectUtils {
             }
         } catch (e: Exception) {
             lines += "ERROR injecting custom script: ${e.message}"
+        }
+        lines
+    }
+
+    /**
+     * Stops the target app and the injector launched by the combined-script flow.
+     * Also attempts to remove that app's task from Android Recents; OEM/Android
+     * versions may restrict task removal, so that final step is best-effort.
+     */
+    suspend fun stopTargetApp(packageName: String): List<String> = withContext(Dispatchers.IO) {
+        if (!packageName.matches(Regex("[A-Za-z0-9._]+"))) {
+            return@withContext listOf("❌ Nombre de paquete inválido; no se detuvo ninguna aplicación.")
+        }
+
+        val lines = mutableListOf<String>()
+        try {
+            lines += "⏹️ Deteniendo scripts e inyección para $packageName…"
+
+            val pid = RootUtils.executeSuCommand("cat /data/local/tmp/fridagate_inject.pid 2>/dev/null").trim()
+            if (pid.matches(Regex("\\d+"))) {
+                RootUtils.executeSuCommand("kill -TERM $pid 2>/dev/null || true; sleep 1; kill -KILL $pid 2>/dev/null || true")
+                lines += "✓ Proceso frida-inject detenido (PID $pid)."
+            }
+            RootUtils.executeSuCommand(
+                "pkill -f '[f]ridagate_enabled_scripts.js' 2>/dev/null || true; rm -f /data/local/tmp/fridagate_inject.pid"
+            )
+
+            RootUtils.executeSuCommand("am force-stop $packageName")
+            Thread.sleep(350)
+            val remaining = RootUtils.executeSuCommand("pidof $packageName").trim()
+            if (remaining.isBlank()) {
+                lines += "✓ Aplicación detenida por root: $packageName"
+            } else {
+                RootUtils.executeSuCommand("kill -9 $remaining 2>/dev/null || true")
+                RootUtils.executeSuCommand("am force-stop $packageName")
+                lines += "✓ Solicitud de cierre forzado enviada a $packageName"
+            }
+
+            // Try to find the exact task belonging to this package in Recents.
+            val recents = RootUtils.executeSuCommand("dumpsys activity recents")
+            val recentLines = recents.lines()
+            val taskIds = linkedSetOf<String>()
+            recentLines.forEachIndexed { index, line ->
+                if (line.contains(packageName)) {
+                    val from = (index - 20).coerceAtLeast(0)
+                    val taskLine = recentLines.subList(from, index + 1)
+                        .lastOrNull { it.contains("Recent #") && it.contains("Task{") }
+                    val id = taskLine?.let { Regex("Task\\{.*?#(\\d+)\\b").find(it)?.groupValues?.get(1) }
+                    if (id != null) taskIds += id
+                }
+            }
+
+            var removed = false
+            for (taskId in taskIds) {
+                val output = RootUtils.executeSuCommand(
+                    "am task remove $taskId 2>&1 || cmd activity task remove $taskId 2>&1"
+                )
+                if (!output.contains("Unknown command", ignoreCase = true) &&
+                    !output.contains("Error", ignoreCase = true) &&
+                    !output.contains("Exception", ignoreCase = true)) {
+                    removed = true
+                    lines += "✓ Se solicitó quitar la tarea $taskId de Aplicaciones recientes."
+                }
+            }
+            if (!removed) {
+                lines += "ℹ️ No se pudo confirmar la eliminación de Recientes en esta versión de Android; la aplicación sí recibió el cierre forzado."
+            }
+            RootUtils.executeSuCommand("rm -f /data/local/tmp/fridagate_enabled_scripts.js")
+            lines += "✓ Finalizado. Los registros de FridaGate se conservaron."
+        } catch (e: Exception) {
+            lines += "❌ Error al detener $packageName: ${e.message}"
         }
         lines
     }
