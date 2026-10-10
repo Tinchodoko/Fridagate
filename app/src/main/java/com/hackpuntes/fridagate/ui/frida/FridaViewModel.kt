@@ -156,28 +156,34 @@ class FridaViewModel : ViewModel() {
     fun loadAvailableReleases() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("BUSCANDO VERSIONES DE FRIDA COMPATIBLES CON ANDROID 16...")
+            addLog("BUSCANDO VERSIÓN RECOMENDADA Y ÚLTIMA VERSIÓN ESTABLE DE FRIDA...")
             val fetched = FridaUtils.getAvailableFridaReleases()
-            // Frida 17.6.0 rebased its SELinux userspace library to support modern
-            // Android policy formats. Keep older releases out of the default list.
             val compatible = fetched.filter { isAndroid16CompatibleVersion(it.version) }
-            val fallback = FridaRelease(
-                version = "17.6.0",
+            val recommendedVersion = "17.6.0"
+            val recommended = compatible.find { it.version == recommendedVersion } ?: FridaRelease(
+                version = recommendedVersion,
                 releaseDate = "",
                 assets = listOf("arm", "arm64", "x86", "x86_64").map { arch ->
                     FridaUtils.FridaAsset(
-                        name = "frida-server-17.6.0-android-$arch.xz",
-                        downloadUrl = "https://github.com/frida/frida/releases/download/17.6.0/frida-server-17.6.0-android-$arch.xz",
+                        name = "frida-server-$recommendedVersion-android-$arch.xz",
+                        downloadUrl = "https://github.com/frida/frida/releases/download/$recommendedVersion/frida-server-$recommendedVersion-android-$arch.xz",
                         architecture = arch,
                         size = 0L
                     )
                 }
             )
-            val choices = compatible.ifEmpty { listOf(fallback) }
-            _availableReleases.value = choices
-            val recommended = choices.first().version
-            _selectedVersion.value = recommended
-            addLog("VERSIÓN RECOMENDADA PARA ANDROID 16: $recommended")
+            val latest = compatible.firstOrNull()
+            _availableReleases.value = if (latest != null && latest.version != recommendedVersion) {
+                listOf(recommended, latest)
+            } else {
+                listOf(recommended)
+            }
+            // The recommended version remains the default; the latest stable release is optional.
+            _selectedVersion.value = recommendedVersion
+            addLog("VERSIÓN PREDETERMINADA: $recommendedVersion")
+            latest?.takeIf { it.version != recommendedVersion }?.let {
+                addLog("ÚLTIMA VERSIÓN ESTABLE DISPONIBLE: ${it.version}")
+            }
             _isLoading.value = false
         }
     }
