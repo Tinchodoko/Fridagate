@@ -208,9 +208,9 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
 
                 val architecture = FridaUtils.getDeviceArchitecture()
-                val version = "17.6.0"
-                addLog("VERSIÓN RECOMENDADA FIJA: $version ($architecture)")
-                addLog("Versión seleccionada: $version")
+                val version = appContext.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
+                    .getString("selected_frida_version", "17.6.0") ?: "17.6.0"
+                addLog("VERSIÓN SELECCIONADA EN PESTAÑA FRIDA: $version ($architecture)")
 
                 if (!FridaUtils.isFridaServerInstalled() ||
                     FridaUtils.getInstalledFridaVersion() != version
@@ -467,9 +467,11 @@ fun DashboardScreen() {
         }
 
         pendingConfirmation?.let { action ->
+            val selectedFridaVersion = context.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
+                .getString("selected_frida_version", "17.6.0") ?: "17.6.0"
             val description = when (action) {
                 "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER. NO SE ACTIVARÁ PROXY NI BURP."
-                "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT 16.7.19. PROXY Y BURP QUEDAN DESACTIVADOS."
+                "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion. PROXY Y BURP QUEDAN DESACTIVADOS."
                 "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER, Y LIMPIAR CONFIGURACIONES DE PROXY CONOCIDAS."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
                 "MOSTRAR NOTIFICACIÓN" -> "MOSTRAR LA NOTIFICACIÓN PERSISTENTE DE FRIDAGATE."
