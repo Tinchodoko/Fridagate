@@ -1,0 +1,13 @@
+{
+  "name": "fridagate-unity-diagnostics",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "frida-compile index.ts -o ../../app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js"
+  },
+  "devDependencies": {
+    "frida-compile": "16.4.2",
+    "frida-il2cpp-bridge": "0.11.0",
+    "frida-java-bridge": "7.0.4"
+  }
+}
