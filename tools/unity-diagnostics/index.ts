@@ -1,6 +1,13 @@
 import Java from "frida-java-bridge";
 import "frida-il2cpp-bridge";
 
+// Frida's TypeScript compiler omits lib.dom.d.ts, but its runtime provides console.
+declare const console: {
+    log(...data: unknown[]): void;
+    warn(...data: unknown[]): void;
+    error(...data: unknown[]): void;
+};
+
 const TAG = "[FG-UNITY-IL2CPP]";
 const startedAt = Date.now();
 let il2cppStarted = false;
