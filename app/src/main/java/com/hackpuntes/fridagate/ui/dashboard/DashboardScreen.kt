@@ -353,6 +353,7 @@ fun DashboardScreen() {
 
     var hasStoragePermission by remember { mutableStateOf(storagePermissionGranted(context)) }
     var hasNotificationPermission by remember { mutableStateOf(notificationPermissionGranted(context)) }
+    var hasOverlayPermission by remember { mutableStateOf(android.provider.Settings.canDrawOverlays(context)) }
     var hasBackgroundPermission by remember { mutableStateOf(backgroundExecutionAllowed(context)) }
     var isNotificationVisible by remember { mutableStateOf(notificationIsVisible(context)) }
     var isIgnoringBatteryOptimizations by remember { mutableStateOf(batteryOptimizationIgnored(context)) }
@@ -370,6 +371,7 @@ fun DashboardScreen() {
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasStoragePermission = storagePermissionGranted(context)
                 hasNotificationPermission = notificationPermissionGranted(context)
+                hasOverlayPermission = android.provider.Settings.canDrawOverlays(context)
                 hasBackgroundPermission = backgroundExecutionAllowed(context)
                 isNotificationVisible = notificationIsVisible(context)
                 isIgnoringBatteryOptimizations = batteryOptimizationIgnored(context)
@@ -393,6 +395,7 @@ fun DashboardScreen() {
             PermissionControlsCard(
                 storageGranted = hasStoragePermission,
                 notificationsGranted = hasNotificationPermission,
+                overlayGranted = hasOverlayPermission,
                 rootGranted = isRootAvailable,
                 backgroundGranted = hasBackgroundPermission,
                 batteryExempt = isIgnoringBatteryOptimizations,
@@ -414,6 +417,9 @@ fun DashboardScreen() {
                 onRequestNotifications = {
                     if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                     else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                },
+                onRequestOverlay = {
+                    runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))) }
                 },
                 onRequestRoot = { viewModel.refreshStatus() },
                 onRequestBackground = {
@@ -441,6 +447,7 @@ fun DashboardScreen() {
                 isBurpReachable = isBurpReachable,
                 hasStoragePermission = hasStoragePermission,
                 hasNotificationPermission = hasNotificationPermission,
+                hasOverlayPermission = hasOverlayPermission,
                 hasBackgroundPermission = hasBackgroundPermission,
                 isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations
             )
@@ -553,16 +560,18 @@ private fun batteryOptimizationIgnored(context: Context): Boolean =
 private fun PermissionControlsCard(
     storageGranted: Boolean,
     notificationsGranted: Boolean,
+    overlayGranted: Boolean,
     rootGranted: Boolean,
     backgroundGranted: Boolean,
     batteryExempt: Boolean,
     onRequestStorage: () -> Unit,
     onRequestNotifications: () -> Unit,
+    onRequestOverlay: () -> Unit,
     onRequestRoot: () -> Unit,
     onRequestBackground: () -> Unit,
     onRequestBattery: () -> Unit
 ) {
-    val missingAny = !storageGranted || !notificationsGranted || !rootGranted || !backgroundGranted || !batteryExempt
+    val missingAny = !storageGranted || !notificationsGranted || !overlayGranted || !rootGranted || !backgroundGranted || !batteryExempt
     if (!missingAny) return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -575,6 +584,9 @@ private fun PermissionControlsCard(
             }
             if (!notificationsGranted) OutlinedButton(onClick = onRequestNotifications, modifier = Modifier.fillMaxWidth()) {
                 Text("PERMITIR NOTIFICACIONES")
+            }
+            if (!overlayGranted) OutlinedButton(onClick = onRequestOverlay, modifier = Modifier.fillMaxWidth()) {
+                Text("PERMITIR ICONO FLOTANTE (MOSTRAR SOBRE OTRAS APPS)")
             }
             if (!rootGranted) OutlinedButton(onClick = onRequestRoot, modifier = Modifier.fillMaxWidth()) {
                 Text("PERMITIR ACCESO ROOT")
@@ -602,6 +614,7 @@ private fun StatusOverviewCard(
     isBurpReachable: Boolean,
     hasStoragePermission: Boolean,
     hasNotificationPermission: Boolean,
+    hasOverlayPermission: Boolean,
     hasBackgroundPermission: Boolean,
     isIgnoringBatteryOptimizations: Boolean
 ) {
@@ -627,6 +640,7 @@ private fun StatusOverviewCard(
             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
             StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
+            StatusIndicatorRow(label = "Ventana flotante", active = hasOverlayPermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Acceso root", active = isRootAvailable, activeText = "Concedido", inactiveText = "No disponible")
             StatusIndicatorRow(label = "Restricciones en segundo plano", active = !hasBackgroundPermission, activeText = "Sí", inactiveText = "No", activeColor = Color(0xFFF44336), inactiveColor = Color(0xFF4CAF50))
             StatusIndicatorRow(label = "Optimización de batería", active = isIgnoringBatteryOptimizations, activeText = "Desactivada", inactiveText = "Activa")
