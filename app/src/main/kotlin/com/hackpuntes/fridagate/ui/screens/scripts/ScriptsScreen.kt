@@ -515,11 +515,17 @@ fun ScriptsScreen(
                         extrasViewModel.clearLogs()
                     },
                     onExportLogs = {
-                        viewModel.exportLogs(
+                        val exportedPath = viewModel.exportLogs(
                             context = context,
                             logLines = (logs + bypassLogs).takeLast(500),
                             packageName = targetPackage
                         )
+                        if (exportedPath != null) {
+                            // Keep the user on the Logs tab and show the result in the live console.
+                            viewModel.addLog("📁 Registro exportado correctamente: $exportedPath")
+                        } else {
+                            viewModel.addLog("❌ No se pudo exportar el registro. Revisa el mensaje de estado.")
+                        }
                     }
                 )
             }
