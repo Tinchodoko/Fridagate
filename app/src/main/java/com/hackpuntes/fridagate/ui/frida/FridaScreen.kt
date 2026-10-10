@@ -305,15 +305,11 @@ private fun VersionSelector(
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val latestVersion = releases.firstOrNull()?.version
-    val versions = buildList {
-        add("16.7.19" to "Recomendada")
-        latestVersion?.let { add(it to "Última") }
-    }.distinctBy { it.first }
+    val versions = listOf("16.7.19" to "RECOMENDADA")
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Versión para instalar", style = MaterialTheme.typography.titleSmall,
+            Text("VERSIÓN PARA INSTALAR", style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
@@ -322,8 +318,7 @@ private fun VersionSelector(
             ) {
                 OutlinedTextField(
                     value = when (selectedVersion) {
-                        "16.7.19" -> "16.7.19 (Recomendada)"
-                        latestVersion -> if (latestVersion != null) "$latestVersion (Latest)" else "16.7.19 (Recommended)"
+                        "16.7.19" -> "16.7.19 (RECOMENDADA)"
                         else -> selectedVersion.ifEmpty { "Seleccionar versión..." }
                     },
                     onValueChange = {},
