@@ -300,7 +300,7 @@ fun ScriptsScreen(
                             )
                         }
                         if (installedApps.isEmpty()) {
-                            DropdownMenuItem(text = { Text("No se encontraron aplicaciones") }, onClick = {})
+                            DropdownMenuItem(text = { Text("NO SE ENCONTRARON APLICACIONES") }, onClick = {})
                         }
                     }
                 }
@@ -363,7 +363,7 @@ fun ScriptsScreen(
 
         // Header
         TopAppBar(
-            title = { Text("📝 Administrador de scripts") },
+            title = { Text("📝 ADMINISTRADOR DE SCRIPTS") },
             navigationIcon = {
                 IconButton(
                     onClick = {
@@ -496,16 +496,16 @@ fun ScriptsScreen(
         }
         AlertDialog(
             onDismissRequest = { showConfirmExport = false },
-            title = { Text("Exportar script") },
+            title = { Text("EXPORTAR SCRIPT") },
             text = { Text("¿Deseas exportar el archivo \"$exportName\" a la carpeta de Descargas?") },
             confirmButton = {
                 Button(onClick = {
                     viewModel.exportScriptToDownloads(context, scriptToExport!!)
                     showConfirmExport = false
-                }) { Text("Exportar") }
+                }) { Text("EXPORTAR") }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmExport = false }) { Text("Cancelar") }
+                TextButton(onClick = { showConfirmExport = false }) { Text("CANCELAR") }
             }
         )
     }
@@ -514,19 +514,19 @@ fun ScriptsScreen(
     if (showConfirmDelete && scriptToDelete != null) {
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
-            title = { Text("Eliminar script") },
+            title = { Text("ELIMINAR SCRIPT") },
             text = { Text("¿Eliminar '${scriptToDelete!!.name}'?") },
             confirmButton = {
                 Button(onClick = {
                     viewModel.deleteScript(scriptToDelete!!.id)
                     showConfirmDelete = false
                 }) {
-                    Text("Eliminar")
+                    Text("ELIMINAR")
                 }
             },
             dismissButton = {
                 Button(onClick = { showConfirmDelete = false }) {
-                    Text("Cancelar")
+                    Text("CANCELAR")
                 }
             }
         )
@@ -627,7 +627,7 @@ fun ScriptListTab(
                     .padding(8.dp)
             ) {
                 Icon(Icons.Default.Add, null, modifier = Modifier.padding(end = 8.dp))
-                Text("Nuevo script")
+                Text("NUEVO SCRIPT")
             }
         }
         
@@ -643,7 +643,7 @@ fun ScriptListTab(
                 )
             ) {
                 Icon(Icons.Default.CloudDownload, null, modifier = Modifier.padding(end = 8.dp))
-                Text("📂 Importar archivo .js")
+                Text("📂 IMPORTAR ARCHIVO .JS")
             }
         }
         
@@ -902,7 +902,7 @@ fun ScriptListItem(
                 
                 if (script.supportsIL2CPP) {
                     Text(
-                        text = "✓ Soporta IL2CPP",
+                        text = "✓ SOPORTA IL2CPP",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -965,7 +965,7 @@ fun EditorTab(
         TextField(
             value = scriptName,
             onValueChange = { scriptName = it },
-            label = { Text("Nombre del script") },
+            label = { Text("NOMBRE DEL SCRIPT") },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
@@ -984,7 +984,7 @@ fun EditorTab(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp
             ),
-            placeholder = { Text("Escribe tu código Frida aquí...") },
+            placeholder = { Text("ESCRIBE TU CÓDIGO FRIDA AQUÍ...") },
             singleLine = false
         )
         
@@ -996,7 +996,7 @@ fun EditorTab(
                 .padding(8.dp)
         ) {
             Icon(Icons.Default.Save, null, modifier = Modifier.padding(end = 8.dp))
-            Text("💾 Guardar")
+            Text("💾 GUARDAR")
         }
     }
 }
