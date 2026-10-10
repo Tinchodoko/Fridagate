@@ -462,7 +462,10 @@ object FridaInjectUtils {
                 pkill -9 -f '[f]rida-inject' 2>/dev/null || true
                 # Catch eternalized injections created by older versions that did not track target packages.
                 for maps in /proc/[0-9]*/maps; do
-                    if grep -qiE 'frida-agent|frida-gadget' "${'
+                    if grep -qiE 'frida-agent|frida-gadget' "${'$'}maps" 2>/dev/null; then
+                        pid=${'$'}{maps#/proc/}
+                        pid=${'$'}{pid%/maps}
+                        kill -9 "${'$'}pid" 2>/dev/null || true
                     fi
                 done
                 """.trimIndent()
