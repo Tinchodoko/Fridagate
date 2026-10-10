@@ -98,6 +98,19 @@ fun ScriptsScreen(
     val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
     val bypassLogs by extrasViewModel.logs.collectAsState()
 
+    // Re-check device-side Frida state whenever the Scripts destination becomes active.
+    // Frida-inject may have been installed from the Frida tab after this ViewModel's init
+    // ran, so its cached StateFlow value can otherwise remain false and keep Launch disabled.
+    DisposableEffect(lifecycleOwner, extrasViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                extrasViewModel.refreshEnvironmentStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val allInstalledApps = remember(context) {
         context.packageManager.getInstalledApplications(0)
             .filter { it.packageName != context.packageName }
