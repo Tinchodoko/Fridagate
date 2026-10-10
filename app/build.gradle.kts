@@ -26,7 +26,7 @@ android {
         buildConfigField(
             "String",
             "BUILD_NUMBER",
-            "\"\${providers.environmentVariable("GITHUB_RUN_NUMBER").orNull ?: "LOCAL"}\""
+            "\"${providers.environmentVariable("GITHUB_RUN_NUMBER").orNull ?: "LOCAL"}\""
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
