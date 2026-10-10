@@ -305,7 +305,10 @@ private fun VersionSelector(
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val versions = listOf("16.7.19" to "RECOMENDADA")
+    val recommendedVersion = releases.firstOrNull()?.version ?: "17.6.0"
+    val versions = releases.map { release ->
+        release.version to if (release.version == recommendedVersion) "RECOMENDADA" else ""
+    }.ifEmpty { listOf("17.6.0" to "RECOMENDADA") }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -317,9 +320,10 @@ private fun VersionSelector(
                 onExpandedChange = { if (enabled) expanded = !expanded }
             ) {
                 OutlinedTextField(
-                    value = when (selectedVersion) {
-                        "16.7.19" -> "16.7.19 (RECOMENDADA)"
-                        else -> selectedVersion.ifEmpty { "Seleccionar versión..." }
+                    value = when {
+                        selectedVersion == recommendedVersion -> "$selectedVersion (RECOMENDADA)"
+                        selectedVersion.isEmpty() -> "Seleccionar versión..."
+                        else -> selectedVersion
                     },
                     onValueChange = {},
                     readOnly = true,
@@ -331,7 +335,12 @@ private fun VersionSelector(
                 ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     versions.forEach { (version, label) ->
                         DropdownMenuItem(
-                            text = { Text("$version ($label)", fontWeight = FontWeight.Bold) },
+                            text = {
+                                Text(
+                                    if (label.isNotBlank()) "$version ($label)" else version,
+                                    fontWeight = if (label.isNotBlank()) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
                             onClick = {
                                 onVersionSelected(version)
                                 expanded = false
