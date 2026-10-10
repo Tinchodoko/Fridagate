@@ -3,8 +3,11 @@
 package com.hackpuntes.fridagate.ui.screens.scripts
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.content.pm.ApplicationInfo
@@ -158,6 +161,24 @@ fun ScriptsScreen(
                 viewModel.refreshInjectionLogs()
                 delay(1200)
             }
+        }
+    }
+
+    var pendingFrameworkTestScript by remember { mutableStateOf<FridaScript?>(null) }
+    var pendingLaunchAfterPermission by remember { mutableStateOf(false) }
+    val launchSelectedScripts: (FridaScript?) -> Unit = { frameworkTestScript ->
+        val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
+        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts, frameworkTestScript)
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        if (pendingLaunchAfterPermission) {
+            pendingLaunchAfterPermission = false
+            val queuedScript = pendingFrameworkTestScript
+            pendingFrameworkTestScript = null
+            // Continue the requested launch even if the user denies notifications.
+            launchSelectedScripts(queuedScript)
         }
     }
 
@@ -449,11 +470,20 @@ fun ScriptsScreen(
                     },
                     bypassScripts = extrasViewModel.scripts,
                     onLaunchWithBypass = { frameworkTestScript ->
-                        val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
-                        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts, frameworkTestScript)
+                        val notificationPermissionMissing =
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                            PackageManager.PERMISSION_GRANTED
+                        if (notificationPermissionMissing) {
+                            pendingFrameworkTestScript = frameworkTestScript
+                            pendingLaunchAfterPermission = true
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            launchSelectedScripts(frameworkTestScript)
+                        }
                     },
                     activeTargetPackage = activeTargetPackage,
-                    onStopTargetApp = { packageName -> viewModel.stopTargetApp(packageName) },
+                    onStopTargetApp = { packageName -> viewModel.stopTargetApp(context, packageName) },
                     frameworkInfo = detectedFrameworks[targetPackage],
                     frameworkTestEnabled = frameworkTestEnabled,
                     onToggleFrameworkTest = { frameworkTestEnabled = it },
