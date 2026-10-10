@@ -1,5 +1,7 @@
 package com.hackpuntes.fridagate.ui.about
 
+import com.hackpuntes.fridagate.BuildConfig
+
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -195,10 +197,13 @@ fun AboutScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(32.dp))
             
             Text(
-                "FRIDAGATE 2.0",
+                "FRIDAGATE 2.0 (${BuildConfig.BUILD_NUMBER})",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
             )
         }
         
