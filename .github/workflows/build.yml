@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+
+concurrency:
+  group: fridagate-main-build
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,13 +27,27 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    # Reuse one debug keystore across CI builds so Android can update an
-    # already-installed FridaGate APK instead of rejecting a changed signature.
+    # Restore the same signing key on every run; create it before the build on the first run.
     - name: Restore stable debug signing key
       uses: actions/cache@v4
       with:
         path: ~/.android/debug.keystore
         key: fridagate-debug-keystore-v1
+
+    - name: Ensure stable debug signing key exists
+      run: |
+        mkdir -p "$HOME/.android"
+        if [ ! -f "$HOME/.android/debug.keystore" ]; then
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+        fi
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -39,3 +60,14 @@ jobs:
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
+
+    # Publish each successful main-branch build so the app can fetch its APK directly.
+    - name: Publish APK to GitHub Releases
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: build-${{ github.run_number }}
+        name: FridaGate Build ${{ github.run_number }}
+        body: "Build automático ${{ github.run_number }} de FridaGate 2.0."
+        files: app/build/outputs/apk/debug/app-debug.apk
+        make_latest: true
