@@ -400,11 +400,12 @@ fun ScriptsScreen(
             title = { Text("📝 ADMINISTRADOR DE SCRIPTS") },
             navigationIcon = {
                 IconButton(
-                    onClick = {
-                        if (selectedTab != 0) selectedTab = 0 else onBack()
-                    }
+                    // This arrow is an in-screen navigation control: always return to
+                    // "Mis scripts". Leaving the Scripts destination is done with the
+                    // bottom navigation, so exporting logs can never strand the user on Inicio.
+                    onClick = { selectedTab = 0 }
                 ) {
-                    Icon(Icons.Default.ArrowBack, "Volver")
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver a Mis scripts")
                 }
             },
             actions = {
