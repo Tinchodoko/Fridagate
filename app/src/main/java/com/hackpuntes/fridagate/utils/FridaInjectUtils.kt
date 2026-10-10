@@ -262,6 +262,9 @@ object FridaInjectUtils {
             bypassScripts.forEach { lines += "✓ ${it.name}" }
             customScripts.forEach { lines += "✓ ${it.name}" }
             lines += "Combined script staged at $devicePath"
+            if (Regex("(?m)^\\s*import\\s+").containsMatchIn(source)) {
+                lines += "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
+            }
 
             RootUtils.executeSuCommand("am force-stop $packageName")
             Thread.sleep(600)
@@ -282,6 +285,8 @@ object FridaInjectUtils {
             if (injectLog.isNotEmpty()) {
                 lines += "frida-inject output:"
                 injectLog.lines().filter { it.isNotBlank() }.forEach { lines += "  $it" }
+            } else {
+                lines += "⚠️ frida-inject no produjo salida en la ventana inicial de diagnóstico; la ejecución del script sigue sin confirmarse."
             }
 
             val pid = findProcessId(packageName)
