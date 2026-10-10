@@ -458,6 +458,12 @@ object FridaInjectUtils {
                 lines += "✓ Scripts detenidos y aplicación cerrada: $pkg"
             }
             RootUtils.executeSuCommand("pkill -9 -f '[f]rida-inject' 2>/dev/null || true")
+            // Also kill target processes left by older versions that did not record their package.
+            RootUtils.executeSuCommand(
+                "for maps in /proc/[0-9]*/maps; do " +
+                "if grep -qi frida-agent \"\$maps\" 2>/dev/null || grep -qi frida-gadget \"\$maps\" 2>/dev/null; then " +
+                "pid=\$(echo \"\$maps\" | cut -d/ -f3); kill -9 \"\$pid\" 2>/dev/null || true; fi; done"
+            )
             RootUtils.executeSuCommand(
                 "rm -f /data/local/tmp/fridagate_inject.pid $INJECTED_PACKAGES_FILE " +
                 "/data/local/tmp/fridagate_enabled_scripts.js /data/local/tmp/fridagate_combined.js " +
