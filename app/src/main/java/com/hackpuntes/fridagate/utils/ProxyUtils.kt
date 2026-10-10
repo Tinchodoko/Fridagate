@@ -129,8 +129,7 @@ object ProxyUtils {
             val ownChain = RootUtils.executeSuCommand("iptables -t nat -S FRIDAGATE_PROXY")
             if (ownChain.contains("--dport 80") || ownChain.contains("--dport 443")) return@withContext true
             val outputRules = RootUtils.executeSuCommand("iptables -t nat -S OUTPUT")
-            outputRules.contains("-j FRIDAGATE_PROXY") ||
-                (outputRules.contains("-j DNAT") && (outputRules.contains("--dport 80") || outputRules.contains("--dport 443")))
+            outputRules.contains("-j FRIDAGATE_PROXY")
         } catch (_: Exception) {
             false
         }
