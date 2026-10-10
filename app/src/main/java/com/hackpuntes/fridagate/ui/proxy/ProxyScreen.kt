@@ -16,6 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -123,6 +128,7 @@ fun ProxyScreen() {
                 logs = logs,
                 onClear = { viewModel.clearLogs() },
                 onRefresh = { viewModel.checkProxyStatus() },
+                onExport = { exportProxyLog(context, logs) },
                 isRootAvailable = isRootAvailable
             )
         }
@@ -170,7 +176,7 @@ private fun ConnectionSettingsCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Conexión con Burp Suite",
+                text = "CONEXIÓN CON BURP SUITE",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -179,10 +185,10 @@ private fun ConnectionSettingsCard(
             OutlinedTextField(
                 value = ip,
                 onValueChange = onIpChange,
-                label = { Text("Dirección IP de Burp") },
+                label = { Text("DIRECCIÓN IP DE BURP") },
                 placeholder = { Text("192.168.1.100") },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = isRootAvailable && !isLoading,
+                enabled = false,
                 singleLine = true,
                 // Use number keyboard with decimal point for IP addresses
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
@@ -196,18 +202,18 @@ private fun ConnectionSettingsCard(
                 OutlinedTextField(
                     value = httpPort.toString(),
                     onValueChange = onHttpPortChange,
-                    label = { Text("Puerto HTTP") },
+                    label = { Text("PUERTO HTTP") },
                     modifier = Modifier.weight(1f),
-                    enabled = isRootAvailable && !isLoading,
+                    enabled = false,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
                 OutlinedTextField(
                     value = httpsPort.toString(),
                     onValueChange = onHttpsPortChange,
-                    label = { Text("Puerto HTTPS") },
+                    label = { Text("PUERTO HTTPS") },
                     modifier = Modifier.weight(1f),
-                    enabled = isRootAvailable && !isLoading,
+                    enabled = false,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
@@ -230,8 +236,8 @@ private fun ConnectionSettingsCard(
 
                 Button(
                     onClick = onTestConnection,
-                    enabled = !isLoading && isRootAvailable
-                ) { Text("Probar conexión") }
+                    enabled = false
+                ) { Text("PROBAR CONEXIÓN") }
             }
         }
     }
@@ -258,7 +264,7 @@ private fun ProxyMethodsCard(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "Métodos de proxy",
+                text = "MÉTODOS DE PROXY",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -269,7 +275,7 @@ private fun ProxyMethodsCard(
                 title = "iptables Transparent Proxy",
                 subtitle = "Redirects ALL traffic (recommended, requires root)",
                 checked = isIptablesEnabled,
-                enabled = !isLoading && isRootAvailable,
+                enabled = false,
                 onCheckedChange = onToggleIptables
             )
 
@@ -280,7 +286,7 @@ private fun ProxyMethodsCard(
                 title = "System Proxy",
                 subtitle = "Only apps that respect proxy settings",
                 checked = isSystemProxyEnabled,
-                enabled = !isLoading && isRootAvailable,
+                enabled = false,
                 onCheckedChange = onToggleSystemProxy
             )
         }
@@ -337,7 +343,7 @@ private fun CertificateCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Certificado SSL",
+                text = "CERTIFICADO SSL",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -367,6 +373,7 @@ private fun ProxyLogPanel(
     logs: List<String>,
     onClear: () -> Unit,
     onRefresh: () -> Unit,
+    onExport: () -> Unit,
     isRootAvailable: Boolean
 ) {
     val listState = rememberLazyListState()
@@ -385,17 +392,13 @@ private fun ProxyLogPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Registro",
+                    text = "REGISTRO",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row {
-                    TextButton(onClick = onRefresh, enabled = isRootAvailable) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Actualizar", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Actualizar")
-                    }
-                    TextButton(onClick = onClear, enabled = isRootAvailable) { Text("Limpiar") }
+                    TextButton(onClick = onExport) { Text("EXPORTAR") }
+                    TextButton(onClick = onClear) { Text("LIMPIAR") }
                 }
             }
 
@@ -425,5 +428,19 @@ private fun ProxyLogPanel(
                 }
             }
         }
+    }
+}
+
+
+private fun exportProxyLog(context: android.content.Context, logs: List<String>) {
+    try {
+        val directory = File("/sdcard/download")
+        if (!directory.exists() && !directory.mkdirs()) throw java.io.IOException("No se pudo crear /sdcard/download")
+        val stamp = SimpleDateFormat("MM-dd-HH-mm", Locale.US).format(Date())
+        val file = File(directory, "proxy_log_(${stamp}).txt")
+        file.writeText(logs.joinToString("\n"))
+        Toast.makeText(context, "LOG EXPORTADO: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "ERROR AL EXPORTAR LOG: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }
