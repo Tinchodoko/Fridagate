@@ -569,19 +569,19 @@ private fun PermissionControlsCard(
             Text("Las opciones desaparecen automáticamente cuando el sistema confirma el permiso.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!storageGranted) OutlinedButton(onClick = onRequestStorage, modifier = Modifier.fillMaxWidth()) {
-                Text("Permitir acceso al almacenamiento")
+                Text("PERMITIR ACCESO AL ALMACENAMIENTO")
             }
             if (!notificationsGranted) OutlinedButton(onClick = onRequestNotifications, modifier = Modifier.fillMaxWidth()) {
-                Text("Permitir notificaciones")
+                Text("PERMITIR NOTIFICACIONES")
             }
             if (!rootGranted) OutlinedButton(onClick = onRequestRoot, modifier = Modifier.fillMaxWidth()) {
-                Text("Permitir acceso root")
+                Text("PERMITIR ACCESO ROOT")
             }
             if (!backgroundGranted) OutlinedButton(onClick = onRequestBackground, modifier = Modifier.fillMaxWidth()) {
-                Text("Permitir ejecución en segundo plano")
+                Text("PERMITIR EJECUCIÓN EN SEGUNDO PLANO")
             }
             if (!batteryExempt) OutlinedButton(onClick = onRequestBattery, modifier = Modifier.fillMaxWidth()) {
-                Text("Desactivar optimización de batería")
+                Text("DESACTIVAR OPTIMIZACIÓN DE BATERÍA")
             }
         }
     }
@@ -609,7 +609,7 @@ private fun StatusOverviewCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Estado del sistema",
+                text = "ESTADO DEL SISTEMA",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
