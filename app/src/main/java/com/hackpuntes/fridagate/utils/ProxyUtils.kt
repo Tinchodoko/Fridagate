@@ -57,79 +57,82 @@ object ProxyUtils {
         burpIp: String,
         httpPort: Int,
         httpsPort: Int
-    ): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                // Step 1: Clear any existing rules to avoid duplicates
-                // "-t nat" specifies the NAT table
-                // "-F OUTPUT" flushes (deletes) all rules in the OUTPUT chain
-                RootUtils.executeSuCommand("iptables -t nat -F OUTPUT")
-                RootUtils.executeSuCommand("iptables -t nat -F POSTROUTING")
+    ): Boolean = withContext(Dispatchers.IO) {
+        // Never redirect device traffic to a listener that cannot be reached.
+        if (!burpIp.matches(Regex("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")) ||
+            burpIp.split(".").any { it.toIntOrNull() !in 0..255 } ||
+            httpPort !in 1..65535 || httpsPort !in 1..65535 ||
+            !isBurpReachable(burpIp, httpPort)) {
+            return@withContext false
+        }
 
-                // Step 2: Redirect HTTP traffic (port 80) to Burp's HTTP listener
-                // "-A OUTPUT" appends a rule to the OUTPUT chain
-                // "-p tcp --dport 80" matches TCP packets destined for port 80
-                // "-j DNAT --to-destination IP:PORT" rewrites the destination
-                RootUtils.executeSuCommand(
-                    "iptables -t nat -A OUTPUT -p tcp --dport 80 -j DNAT --to-destination $burpIp:$httpPort"
-                )
-
-                // Step 3: Redirect HTTPS traffic (port 443) to Burp's HTTPS listener
-                RootUtils.executeSuCommand(
-                    "iptables -t nat -A OUTPUT -p tcp --dport 443 -j DNAT --to-destination $burpIp:$httpsPort"
-                )
-
-                // Step 4: MASQUERADE makes the device appear as the source of the
-                // redirected packets — required for DNAT to work with locally-generated traffic
-                RootUtils.executeSuCommand(
-                    "iptables -t nat -A POSTROUTING -j MASQUERADE"
-                )
-
-                // Verify by reading back the iptables rules
-                val rules = RootUtils.executeSuCommand("iptables -t nat -L OUTPUT")
-                return@withContext rules.contains("DNAT")
-            } catch (e: Exception) {
-                return@withContext false
-            }
+        try {
+            // Use a dedicated chain. Never flush Android's shared OUTPUT or
+            // POSTROUTING chains, which can contain rules owned by other apps.
+            val command = """
+                iptables -t nat -N FRIDAGATE_PROXY 2>/dev/null || true
+                iptables -t nat -F FRIDAGATE_PROXY &&
+                (iptables -t nat -C OUTPUT -j FRIDAGATE_PROXY 2>/dev/null || iptables -t nat -I OUTPUT 1 -j FRIDAGATE_PROXY) &&
+                iptables -t nat -A FRIDAGATE_PROXY -p tcp --dport 80 -j DNAT --to-destination $burpIp:$httpPort &&
+                iptables -t nat -A FRIDAGATE_PROXY -p tcp --dport 443 -j DNAT --to-destination $burpIp:$httpsPort &&
+                echo FRIDAGATE_PROXY_SETUP_OK
+            """.trimIndent()
+            val result = RootUtils.executeSuCommand(command)
+            result.contains("FRIDAGATE_PROXY_SETUP_OK") && isIptablesProxyEnabled()
+        } catch (_: Exception) {
+            false
         }
     }
 
     /**
-     * Disables the transparent proxy by removing all iptables NAT rules.
-     *
-     * "-F" (flush) removes all rules from the specified chain.
-     * After this, traffic flows normally without any redirection.
-     *
-     * @return true if rules were cleared successfully
+     * Removes only FridaGate's dedicated chain and known legacy rules created by
+     * older versions. It deliberately does not flush shared Android NAT chains.
      */
-    suspend fun disableIptablesProxy(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                RootUtils.executeSuCommand("iptables -t nat -F OUTPUT")
-                RootUtils.executeSuCommand("iptables -t nat -F POSTROUTING")
+    suspend fun disableIptablesProxy(
+        burpIp: String? = null,
+        httpPort: Int? = null,
+        httpsPort: Int? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val legacyCleanup = if (
+                burpIp != null &&
+                burpIp.matches(Regex("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")) &&
+                burpIp.split(".").all { (it.toIntOrNull() ?: 256) in 0..255 } &&
+                httpPort in 1..65535 && httpsPort in 1..65535
+            ) {
+                """
+                while iptables -t nat -D OUTPUT -p tcp --dport 80 -j DNAT --to-destination $burpIp:$httpPort 2>/dev/null; do :; done
+                while iptables -t nat -D OUTPUT -p tcp --dport 443 -j DNAT --to-destination $burpIp:$httpsPort 2>/dev/null; do :; done
+                """.trimIndent()
+            } else ""
 
-                // Verify that the DNAT rules are gone
-                val rules = RootUtils.executeSuCommand("iptables -t nat -L OUTPUT")
-                return@withContext !rules.contains("DNAT")
-            } catch (e: Exception) {
-                return@withContext false
-            }
+            RootUtils.executeSuCommand(
+                """
+                iptables -t nat -D OUTPUT -j FRIDAGATE_PROXY 2>/dev/null || true
+                iptables -t nat -F FRIDAGATE_PROXY 2>/dev/null || true
+                iptables -t nat -X FRIDAGATE_PROXY 2>/dev/null || true
+                $legacyCleanup
+                echo FRIDAGATE_PROXY_CLEANUP_DONE
+                """.trimIndent()
+            )
+            !isIptablesProxyEnabled()
+        } catch (_: Exception) {
+            false
         }
     }
 
     /**
-     * Checks whether the iptables transparent proxy rules are currently active.
-     *
-     * @return true if DNAT rules are present in the OUTPUT chain
+     * Returns true when FridaGate's own proxy chain or legacy redirect rules exist.
      */
-    suspend fun isIptablesProxyEnabled(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val rules = RootUtils.executeSuCommand("iptables -t nat -L OUTPUT")
-                rules.contains("DNAT")
-            } catch (e: Exception) {
-                false
-            }
+    suspend fun isIptablesProxyEnabled(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val ownChain = RootUtils.executeSuCommand("iptables -t nat -S FRIDAGATE_PROXY")
+            if (ownChain.contains("--dport 80") || ownChain.contains("--dport 443")) return@withContext true
+            val outputRules = RootUtils.executeSuCommand("iptables -t nat -S OUTPUT")
+            outputRules.contains("-j FRIDAGATE_PROXY") ||
+                (outputRules.contains("-j DNAT") && (outputRules.contains("--dport 80") || outputRules.contains("--dport 443")))
+        } catch (_: Exception) {
+            false
         }
     }
 
