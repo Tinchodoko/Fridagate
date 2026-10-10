@@ -304,26 +304,24 @@ class DashboardViewModel(context: Context) : ViewModel() {
                     return@launch
                 }
 
-                addLog("Burp responde. Activando proxy iptables hacia $ip:$httpPort...")
-                _isProxyActive.value = ProxyUtils.enableIptablesProxy(ip, httpPort, httpsPort)
-                if (!_isProxyActive.value) {
-                    ProxyUtils.clearSystemProxy()
-                    addLog("ADVERTENCIA: no se pudo activar iptables; el proxy del sistema se deja desactivado.")
-                    addLog("── INSTALACIÓN INTELIGENTE FINALIZADA (proxy omitido) ──")
-                    return@launch
-                }
-                addLog("Proxy iptables activado")
-
-                addLog("Configurando proxy del sistema...")
+                // A reachable TCP listener does not prove Burp is configured for
+                // invisible/transparent proxying. Keep iptables off by default:
+                // DNATing ordinary TLS traffic to an explicit-proxy listener breaks Internet.
+                _isProxyActive.value = false
+                addLog("Burp responde. Configurando únicamente el proxy del sistema...")
                 val systemProxySet = ProxyUtils.setSystemProxy(ip, httpPort)
-                if (systemProxySet) addLog("Proxy del sistema configurado")
-                else addLog("ADVERTENCIA: no se pudo configurar el proxy del sistema")
-
-                addLog("Intentando instalar el certificado CA de Burp Suite...")
-                val certificateInstalled = ProxyUtils.installBurpCertificate(ip, httpPort)
-                if (certificateInstalled) addLog("Certificado CA de Burp Suite instalado")
-                else addLog("ADVERTENCIA: no se instaló el certificado CA; verifica el listener de Burp y el almacenamiento del sistema")
-
+                if (systemProxySet) {
+                    addLog("Proxy del sistema configurado")
+                    addLog("Instalando el certificado CA de Burp Suite...")
+                    val certificateInstalled = ProxyUtils.installBurpCertificate(ip, httpPort)
+                    if (certificateInstalled) addLog("Certificado CA de Burp Suite instalado")
+                    else addLog("ADVERTENCIA: no se instaló el certificado CA; verifica el listener de Burp y el almacenamiento del sistema")
+                } else {
+                    ProxyUtils.clearSystemProxy()
+                    addLog("ADVERTENCIA: no se pudo configurar el proxy del sistema; se dejó desactivado")
+                }
+                addLog("Proxy iptables permanece desactivado para proteger la conexión.")
+                addLog("Actívalo manualmente en Proxy solo si Burp tiene configurado un listener invisible/transparent.")
                 addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ──")
             } catch (e: Exception) {
                 addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
