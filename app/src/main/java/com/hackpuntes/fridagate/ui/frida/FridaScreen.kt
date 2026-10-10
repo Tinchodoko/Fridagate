@@ -17,6 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -155,7 +160,8 @@ fun FridaScreen(
             // ── Section: Log Panel ────────────────────────────────────────────
             LogPanel(
                 logs = logs,
-                onClear = { viewModel.clearLogs() }
+                onClear = { viewModel.clearLogs() },
+                onExport = { exportFridaLog(context, logs) }
             )
         }
 
@@ -364,35 +370,36 @@ private fun ActionButtons(
     onUninstall: () -> Unit,
     onRefresh: () -> Unit
 ) {
+    var pendingAction by remember { mutableStateOf<String?>(null) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Frida Environments",
+                text = "ENTORNO DE FRIDA",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Entorno de Frida", style = MaterialTheme.typography.titleMedium)
+            Text("ENTORNO DE FRIDA", style = MaterialTheme.typography.titleMedium)
             StatusRow("frida-server", if (isRunning) "● En ejecución" else "● Detenido", isRunning)
             StatusRow("frida-inject", if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado", isInjectInstalled)
             if (!isInjectInstalled) {
                 Text("Necesario para lanzar scripts desde el dispositivo. Se instala con la misma versión que frida-server.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = onDownloadInject, enabled = !isInjectLoading && !isLoading && isRootAvailable, modifier = Modifier.fillMaxWidth()) {
-                    Text("Descargar frida-inject")
+                OutlinedButton(onClick = { pendingAction = "DESCARGAR FRIDA-INJECT" }, enabled = !isInjectLoading && !isLoading && isRootAvailable, modifier = Modifier.fillMaxWidth()) {
+                    Text("DESCARGAR FRIDA-INJECT")
                 }
             }
             Divider()
 
             // Install button — always visible, disabled when root is unavailable or loading
             Button(
-                onClick = onInstall,
+                onClick = { pendingAction = "INSTALAR/ACTUALIZAR FRIDA SERVER" },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable
             ) {
-                Text("Instalar / actualizar Frida Server")
+                Text("INSTALAR / ACTUALIZAR FRIDA SERVER")
             }
 
             // Start/Stop/Custom buttons — only shown when frida-server is installed
@@ -403,54 +410,74 @@ private fun ActionButtons(
                 ) {
                     // Start button — disabled when already running
                     Button(
-                        onClick = onStart,
+                        onClick = { pendingAction = "INICIAR" },
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading && !isRunning && isRootAvailable,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4CAF50) // Green
                         )
-                    ) { Text("Iniciar") }
+                    ) { Text("INICIAR") }
 
                     // Stop button — disabled when not running
                     Button(
-                        onClick = onStop,
+                        onClick = { pendingAction = "DETENER" },
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading && isRunning && isRootAvailable,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFF44336) // Red
                         )
-                    ) { Text("Detener") }
+                    ) { Text("DETENER") }
                 }
-
-                // Custom flags button — disabled when already running
-                OutlinedButton(
-                    onClick = onStartCustom,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading && !isRunning && isRootAvailable
-                ) { Text("Iniciar con parámetros personalizados") }
 
                 // Uninstall button
                 OutlinedButton(
-                    onClick = onUninstall,
+                    onClick = { pendingAction = "DESINSTALAR FRIDA" },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading && isRootAvailable,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
-                ) { Text("Desinstalar") }
+                ) { Text("DESINSTALAR FRIDA") }
             }
 
             // Refresh button — always available
             OutlinedButton(
-                onClick = onRefresh,
+                onClick = { pendingAction = "ACTUALIZAR ESTADO" },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Actualizar estado")
+                Text("ACTUALIZAR ESTADO")
             }
         }
+    }
+    pendingAction?.let { action ->
+        val description = when (action) {
+            "INSTALAR/ACTUALIZAR FRIDA SERVER" -> "DESCARGAR E INSTALAR FRIDA-SERVER EN LA VERSIÓN 16.7.19."
+            "INICIAR" -> "INICIAR EL PROCESO FRIDA-SERVER."
+            "DETENER" -> "DETENER EL PROCESO FRIDA-SERVER."
+            "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, VERSIÓN, INSTALACIÓN Y ESTADO DEL SERVIDOR."
+            "DESINSTALAR FRIDA" -> "DETENER LAS INYECCIONES Y ELIMINAR FRIDA-SERVER Y FRIDA-INJECT."
+            else -> "DESCARGAR FRIDA-INJECT EN LA MISMA VERSIÓN QUE FRIDA-SERVER."
+        }
+        AlertDialog(
+            onDismissRequest = { pendingAction = null },
+            title = { Text(action.uppercase()) },
+            text = { Text(description) },
+            confirmButton = { TextButton(onClick = {
+                pendingAction = null
+                when (action) {
+                    "INSTALAR/ACTUALIZAR FRIDA SERVER" -> onInstall()
+                    "INICIAR" -> onStart()
+                    "DETENER" -> onStop()
+                    "ACTUALIZAR ESTADO" -> onRefresh()
+                    "DESINSTALAR FRIDA" -> onUninstall()
+                    else -> onDownloadInject()
+                }
+            }) { Text("SI") } },
+            dismissButton = { TextButton(onClick = { pendingAction = null }) { Text("NO") } }
+        )
     }
 }
 
@@ -464,7 +491,8 @@ private fun ActionButtons(
 @Composable
 private fun LogPanel(
     logs: List<String>,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    onExport: () -> Unit
 ) {
     // Used to programmatically scroll to the bottom when new logs arrive
     val listState = rememberLazyListState()
@@ -485,11 +513,14 @@ private fun LogPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Registro",
+                    text = "REGISTRO",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
-                TextButton(onClick = onClear) { Text("Limpiar") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onExport) { Text("EXPORTAR") }
+                    TextButton(onClick = onClear) { Text("LIMPIAR") }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -578,4 +609,18 @@ private fun CustomFlagsDialog(
             TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
+}
+
+
+private fun exportFridaLog(context: android.content.Context, logs: List<String>) {
+    try {
+        val directory = File("/sdcard/download")
+        if (!directory.exists() && !directory.mkdirs()) throw java.io.IOException("No se pudo crear /sdcard/download")
+        val stamp = SimpleDateFormat("MM-dd-HH-mm", Locale.US).format(Date())
+        val file = File(directory, "frida_log_(${stamp}).txt")
+        file.writeText(logs.joinToString("\n"))
+        Toast.makeText(context, "LOG EXPORTADO: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "ERROR AL EXPORTAR LOG: ${e.message}", Toast.LENGTH_LONG).show()
+    }
 }
