@@ -199,7 +199,7 @@ object FridaInjectUtils {
             // Step 6: verify the app is running
             val pid = findProcessId(packageName)
             if (pid != null) {
-                lines += "✓ $packageName is running (PID $pid)"
+                lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, scriptPath)
@@ -286,7 +286,7 @@ object FridaInjectUtils {
 
             val pid = findProcessId(packageName)
             if (pid != null) {
-                lines += "✓ $packageName is running (PID $pid)"
+                lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, devicePath)
@@ -351,7 +351,7 @@ object FridaInjectUtils {
 
             val pid = findProcessId(packageName)
             if (pid != null) {
-                lines += "✓ $packageName is running (PID $pid)"
+                lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, devicePath)
@@ -521,7 +521,7 @@ object FridaInjectUtils {
                 val pid = findProcessId(packageName)
 
                 buildString {
-                    if (pid != null) append("✓ Attached to $packageName (PID $pid)")
+                    if (pid != null) append("⚠️ Found target process $packageName (PID $pid), but PID presence does NOT confirm successful injection or script execution.")
                     else append("Could not find process — is frida-server running?")
                     if (log.isNotEmpty()) append(" | frida-inject: $log")
                 }
