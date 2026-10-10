@@ -151,7 +151,7 @@ object FridaUtils {
 
                                     // Extract the architecture from the filename using regex
                                     // Pattern: "android-(arm|arm64|x86|x86_64)"
-                                    val archPattern = "android-(arm|arm64|x86|x86_64)".toRegex()
+                                    val archPattern = "android-(arm64|arm|x86_64|x86)(?=[.-])".toRegex()
                                     val matchResult = archPattern.find(name)
                                     val architecture = matchResult?.groupValues?.get(1) ?: "unknown"
 
