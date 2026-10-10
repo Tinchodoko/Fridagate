@@ -588,7 +588,7 @@ private fun CustomFlagsDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 // Help text showing common flags
                 Text(
-                    text = "PARÁMETROS HABITUALES:\N" +
+                    text = "PARÁMETROS HABITUALES:\n" +
                             "-l ADDRESS  Listen on address\n" +
                             "--token=TOKEN  Require auth token\n" +
                             "-D  Daemonize",
