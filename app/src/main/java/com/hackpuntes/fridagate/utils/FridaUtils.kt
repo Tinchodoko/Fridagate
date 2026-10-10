@@ -237,28 +237,12 @@ object FridaUtils {
      * @return The URL if it exists on GitHub, null otherwise
      */
     private suspend fun buildCustomVersionUrl(version: String, architecture: String): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val fileName = "frida-server-$version-android-$architecture.xz"
-                val url = "https://github.com/frida/frida/releases/download/$version/$fileName"
-
-                val client = OkHttpClient.Builder()
-                    .followRedirects(true)
-                    .connectTimeout(10, TimeUnit.SECONDS)
-                    .build()
-
-                // HEAD request: like GET but without downloading the body
-                // Used to check if a URL exists without wasting bandwidth
-                val request = Request.Builder().url(url).head().build()
-
-                client.newCall(request).execute().use { response ->
-                    // 200 OK or 302 redirect both mean the file exists
-                    if (response.isSuccessful || response.code == 302) url else null
-                }
-            } catch (e: Exception) {
-                null
-            }
-        }
+        // Do not depend on HEAD requests: GitHub/CDNs can reject them even when
+        // the release asset exists. The actual download performs the definitive
+        // HTTP status check and reports failure if the asset is unavailable.
+        if (!isValidVersionFormat(version)) return null
+        if (architecture !in setOf("arm", "arm64", "x86", "x86_64")) return null
+        return "https://github.com/frida/frida/releases/download/$version/frida-server-$version-android-$architecture.xz"
     }
 
     /**
