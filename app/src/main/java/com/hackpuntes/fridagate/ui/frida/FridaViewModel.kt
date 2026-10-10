@@ -185,8 +185,8 @@ class FridaViewModel : ViewModel() {
     private fun isAndroid16CompatibleVersion(version: String): Boolean {
         // Ignore prereleases; compare numeric components rather than lexical strings.
         if ('-' in version) return false
-        val parts = version.split(".").map { it.toIntOrNull() ?: return false }
-        if (parts.size < 3) return false
+        val parts = version.split(".").map { it.toIntOrNull() ?: -1 }
+        if (parts.size < 3 || parts.any { it < 0 }) return false
         val minimum = listOf(17, 6, 0)
         for (i in minimum.indices) {
             val current = parts.getOrElse(i) { 0 }
