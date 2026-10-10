@@ -156,73 +156,74 @@ class FridaViewModel : ViewModel() {
     fun loadAvailableReleases() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("CARGANDO LA VERSIÓN RECOMENDADA FIJA 16.7.19...")
+            addLog("BUSCANDO VERSIONES DE FRIDA COMPATIBLES CON ANDROID 16...")
             val fetched = FridaUtils.getAvailableFridaReleases()
-            val pinned = fetched.find { it.version == "16.7.19" } ?: FridaRelease(
-                version = "16.7.19",
+            // Frida 17.6.0 rebased its SELinux userspace library to support modern
+            // Android policy formats. Keep older releases out of the default list.
+            val compatible = fetched.filter { isAndroid16CompatibleVersion(it.version) }
+            val fallback = FridaRelease(
+                version = "17.6.0",
                 releaseDate = "",
                 assets = listOf("arm", "arm64", "x86", "x86_64").map { arch ->
                     FridaUtils.FridaAsset(
-                        name = "frida-server-16.7.19-android-$arch.xz",
-                        downloadUrl = "https://github.com/frida/frida/releases/download/16.7.19/frida-server-16.7.19-android-$arch.xz",
+                        name = "frida-server-17.6.0-android-$arch.xz",
+                        downloadUrl = "https://github.com/frida/frida/releases/download/17.6.0/frida-server-17.6.0-android-$arch.xz",
                         architecture = arch,
                         size = 0L
                     )
                 }
             )
-            _availableReleases.value = listOf(pinned)
-            _selectedVersion.value = "16.7.19"
-            addLog("ÚNICA VERSIÓN DISPONIBLE Y RECOMENDADA: 16.7.19")
+            val choices = compatible.ifEmpty { listOf(fallback) }
+            _availableReleases.value = choices
+            val recommended = choices.first().version
+            _selectedVersion.value = recommended
+            addLog("VERSIÓN RECOMENDADA PARA ANDROID 16: $recommended")
             _isLoading.value = false
         }
     }
 
-    /**
-     * Updates the selected version when the user picks one from the dropdown.
-     *
-     * @param version The version string selected by the user (e.g., "16.7.0")
-     */
-    fun setSelectedVersion(version: String) {
-        _selectedVersion.value = "16.7.19"
+    private fun isAndroid16CompatibleVersion(version: String): Boolean {
+        // Ignore prereleases; compare numeric components rather than lexical strings.
+        if ('-' in version) return false
+        val parts = version.split(".").map { it.toIntOrNull() ?: return false }
+        if (parts.size < 3) return false
+        val minimum = listOf(17, 6, 0)
+        for (i in minimum.indices) {
+            val current = parts.getOrElse(i) { 0 }
+            if (current != minimum[i]) return current > minimum[i]
+        }
+        return true
     }
 
-    /**
-     * Sets a custom version entered manually by the user.
-     * Validates the format before accepting it.
-     *
-     * @param version Custom version string (e.g., "16.5.9")
-     */
+    /** Updates the selected version when the user picks a release from the list. */
+    fun setSelectedVersion(version: String) {
+        if (_availableReleases.value.any { it.version == version }) {
+            _selectedVersion.value = version
+        }
+    }
+
+    /** Allows a custom stable Frida version, provided it supports modern Android SELinux policy formats. */
     fun setCustomVersion(version: String) {
-        if (version != "16.7.19") {
-            addLog("LA ÚNICA VERSIÓN DISPONIBLE ES 16.7.19")
+        if (!isAndroid16CompatibleVersion(version)) {
+            addLog("VERSIÓN NO COMPATIBLE: usa Frida 17.6.0 o posterior estable para Android 16.")
             return
         }
-        _selectedVersion.value = "16.7.19"
-        addLog("VERSIÓN RECOMENDADA SELECCIONADA: 16.7.19")
+        _selectedVersion.value = version
+        addLog("VERSIÓN PERSONALIZADA SELECCIONADA: $version")
     }
 
     /**
-     * Downloads, decompresses, and installs frida-server for the selected version.
-     *
-     * Full flow:
-     *  1. Get the download URL for the selected version + device architecture
-     *  2. Download the file (may take a while for large binaries)
-     *  3. Decompress (.xz or .zip) and save to app's private directory
-     *  4. Copy to /data/local/tmp/ and set execute permissions via root
-     *  5. Clean up the temporary downloaded file
-     *
-     * @param context Needed to access the app's private files directory
+     * Downloads and installs matching frida-server and frida-inject binaries.
+     * Keeping both components on exactly the same version avoids protocol mismatches.
      */
     fun downloadAndInstall(context: Context) {
         viewModelScope.launch {
-            val version = "16.7.19"
+            val version = _selectedVersion.value
             val architecture = FridaUtils.getDeviceArchitecture()
-            _selectedVersion.value = version
             _isLoading.value = true
             try {
                 addLog("INSTALACIÓN CONJUNTA DE FRIDA-SERVER Y FRIDA-INJECT $version ($architecture)")
 
-                // Install/update frida-server first.
                 val serverUrl = FridaUtils.getFridaServerUrl(version, architecture)
                 if (serverUrl == null) {
                     addLog("ERROR: NO SE ENCONTRÓ LA DESCARGA DE FRIDA-SERVER $version ($architecture)")
@@ -247,7 +248,6 @@ class FridaViewModel : ViewModel() {
                 _installedVersion.value = version
                 addLog("FRIDA-SERVER $version INSTALADO CORRECTAMENTE")
 
-                // Install the matching frida-inject binary as part of the same action.
                 addLog("DESCARGANDO E INSTALANDO FRIDA-INJECT $version...")
                 val injectInstalled = FridaInjectUtils.downloadAndInstall(context, version)
                 if (!injectInstalled) {
