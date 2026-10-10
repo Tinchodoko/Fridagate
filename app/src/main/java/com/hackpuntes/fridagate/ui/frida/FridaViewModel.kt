@@ -351,8 +351,15 @@ class FridaViewModel : ViewModel() {
                 addLog(if (serverRemoved) "✓ frida-server desinstalado" else "ERROR: no se pudo eliminar frida-server")
 
                 addLog("Restaurando la configuración de red...")
+                val previousProxy = ProxyUtils.getSystemProxy()
+                val previousHost = previousProxy?.substringBeforeLast(':')
+                val previousPort = previousProxy?.substringAfterLast(':')?.toIntOrNull()
+                val iptablesRemoved = if (previousHost != null && previousPort != null) {
+                    ProxyUtils.disableIptablesProxy(previousHost, previousPort, previousPort)
+                } else {
+                    ProxyUtils.disableIptablesProxy()
+                }
                 val proxyRemoved = ProxyUtils.clearSystemProxy()
-                val iptablesRemoved = ProxyUtils.disableIptablesProxy()
                 addLog(if (proxyRemoved) "✓ Proxy global de Android eliminado" else "ADVERTENCIA: no se pudo confirmar la limpieza del proxy global")
                 addLog(if (iptablesRemoved) "✓ Reglas iptables de FridaGate eliminadas" else "ADVERTENCIA: no se pudo confirmar la limpieza de iptables")
 
