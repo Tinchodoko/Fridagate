@@ -149,7 +149,7 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "FridaGate 2.0",
+                        text = "FRIDAGATE 2.0",
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
