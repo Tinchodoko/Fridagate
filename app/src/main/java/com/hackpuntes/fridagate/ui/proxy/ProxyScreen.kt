@@ -185,7 +185,7 @@ private fun ConnectionSettingsCard(
             OutlinedTextField(
                 value = ip,
                 onValueChange = onIpChange,
-                label = { Text("DIRECCIÓN IP DE BURP") },
+                label = { Text("HECHO POR TINCHODOKO") },
                 placeholder = { Text("192.168.1.100") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = false,
@@ -202,7 +202,7 @@ private fun ConnectionSettingsCard(
                 OutlinedTextField(
                     value = httpPort.toString(),
                     onValueChange = onHttpPortChange,
-                    label = { Text("PUERTO HTTP") },
+                    label = { Text("HECHO POR TINCHODOKO") },
                     modifier = Modifier.weight(1f),
                     enabled = false,
                     singleLine = true,
@@ -211,7 +211,7 @@ private fun ConnectionSettingsCard(
                 OutlinedTextField(
                     value = httpsPort.toString(),
                     onValueChange = onHttpsPortChange,
-                    label = { Text("PUERTO HTTPS") },
+                    label = { Text("HECHO POR TINCHODOKO") },
                     modifier = Modifier.weight(1f),
                     enabled = false,
                     singleLine = true,
@@ -358,7 +358,7 @@ private fun CertificateCard(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable
             ) {
-                Text("Instalar certificado CA de Burp")
+                Text("INSTALAR CERTIFICADO CA DE BURP")
             }
         }
     }
