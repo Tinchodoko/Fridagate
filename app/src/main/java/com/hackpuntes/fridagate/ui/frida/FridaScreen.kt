@@ -50,10 +50,16 @@ import com.hackpuntes.fridagate.utils.FridaUtils
  *  - CustomFlagsDialog   → dialog for entering custom flags
  */
 @Composable
-fun FridaScreen(
-    // The ViewModel is provided by the Compose runtime and survives recompositions
-    viewModel: FridaViewModel = viewModel()
-) {
+fun FridaScreen() {
+    val context = LocalContext.current
+    val viewModel: FridaViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                FridaViewModel(context.applicationContext) as T
+        }
+    )
+
     // collectAsState() turns a StateFlow into a Compose State object
     // Every time the StateFlow emits a new value, the composable recomposes
     val isLoading by viewModel.isLoading.collectAsState()
@@ -65,9 +71,6 @@ fun FridaScreen(
     val isRootAvailable by viewModel.isRootAvailable.collectAsState()
     val logs by viewModel.logs.collectAsState()
     val lastCustomFlags by viewModel.lastCustomFlags.collectAsState()
-
-    // Context is needed for operations that require it (e.g., file download)
-    val context = LocalContext.current
 
     val extrasViewModel: ExtrasViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -277,15 +280,24 @@ private fun StatusCard(
 private fun StatusRow(label: String, value: String, isActive: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium)
         Text(
-            text = value,
-            fontWeight = FontWeight.Bold,
-            // Green when active, red when inactive
-            color = if (isActive) Color(0xFF4CAF50) else Color(0xFFF44336)
+            text = label,
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+            style = MaterialTheme.typography.bodyMedium
         )
+        Box(
+            modifier = Modifier.width(132.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = value,
+                fontWeight = FontWeight.Bold,
+                // Green when active, red when inactive; all confirmations share one left-aligned column.
+                color = if (isActive) Color(0xFF4CAF50) else Color(0xFFF44336)
+            )
+        }
     }
 }
 
