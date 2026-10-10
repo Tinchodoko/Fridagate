@@ -749,7 +749,7 @@ private fun OneTabActionsCard(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
             ) {
                 Text(
-                    text = "■  DESACTIVAR TODO",
+                    text = "■  DETENER TODO",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
