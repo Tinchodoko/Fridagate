@@ -205,7 +205,7 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Dispositivo",
+                text = "DISPOSITIVO",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -221,7 +221,7 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
             if (!isRootAvailable) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "⚠ No hay acceso root: frida-server requiere permisos root",
+                    text = "⚠ NO HAY ACCESO ROOT: FRIDA-SERVER REQUIERE PERMISOS ROOT",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -244,7 +244,7 @@ private fun StatusCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Estado del servidor",
+                text = "ESTADO DEL SERVIDOR",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -533,7 +533,7 @@ private fun LogPanel(
             ) {
                 if (logs.isEmpty()) {
                     Text(
-                        text = "Todavía no hay registros...",
+                        text = "TODAVÍA NO HAY REGISTROS...",
                         color = Color(0xFF666666),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp
@@ -574,21 +574,21 @@ private fun CustomFlagsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Iniciar con parámetros personalizados") },
+        title = { Text("INICIAR CON PARÁMETROS PERSONALIZADOS") },
         text = {
             Column {
                 OutlinedTextField(
                     value = flags,
                     onValueChange = { flags = it },
-                    label = { Text("Introduce los parámetros aquí") },
-                    placeholder = { Text("-l 0.0.0.0:27042") },
+                    label = { Text("INTRODUCE LOS PARÁMETROS AQUÍ") },
+                    placeholder = { Text("-L 0.0.0.0:27042") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 // Help text showing common flags
                 Text(
-                    text = "Parámetros habituales:\n" +
+                    text = "PARÁMETROS HABITUALES:\N" +
                             "-l ADDRESS  Listen on address\n" +
                             "--token=TOKEN  Require auth token\n" +
                             "-D  Daemonize",
@@ -598,10 +598,10 @@ private fun CustomFlagsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(flags) }) { Text("Iniciar") }
+            Button(onClick = { onConfirm(flags) }) { Text("INICIAR") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+            TextButton(onClick = onDismiss) { Text("CANCELAR") }
         }
     )
 }
