@@ -320,9 +320,16 @@ object FridaInjectUtils {
                 lines += "ℹ️ El registro detallado se volverá a consultar al detener la inyección."
             }
 
+            val scriptBootConfirmed = injectLog.contains("[FG-UNITY-IL2CPP]") &&
+                injectLog.contains("BOOT")
             val pid = findProcessId(packageName)
             if (pid != null) {
-                lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
+                if (scriptBootConfirmed) {
+                    lines += "✅ El JavaScript de diagnóstico se ejecutó dentro de Frida (BOOT confirmado)."
+                    lines += "ℹ️ Esto confirma el arranque del script; los hooks IL2CPP se confirman por separado en sus propios registros."
+                } else {
+                    lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
+                }
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, devicePath)
