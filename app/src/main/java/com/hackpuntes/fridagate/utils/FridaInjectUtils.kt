@@ -233,6 +233,17 @@ object FridaInjectUtils {
         injectionPrerequisiteError()?.let { return@withContext listOf(it) }
 
         try {
+            // Cerrar forzosamente la app seleccionada antes de preparar o lanzar la inyección.
+            lines += "⏹️ Cerrando $packageName antes de inyectar los scripts..."
+            RootUtils.executeSuCommand("am force-stop $packageName")
+            Thread.sleep(350)
+            val remainingTargetPid = RootUtils.executeSuCommand("pidof $packageName").trim()
+            if (remainingTargetPid.isNotBlank()) {
+                RootUtils.executeSuCommand("kill -9 $remainingTargetPid 2>/dev/null || true; am force-stop $packageName")
+                Thread.sleep(250)
+            }
+            lines += "✓ Aplicación cerrada antes de iniciar frida-inject: $packageName"
+
             val source = buildString {
                 bypassScripts.forEach { script ->
                     appendLine("// ===== ${script.name} =====")
@@ -266,8 +277,6 @@ object FridaInjectUtils {
                 lines += "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
             }
 
-            RootUtils.executeSuCommand("am force-stop $packageName")
-            Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
             recordInjectedPackage(packageName)
