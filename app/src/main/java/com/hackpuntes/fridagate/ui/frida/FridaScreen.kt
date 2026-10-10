@@ -305,10 +305,13 @@ private fun VersionSelector(
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val recommendedVersion = releases.firstOrNull()?.version ?: "17.6.0"
+    val recommendedVersion = "17.6.0"
     val versions = releases.map { release ->
-        release.version to if (release.version == recommendedVersion) "RECOMENDADA" else ""
-    }.ifEmpty { listOf("17.6.0" to "RECOMENDADA") }
+        release.version to when (release.version) {
+            recommendedVersion -> "RECOMENDADA"
+            else -> "ÚLTIMA DISPONIBLE"
+        }
+    }.ifEmpty { listOf(recommendedVersion to "RECOMENDADA") }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
