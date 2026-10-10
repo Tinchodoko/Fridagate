@@ -290,38 +290,14 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
                 addLog("frida-server iniciado")
 
-                // Do not redirect traffic until the Burp listener is reachable.
-                addLog("Comprobando Burp Suite en $ip:$httpPort antes de activar el proxy...")
-                _isBurpReachable.value = ProxyUtils.isBurpReachable(ip, httpPort)
-                if (!_isBurpReachable.value) {
-                    ProxyUtils.disableIptablesProxy(ip, httpPort, httpsPort)
-                    ProxyUtils.clearSystemProxy()
-                    _isProxyActive.value = false
-                    addLog("ADVERTENCIA: Burp no responde en $ip:$httpPort.")
-                    addLog("Proxy NO activado para evitar dejar el teléfono sin Internet.")
-                    addLog("Frida quedó instalado y ejecutándose; inicia Burp y verifica IP/puerto para configurar el proxy después.")
-                    addLog("── INSTALACIÓN INTELIGENTE FINALIZADA (proxy omitido) ──")
-                    return@launch
-                }
-
-                // A reachable TCP listener does not prove Burp is configured for
-                // invisible/transparent proxying. Keep iptables off by default:
-                // DNATing ordinary TLS traffic to an explicit-proxy listener breaks Internet.
+                // FridaGate's smart install is Frida-only. Proxy/Burp are optional
+                // and are deliberately never enabled by this action.
                 _isProxyActive.value = false
-                addLog("Burp responde. Configurando únicamente el proxy del sistema...")
-                val systemProxySet = ProxyUtils.setSystemProxy(ip, httpPort)
-                if (systemProxySet) {
-                    addLog("Proxy del sistema configurado")
-                    addLog("Instalando el certificado CA de Burp Suite...")
-                    val certificateInstalled = ProxyUtils.installBurpCertificate(ip, httpPort)
-                    if (certificateInstalled) addLog("Certificado CA de Burp Suite instalado")
-                    else addLog("ADVERTENCIA: no se instaló el certificado CA; verifica el listener de Burp y el almacenamiento del sistema")
-                } else {
-                    ProxyUtils.clearSystemProxy()
-                    addLog("ADVERTENCIA: no se pudo configurar el proxy del sistema; se dejó desactivado")
-                }
-                addLog("Proxy iptables permanece desactivado para proteger la conexión.")
-                addLog("Actívalo manualmente en Proxy solo si Burp tiene configurado un listener invisible/transparent.")
+                _isBurpReachable.value = false
+                addLog("Frida-server está instalado y en ejecución.")
+                addLog("frida-inject está instalado con la misma versión.")
+                addLog("Proxy del sistema e iptables: desactivados.")
+                addLog("Burp Suite y su certificado no son necesarios para inyectar scripts.")
                 addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ──")
             } catch (e: Exception) {
                 addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
@@ -334,33 +310,34 @@ class DashboardViewModel(context: Context) : ViewModel() {
     fun deactivateAll() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("── DEACTIVATE ALL ────────────────")
+            addLog("── DETENER TODO ──────────────────")
+            try {
+                addLog("Deteniendo scripts inyectados y aplicaciones registradas...")
+                FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
 
-            // Step 1: Stop frida-server
-            if (_isFridaRunning.value) {
-                addLog("Stopping frida-server...")
+                addLog("Deteniendo frida-server...")
                 val stopped = FridaUtils.stopFridaServer()
-                _isFridaRunning.value = !stopped
-                if (stopped) addLog("Frida server stopped") else addLog("ERROR: Failed to stop frida-server")
-            } else {
-                addLog("Frida server not running — skipping")
+                _isFridaRunning.value = !FridaUtils.isFridaServerRunning()
+                addLog(if (stopped && !_isFridaRunning.value) "✓ frida-server detenido" else "ADVERTENCIA: no se pudo confirmar que frida-server se detuviera")
+
+                addLog("Eliminando reglas de proxy antiguas de FridaGate...")
+                val ip = prefs.burpIp.first()
+                val httpPort = prefs.burpHttpPort.first()
+                val httpsPort = prefs.burpHttpsPort.first()
+                val iptablesCleared = ProxyUtils.disableIptablesProxy(ip, httpPort, httpsPort)
+                addLog(if (iptablesCleared) "✓ Reglas iptables de FridaGate desactivadas" else "ADVERTENCIA: no se pudo confirmar la limpieza de todas las reglas iptables")
+
+                val systemProxyCleared = ProxyUtils.clearSystemProxy()
+                addLog(if (systemProxyCleared) "✓ Proxy global de Android eliminado" else "ADVERTENCIA: no se pudo confirmar la eliminación del proxy global")
+
+                _isProxyActive.value = false
+                _isBurpReachable.value = false
+                addLog("Detener todo finalizado. Los binarios de Frida se conservan instalados.")
+            } catch (e: Exception) {
+                addLog("ERROR al detener todo: ${e.message ?: "desconocido"}")
+            } finally {
+                _isLoading.value = false
             }
-
-            // Step 2: Disable iptables proxy
-            addLog("Disabling iptables proxy...")
-            val disabled = ProxyUtils.disableIptablesProxy(prefs.burpIp.first(), prefs.burpHttpPort.first(), prefs.burpHttpsPort.first())
-            _isProxyActive.value = !disabled
-            if (disabled) addLog("iptables proxy disabled") else addLog("ERROR: Failed to disable proxy")
-
-            // Step 3: Clear system proxy (http_proxy + global_http_proxy)
-            // Without this, the proxy setting persists across reboots and the WiFi shows "no internet"
-            addLog("Clearing system proxy...")
-            ProxyUtils.clearSystemProxy()
-            addLog("System proxy cleared")
-
-            _isBurpReachable.value = false
-            addLog("── DONE ──────────────────────────")
-            _isLoading.value = false
         }
     }
 
