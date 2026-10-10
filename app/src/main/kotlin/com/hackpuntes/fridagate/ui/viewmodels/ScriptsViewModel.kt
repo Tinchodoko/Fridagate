@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import android.content.ContentValues
 import android.os.Environment
 import android.provider.MediaStore
@@ -265,7 +266,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             val launchSucceeded = targetProcessFound && !injectionReportedError
             if (launchSucceeded) {
                 _activeTargetPackage.value = packageName
-                addLog("🟢 Aplicación iniciada; la inyección no reportó errores explícitos.")
+                addLog("⚠️ La aplicación está abierta y frida-inject fue lanzado, pero esto NO confirma que el agente ni el script se hayan ejecutado.")
 
                 val selectedNames = (enabledBuiltInScripts.map { it.name } + enabledUserScripts.map { it.name })
                     .distinct()
@@ -275,22 +276,21 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                     selectedNames.size <= 3 -> selectedNames.joinToString(" + ")
                     else -> "${selectedNames.size} scripts"
                 }
-                val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-                    PackageManager.PERMISSION_GRANTED
-                if (canNotify) {
-                    val notificationIntent = Intent(context, FridaGateNotificationService::class.java).apply {
-                        action = FridaGateNotificationService.ACTION_SCRIPT_INJECTED
-                        putExtra(FridaGateNotificationService.EXTRA_SCRIPT_NAME, notificationScriptName)
-                        putExtra(FridaGateNotificationService.EXTRA_PACKAGE_NAME, packageName)
+                val notificationIntent = Intent(context, FridaGateNotificationService::class.java).apply {
+                    action = FridaGateNotificationService.ACTION_SCRIPT_INJECTED
+                    putExtra(FridaGateNotificationService.EXTRA_SCRIPT_NAME, notificationScriptName)
+                    putExtra(FridaGateNotificationService.EXTRA_PACKAGE_NAME, packageName)
+                }
+                try {
+                    // Android exige notificación para el servicio en primer plano; la burbuja es complementaria.
+                    ContextCompat.startForegroundService(context, notificationIntent)
+                    if (Settings.canDrawOverlays(context)) {
+                        addLog("🟣 Servicio persistente solicitado; icono flotante activado.")
+                    } else {
+                        addLog("ℹ️ Falta permiso de ventana flotante. Concédelo en INICIO → Estado del sistema.")
                     }
-                    try {
-                        ContextCompat.startForegroundService(context, notificationIntent)
-                    } catch (e: Exception) {
-                        addLog("⚠️ No se pudo mostrar la notificación: ${e.message}")
-                    }
-                } else {
-                    addLog("ℹ️ Permiso de notificaciones denegado; no se mostró la notificación de inyección.")
+                } catch (e: Exception) {
+                    addLog("⚠️ No se pudo iniciar el servicio persistente: ${e.message}")
                 }
             } else {
                 _activeTargetPackage.value = null
