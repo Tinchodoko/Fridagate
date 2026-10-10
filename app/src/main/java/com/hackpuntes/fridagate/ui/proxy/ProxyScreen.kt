@@ -348,7 +348,7 @@ private fun CertificateCard(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Instala el certificado CA de Burp para interceptar tráfico HTTPS. " +
+                text = "INSTALA EL CERTIFICADO CA DE BURP PARA INTERCEPTAR TRÁFICO HTTPS. " +
                         "Requires root and an active system proxy.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
