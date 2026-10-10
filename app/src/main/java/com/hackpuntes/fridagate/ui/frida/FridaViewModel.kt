@@ -32,7 +32,9 @@ import kotlinx.coroutines.launch
  *  StateFlow always has a current value (unlike LiveData which can be null initially).
  *  Compose collects StateFlow with "collectAsState()" in the composable.
  */
-class FridaViewModel : ViewModel() {
+class FridaViewModel(private val appContext: Context) : ViewModel() {
+
+    private val versionPreferences = appContext.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
 
     // -------------------------------------------------------------------------
     // UI State — each property below is a piece of state that the UI observes.
@@ -66,7 +68,7 @@ class FridaViewModel : ViewModel() {
     val availableReleases: StateFlow<List<FridaRelease>> = _availableReleases.asStateFlow()
 
     /** The version selected by the user in the dropdown */
-    private val _selectedVersion = MutableStateFlow("17.6.0")
+    private val _selectedVersion = MutableStateFlow(versionPreferences.getString("selected_frida_version", "17.6.0") ?: "17.6.0")
     val selectedVersion: StateFlow<String> = _selectedVersion.asStateFlow()
 
     /** Whether root access is available on the device */
@@ -178,9 +180,16 @@ class FridaViewModel : ViewModel() {
             } else {
                 listOf(recommended)
             }
-            // The recommended version remains the default; the latest stable release is optional.
-            _selectedVersion.value = recommendedVersion
-            addLog("VERSIÓN PREDETERMINADA: $recommendedVersion")
+            // Preserve the user's selection across screens and app restarts.
+            val savedSelection = versionPreferences.getString("selected_frida_version", recommendedVersion)
+                ?: recommendedVersion
+            _selectedVersion.value = if (_availableReleases.value.any { it.version == savedSelection }) {
+                savedSelection
+            } else {
+                recommendedVersion
+            }
+            versionPreferences.edit().putString("selected_frida_version", _selectedVersion.value).apply()
+            addLog("VERSIÓN SELECCIONADA: " + _selectedVersion.value)
             latest?.takeIf { it.version != recommendedVersion }?.let {
                 addLog("ÚLTIMA VERSIÓN ESTABLE DISPONIBLE: ${it.version}")
             }
@@ -205,6 +214,7 @@ class FridaViewModel : ViewModel() {
     fun setSelectedVersion(version: String) {
         if (_availableReleases.value.any { it.version == version }) {
             _selectedVersion.value = version
+            versionPreferences.edit().putString("selected_frida_version", version).apply()
         }
     }
 
@@ -215,6 +225,7 @@ class FridaViewModel : ViewModel() {
             return
         }
         _selectedVersion.value = version
+        versionPreferences.edit().putString("selected_frida_version", version).apply()
         addLog("VERSIÓN PERSONALIZADA SELECCIONADA: $version")
     }
 
