@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.content.ContentValues
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
@@ -274,7 +273,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                     selectedNames.isEmpty() -> "Script"
                     selectedNames.size == 1 -> selectedNames.first()
                     selectedNames.size <= 3 -> selectedNames.joinToString(" + ")
-                    else -> "\${selectedNames.size} scripts"
+                    else -> "${selectedNames.size} scripts"
                 }
                 val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                     ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -288,7 +287,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                     try {
                         ContextCompat.startForegroundService(context, notificationIntent)
                     } catch (e: Exception) {
-                        addLog("⚠️ No se pudo mostrar la notificación: \${e.message}")
+                        addLog("⚠️ No se pudo mostrar la notificación: ${e.message}")
                     }
                 } else {
                     addLog("ℹ️ Permiso de notificaciones denegado; no se mostró la notificación de inyección.")
