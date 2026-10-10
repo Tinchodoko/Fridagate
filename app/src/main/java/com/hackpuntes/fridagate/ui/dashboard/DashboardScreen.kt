@@ -208,7 +208,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
 
                 val architecture = FridaUtils.getDeviceArchitecture()
-                val version = "16.7.19"
+                val version = "17.6.0"
                 addLog("VERSIÓN RECOMENDADA FIJA: $version ($architecture)")
                 addLog("Versión seleccionada: $version")
 
@@ -660,8 +660,12 @@ private fun StatusIndicatorRow(
             style = MaterialTheme.typography.bodyMedium
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Colored dot indicator
+        Row(
+            modifier = Modifier.width(132.dp),
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Fixed-width status column keeps every colored dot aligned in one vertical line.
             Text(
                 text = "●",
                 color = if (active) activeColor else inactiveColor,
