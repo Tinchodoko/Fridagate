@@ -33,10 +33,10 @@ fun AboutScreen(onBack: () -> Unit) {
     ) {
         // Header
         TopAppBar(
-            title = { Text("Acerca de FridaGate 2.0") },
+            title = { Text("ACERCA DE FRIDAGATE 2.0") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, "Volver")
+                    Icon(Icons.Default.ArrowBack, "VOLVER")
                 }
             }
         )
@@ -51,13 +51,13 @@ fun AboutScreen(onBack: () -> Unit) {
         ) {
             // Title
             Text(
-                "FridaGate 2.0",
+                "FRIDAGATE 2.0",
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
             Text(
-                "Herramienta de análisis de seguridad para Android",
+                "HERRAMIENTA DE ANÁLISIS DE SEGURIDAD PARA ANDROID",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -65,26 +65,26 @@ fun AboutScreen(onBack: () -> Unit) {
             
             // Description
             Text(
-                "FridaGate 2.0 es una herramienta integral para analizar la seguridad de aplicaciones Android. Permite gestionar scripts de Frida, consultar registros y exportar resultados directamente desde el dispositivo.",
+                "FRIDAGATE 2.0 es una herramienta integral para analizar la seguridad de aplicaciones Android. Permite gestionar scripts de Frida, consultar registros y exportar resultados directamente desde el dispositivo.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
             
             // Author Section
             Text(
-                "Autor",
+                "AUTOR",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
             
             Text(
-                "Tinchodoko 😈",
+                "TINCHODOKO 😈",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             
             Text(
-                "Gracias a Javier Olmedo por su trabajo y por el proyecto original 🙏",
+                "GRACIAS A JAVIER OLMEDO POR SU TRABAJO Y POR EL PROYECTO ORIGINAL 🙏",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -92,29 +92,29 @@ fun AboutScreen(onBack: () -> Unit) {
             
             // Features
             Text(
-                "Funciones",
+                "FUNCIONES",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
             
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text("✅ Gestor de archivos: crear, editar y eliminar scripts .js", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ Editor avanzado: resaltado de sintaxis y plantillas", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ Ejecución: inyectar scripts en procesos mediante Frida", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ Registros: captura en tiempo real y exportación a TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ Compatibilidad con IL2CPP y frida-il2cpp-bridge", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ GESTOR DE ARCHIVOS: CREAR, EDITAR Y ELIMINAR SCRIPTS .JS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ EDITOR AVANZADO: RESALTADO DE SINTAXIS Y PLANTILLAS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ EJECUCIÓN: INYECTAR SCRIPTS EN PROCESOS MEDIANTE FRIDA", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ REGISTROS: CAPTURA EN TIEMPO REAL Y EXPORTACIÓN A TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ COMPATIBILIDAD CON IL2CPP Y FRIDA-IL2CPP-BRIDGE", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
             }
             
             // Links Section
             Text(
-                "Enlaces",
+                "ENLACES",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
             
             // Github Repository
             ClickableText(
-                text = AnnotatedString("📍 Repositorio de GitHub: Tinchodoko/Fridagate"),
+                text = AnnotatedString("📍 REPOSITORIO DE GITHUB: TINCHODOKO/FRIDAGATE"),
                 onClick = {
                     uriHandler.openUri("https://github.com/Tinchodoko/Fridagate")
                 },
@@ -127,7 +127,7 @@ fun AboutScreen(onBack: () -> Unit) {
             
             // Owner Repository
             ClickableText(
-                text = AnnotatedString("📍 Repositorio original: JavierOlmedo/Fridagate"),
+                text = AnnotatedString("📍 REPOSITORIO ORIGINAL: JAVIEROLMEDO/FRIDAGATE"),
                 onClick = {
                     uriHandler.openUri("https://github.com/JavierOlmedo/Fridagate")
                 },
@@ -140,7 +140,7 @@ fun AboutScreen(onBack: () -> Unit) {
             
             // Frida Documentation
             ClickableText(
-                text = AnnotatedString("📍 Sitio oficial de Frida"),
+                text = AnnotatedString("📍 SITIO OFICIAL DE FRIDA"),
                 onClick = {
                     uriHandler.openUri("https://frida.re")
                 },
@@ -153,7 +153,7 @@ fun AboutScreen(onBack: () -> Unit) {
             
             // Contact and suggestions
             Text(
-                "Contacto",
+                "CONTACTO",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
@@ -164,28 +164,28 @@ fun AboutScreen(onBack: () -> Unit) {
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Sugerencia por mail", modifier = Modifier.weight(1f))
-                Icon(Icons.Default.Email, contentDescription = "Correo electrónico")
+                Text("SUGERENCIA POR MAIL", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Email, contentDescription = "CORREO ELECTRÓNICO")
             }
 
             OutlinedButton(
                 onClick = { uriHandler.openUri("https://github.com/Tinchodoko/Fridagate/issues/new") },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Sugerencia en Github", modifier = Modifier.weight(1f))
-                Icon(Icons.Default.Code, contentDescription = "GitHub")
+                Text("SUGERENCIA EN GITHUB", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Code, contentDescription = "GITHUB")
             }
 
             OutlinedButton(
                 onClick = { uriHandler.openUri("https://t.me/tinchoDKO") },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Sugerencia en Telegram", modifier = Modifier.weight(1f))
-                Icon(Icons.Default.Send, contentDescription = "Telegram")
+                Text("SUGERENCIA EN TELEGRAM", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Send, contentDescription = "TELEGRAM")
             }
 
             Text(
-                "Si tienen alguna duda, sugerencia, queja o encontraste un bug, no dudes en comunicarte conmigo, muchas gracias !🫂",
+                "SI TIENEN ALGUNA DUDA, SUGERENCIA, QUEJA O ENCONTRASTE UN BUG, NO DUDES EN COMUNICARTE CONMIGO, MUCHAS GRACIAS !🫂",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
@@ -195,7 +195,7 @@ fun AboutScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(32.dp))
             
             Text(
-                "FridaGate 2.0",
+                "FRIDAGATE 2.0",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -211,7 +211,7 @@ fun AboutScreen(onBack: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "Hecho en Argentina por Tinchodoko 🇦🇷",
+                "HECHO EN ARGENTINA POR TINCHODOKO 🇦🇷",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(8.dp)
