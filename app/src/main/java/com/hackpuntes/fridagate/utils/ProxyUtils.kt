@@ -98,7 +98,7 @@ object ProxyUtils {
                 burpIp != null &&
                 burpIp.matches(Regex("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")) &&
                 burpIp.split(".").all { (it.toIntOrNull() ?: 256) in 0..255 } &&
-                httpPort in 1..65535 && httpsPort in 1..65535
+                httpPort != null && httpPort in 1..65535 && httpsPort != null && httpsPort in 1..65535
             ) {
                 """
                 while iptables -t nat -D OUTPUT -p tcp --dport 80 -j DNAT --to-destination $burpIp:$httpPort 2>/dev/null; do :; done
