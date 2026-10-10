@@ -70,7 +70,6 @@ fun ScriptsScreen(
     val logs by viewModel.logs.collectAsState()
     val isExecuting by viewModel.isExecuting.collectAsState()
     val activeTargetPackage by viewModel.activeTargetPackage.collectAsState()
-    val message by viewModel.message.collectAsState()
     val context = LocalContext.current
     var isRootAvailable by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -408,15 +407,7 @@ fun ScriptsScreen(
                     Icon(Icons.Default.ArrowBack, contentDescription = "Volver a Mis scripts")
                 }
             },
-            actions = {
-                if (message.isNotEmpty()) {
-                    Text(
-                        text = message,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
-                }
-            }
+            actions = {}
         )
         
         // Tabs
