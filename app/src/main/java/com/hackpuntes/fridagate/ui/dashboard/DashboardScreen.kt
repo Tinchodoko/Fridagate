@@ -489,7 +489,7 @@ fun DashboardScreen() {
                         "MOSTRAR NOTIFICACIÓN", "OCULTAR NOTIFICACIÓN" -> {
                             if (isNotificationVisible) {
                                 context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
-                                    action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
+                                    this.action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
                                 })
                                 isNotificationVisible = false
                             } else if (hasNotificationPermission) {
