@@ -20,6 +20,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Node.js for bundling Frida bridges
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build bundled Unity diagnostics agent
+      run: |
+        cd tools/unity-diagnostics
+        npm install --no-audit --no-fund
+        npx frida-compile index.ts -o ../../app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js
+
     - name: Set up JDK 11
       uses: actions/setup-java@v4
       with:
@@ -69,5 +80,7 @@ jobs:
         tag_name: build-${{ github.run_number }}
         name: FridaGate Build ${{ github.run_number }}
         body: "Build automático ${{ github.run_number }} de FridaGate 2.0."
-        files: app/build/outputs/apk/debug/app-debug.apk
+        files: |
+          app/build/outputs/apk/debug/app-debug.apk
+          app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js
         make_latest: true
