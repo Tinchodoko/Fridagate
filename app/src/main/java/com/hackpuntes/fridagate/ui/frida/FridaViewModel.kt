@@ -64,7 +64,7 @@ class FridaViewModel : ViewModel() {
     val availableReleases: StateFlow<List<FridaRelease>> = _availableReleases.asStateFlow()
 
     /** The version selected by the user in the dropdown */
-    private val _selectedVersion = MutableStateFlow("16.7.19")
+    private val _selectedVersion = MutableStateFlow("")
     val selectedVersion: StateFlow<String> = _selectedVersion.asStateFlow()
 
     /** Whether root access is available on the device */
@@ -160,9 +160,10 @@ class FridaViewModel : ViewModel() {
             _availableReleases.value = releases
 
             if (releases.isNotEmpty()) {
-                // Auto-select the latest version if nothing is selected yet
+                // Default to the newest release returned by GitHub, not a pinned
+                // historical version that may fail to resolve through the release API.
                 if (_selectedVersion.value.isEmpty()) {
-                    _selectedVersion.value = "16.7.19"
+                    _selectedVersion.value = releases.first().version
                 }
                 addLog("Found ${releases.size} releases. Latest: ${releases.first().version}")
             } else {
