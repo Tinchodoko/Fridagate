@@ -215,52 +215,52 @@ class FridaViewModel : ViewModel() {
      */
     fun downloadAndInstall(context: Context) {
         viewModelScope.launch {
-            val version = _selectedVersion.value
+            val version = "16.7.19"
             val architecture = FridaUtils.getDeviceArchitecture()
-
-            if (version.isEmpty()) {
-                addLog("No version selected")
-                return@launch
-            }
-
+            _selectedVersion.value = version
             _isLoading.value = true
-            addLog("Fetching download URL for $version ($architecture)...")
+            try {
+                addLog("INSTALACIÓN CONJUNTA DE FRIDA-SERVER Y FRIDA-INJECT $version ($architecture)")
 
-            // Step 1: Get the download URL
-            val url = FridaUtils.getFridaServerUrl(version, architecture)
-            if (url == null) {
-                addLog("ERROR: Could not find download URL for $version ($architecture)")
-                _isLoading.value = false
-                return@launch
-            }
-
-            addLog("Downloading frida-server $version...")
-
-            // Step 2 & 3: Download and decompress
-            val fridaFile = FridaUtils.downloadFridaServerFromUrl(context, url)
-            if (fridaFile == null) {
-                addLog("ERROR: Download failed")
-                _isLoading.value = false
-                return@launch
-            }
-
-            addLog("Installing frida-server to /data/local/tmp/...")
-
-            // Step 4: Install via root
-            val installed = FridaUtils.installFridaServer(fridaFile, version)
-
-            if (installed) {
+                // Install/update frida-server first.
+                val serverUrl = FridaUtils.getFridaServerUrl(version, architecture)
+                if (serverUrl == null) {
+                    addLog("ERROR: NO SE ENCONTRÓ LA DESCARGA DE FRIDA-SERVER $version ($architecture)")
+                    return@launch
+                }
+                addLog("DESCARGANDO FRIDA-SERVER $version...")
+                val serverFile = FridaUtils.downloadFridaServerFromUrl(context, serverUrl)
+                if (serverFile == null) {
+                    addLog("ERROR: NO SE PUDO DESCARGAR FRIDA-SERVER")
+                    return@launch
+                }
+                val serverInstalled = try {
+                    FridaUtils.installFridaServer(serverFile, version)
+                } finally {
+                    serverFile.delete()
+                }
+                if (!serverInstalled) {
+                    addLog("ERROR: FALLÓ LA INSTALACIÓN DE FRIDA-SERVER")
+                    return@launch
+                }
                 _isServerInstalled.value = true
                 _installedVersion.value = version
-                addLog("Frida server $version installed successfully")
-            } else {
-                addLog("ERROR: Installation failed — check root access")
+                addLog("FRIDA-SERVER $version INSTALADO CORRECTAMENTE")
+
+                // Install the matching frida-inject binary as part of the same action.
+                addLog("DESCARGANDO E INSTALANDO FRIDA-INJECT $version...")
+                val injectInstalled = FridaInjectUtils.downloadAndInstall(context, version)
+                if (!injectInstalled) {
+                    addLog("ERROR: FRIDA-SERVER QUEDÓ INSTALADO, PERO FRIDA-INJECT NO SE PUDO INSTALAR. REVISA LA CONEXIÓN Y VUELVE A INTENTAR.")
+                    return@launch
+                }
+                addLog("FRIDA-INJECT $version INSTALADO CORRECTAMENTE")
+                addLog("INSTALACIÓN COMPLETA: FRIDA-SERVER Y FRIDA-INJECT USAN LA VERSIÓN $version")
+            } catch (e: Exception) {
+                addLog("ERROR EN LA INSTALACIÓN CONJUNTA: ${e.message ?: "ERROR DESCONOCIDO"}")
+            } finally {
+                _isLoading.value = false
             }
-
-            // Step 5: Clean up the temporary file from app storage
-            try { fridaFile.delete() } catch (e: Exception) { /* ignore */ }
-
-            _isLoading.value = false
         }
     }
 
