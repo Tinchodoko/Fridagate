@@ -56,7 +56,7 @@ fun ExtrasScreen() {
         ) {
 
             Text(
-                text = "No hay herramientas adicionales disponibles por ahora.",
+                text = "NO HAY HERRAMIENTAS ADICIONALES DISPONIBLES POR AHORA.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 24.dp)
@@ -100,8 +100,8 @@ private fun TargetPackageCard(
                     value         = if (selected.isEmpty()) "" else if (displayName != selected) "$displayName\n$selected" else selected,
                     onValueChange = {},
                     readOnly      = true,
-                    label         = { Text("Seleccionar aplicación") },
-                    placeholder   = { Text("Ninguna aplicación seleccionada") },
+                    label         = { Text("SELECCIONAR APLICACIÓN") },
+                    placeholder   = { Text("NINGUNA APLICACIÓN SELECCIONADA") },
                     trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier      = Modifier
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
@@ -245,9 +245,9 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, onRefresh: () -> U
                     TextButton(onClick = onRefresh) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Actualizar")
+                        Text("ACTUALIZAR")
                     }
-                    TextButton(onClick = onClear) { Text("Limpiar") }
+                    TextButton(onClick = onClear) { Text("LIMPIAR") }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
