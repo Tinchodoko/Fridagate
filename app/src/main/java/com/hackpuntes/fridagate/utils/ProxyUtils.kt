@@ -199,9 +199,14 @@ object ProxyUtils {
     suspend fun getSystemProxy(): String? {
         return withContext(Dispatchers.IO) {
             try {
-                val result = RootUtils.executeSuCommand("settings get global http_proxy").trim()
-                // "null" (as a string) or ":0" mean no proxy is set
-                if (result.isEmpty() || result == "null" || result == ":0") null else result
+                val legacy = RootUtils.executeSuCommand("settings get global http_proxy").trim()
+                val modern = RootUtils.executeSuCommand("settings get global global_http_proxy").trim()
+                // Prefer the modern global value when present; some Android builds keep
+                // one key populated after the other has been cleared.
+                val result = listOf(modern, legacy).firstOrNull {
+                    it.isNotBlank() && it != "null" && it != ":0"
+                }
+                result
             } catch (e: Exception) {
                 null
             }
