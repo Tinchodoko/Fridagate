@@ -66,7 +66,7 @@ class FridaViewModel : ViewModel() {
     val availableReleases: StateFlow<List<FridaRelease>> = _availableReleases.asStateFlow()
 
     /** The version selected by the user in the dropdown */
-    private val _selectedVersion = MutableStateFlow("")
+    private val _selectedVersion = MutableStateFlow("16.7.19")
     val selectedVersion: StateFlow<String> = _selectedVersion.asStateFlow()
 
     /** Whether root access is available on the device */
@@ -156,22 +156,23 @@ class FridaViewModel : ViewModel() {
     fun loadAvailableReleases() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("Fetching available Frida releases from GitHub...")
-
-            val releases = FridaUtils.getAvailableFridaReleases()
-            _availableReleases.value = releases
-
-            if (releases.isNotEmpty()) {
-                // Default to the newest release returned by GitHub, not a pinned
-                // historical version that may fail to resolve through the release API.
-                if (_selectedVersion.value.isEmpty()) {
-                    _selectedVersion.value = releases.first().version
+            addLog("CARGANDO LA VERSIÓN RECOMENDADA FIJA 16.7.19...")
+            val fetched = FridaUtils.getAvailableFridaReleases()
+            val pinned = fetched.find { it.version == "16.7.19" } ?: FridaRelease(
+                version = "16.7.19",
+                releaseDate = "",
+                assets = listOf("arm", "arm64", "x86", "x86_64").map { arch ->
+                    FridaUtils.FridaAsset(
+                        name = "frida-server-16.7.19-android-$arch.xz",
+                        downloadUrl = "https://github.com/frida/frida/releases/download/16.7.19/frida-server-16.7.19-android-$arch.xz",
+                        architecture = arch,
+                        size = 0L
+                    )
                 }
-                addLog("Found ${releases.size} releases. Latest: ${releases.first().version}")
-            } else {
-                addLog("Could not fetch releases — check internet connection")
-            }
-
+            )
+            _availableReleases.value = listOf(pinned)
+            _selectedVersion.value = "16.7.19"
+            addLog("ÚNICA VERSIÓN DISPONIBLE Y RECOMENDADA: 16.7.19")
             _isLoading.value = false
         }
     }
@@ -182,7 +183,7 @@ class FridaViewModel : ViewModel() {
      * @param version The version string selected by the user (e.g., "16.7.0")
      */
     fun setSelectedVersion(version: String) {
-        _selectedVersion.value = version
+        _selectedVersion.value = "16.7.19"
     }
 
     /**
@@ -192,12 +193,12 @@ class FridaViewModel : ViewModel() {
      * @param version Custom version string (e.g., "16.5.9")
      */
     fun setCustomVersion(version: String) {
-        if (!FridaUtils.isValidVersionFormat(version)) {
-            addLog("Invalid version format. Use format like: 16.5.9")
+        if (version != "16.7.19") {
+            addLog("LA ÚNICA VERSIÓN DISPONIBLE ES 16.7.19")
             return
         }
-        _selectedVersion.value = version
-        addLog("Custom version set: $version")
+        _selectedVersion.value = "16.7.19"
+        addLog("VERSIÓN RECOMENDADA SELECCIONADA: 16.7.19")
     }
 
     /**
