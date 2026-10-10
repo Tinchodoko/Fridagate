@@ -267,18 +267,23 @@ object ProxyUtils {
     suspend fun installBurpCertificate(burpIp: String, burpPort: Int): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Burp serves its certificate at this URL when the proxy is running
+                if (!burpIp.matches(Regex("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")) ||
+                    burpIp.split(".").any { (it.toIntOrNull() ?: 256) !in 0..255 } ||
+                    burpPort !in 1..65535) {
+                    return@withContext false
+                }
+
+                // Burp serves its certificate at this URL when the proxy is running.
                 val certUrl = "http://$burpIp:$burpPort/cert"
-
-                // Download the certificate using curl (available on rooted Android)
-                // -o saves the output to a file, -L follows redirects
-                RootUtils.executeSuCommand(
-                    "curl -L $certUrl -o /data/local/tmp/burp_ca.der"
+                // Bound the wait: an unreachable listener must not stall setup for minutes.
+                val download = RootUtils.executeSuCommand(
+                    "rm -f /data/local/tmp/burp_ca.der; " +
+                    "curl --connect-timeout 5 --max-time 12 --fail -sSL \"$certUrl\" " +
+                    "-o /data/local/tmp/burp_ca.der && " +
+                    "test -s /data/local/tmp/burp_ca.der && echo BURP_CERT_DOWNLOAD_OK"
                 )
-
-                // Verify the certificate was downloaded (check file size > 0)
-                val sizeCheck = RootUtils.executeSuCommand("ls -la /data/local/tmp/burp_ca.der")
-                if (!sizeCheck.contains("burp_ca.der")) {
+                if (!download.contains("BURP_CERT_DOWNLOAD_OK")) {
+                    RootUtils.executeSuCommand("rm -f /data/local/tmp/burp_ca.der")
                     return@withContext false
                 }
 
