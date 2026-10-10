@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hackpuntes.fridagate.utils.FridaUtils
+import com.hackpuntes.fridagate.utils.FridaInjectUtils
+import com.hackpuntes.fridagate.utils.ProxyUtils
 import com.hackpuntes.fridagate.utils.FridaUtils.FridaRelease
 import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -329,24 +331,40 @@ class FridaViewModel : ViewModel() {
         }
     }
 
-    /** Stops the server (if running) and removes the binary from the device */
+    /** Removes Frida server and injector, stops tracked injections, and clears proxy settings. */
     fun uninstallServer() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("Uninstalling frida-server...")
+            addLog("Desinstalando todos los componentes de Frida...")
+            try {
+                FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
 
-            val uninstalled = FridaUtils.uninstallFridaServer()
+                addLog("Deteniendo frida-server...")
+                FridaUtils.stopFridaServer()
 
-            if (uninstalled) {
-                _isServerInstalled.value = false
-                _isServerRunning.value = false
-                _installedVersion.value = "Not installed"
-                addLog("Frida server uninstalled successfully")
-            } else {
-                addLog("ERROR: Uninstallation failed")
+                addLog("Eliminando frida-inject...")
+                val injectRemoved = FridaInjectUtils.uninstallFridaInject()
+                addLog(if (injectRemoved) "✓ frida-inject desinstalado" else "ADVERTENCIA: no se pudo confirmar la eliminación de frida-inject")
+
+                addLog("Eliminando frida-server...")
+                val serverRemoved = FridaUtils.uninstallFridaServer()
+                addLog(if (serverRemoved) "✓ frida-server desinstalado" else "ERROR: no se pudo eliminar frida-server")
+
+                addLog("Restaurando la configuración de red...")
+                val proxyRemoved = ProxyUtils.clearSystemProxy()
+                val iptablesRemoved = ProxyUtils.disableIptablesProxy()
+                addLog(if (proxyRemoved) "✓ Proxy global de Android eliminado" else "ADVERTENCIA: no se pudo confirmar la limpieza del proxy global")
+                addLog(if (iptablesRemoved) "✓ Reglas iptables de FridaGate eliminadas" else "ADVERTENCIA: no se pudo confirmar la limpieza de iptables")
+
+                _isServerInstalled.value = !serverRemoved
+                _isServerRunning.value = FridaUtils.isFridaServerRunning()
+                _installedVersion.value = if (serverRemoved) "Not installed" else "Unknown"
+                addLog(if (serverRemoved && injectRemoved) "Desinstalación completa de Frida finalizada." else "Desinstalación finalizada con advertencias; revisa los mensajes anteriores.")
+            } catch (_: Exception) {
+                addLog("ERROR durante la desinstalación completa de Frida.")
+            } finally {
+                _isLoading.value = false
             }
-
-            _isLoading.value = false
         }
     }
 
