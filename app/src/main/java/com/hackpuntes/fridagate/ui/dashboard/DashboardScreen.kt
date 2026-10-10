@@ -153,46 +153,22 @@ class DashboardViewModel(context: Context) : ViewModel() {
     fun activateAll() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("── ACTIVATE ALL ──────────────────")
-
-            // Step 1: Start frida-server
-            if (!_isFridaInstalled.value) {
-                addLog("ERROR: Frida server is not installed — install it from the Frida tab first")
-                _isLoading.value = false
-                return@launch
-            }
-
-            if (_isFridaRunning.value) {
-                addLog("Frida server already running — skipping")
-            } else {
-                addLog("Starting frida-server...")
-                val started = FridaUtils.startFridaServer()
+            try {
+                addLog("── ACTIVAR FRIDA ──────────────────")
+                if (!_isFridaInstalled.value) {
+                    addLog("ERROR: FRIDA-SERVER NO ESTÁ INSTALADO. USA INSTALACIÓN INTELIGENTE.")
+                    return@launch
+                }
+                val started = if (FridaUtils.isFridaServerRunning()) true else FridaUtils.startFridaServer()
                 _isFridaRunning.value = started
-                if (started) addLog("Frida server started") else addLog("ERROR: Failed to start frida-server")
+                _isProxyActive.value = false
+                _isBurpReachable.value = false
+                addLog(if (started) "FRIDA-SERVER ESTÁ EN EJECUCIÓN. PROXY Y BURP NO SE MODIFICARON." else "ERROR: NO SE PUDO INICIAR FRIDA-SERVER")
+            } catch (e: Exception) {
+                addLog("ERROR AL ACTIVAR FRIDA: ${e.message ?: "DESCONOCIDO"}")
+            } finally {
+                _isLoading.value = false
             }
-
-            // Step 2: Enable iptables proxy
-            val ip = prefs.burpIp.first()
-            val httpPort = prefs.burpHttpPort.first()
-            val httpsPort = prefs.burpHttpsPort.first()
-
-            addLog("Enabling iptables proxy → $ip:$httpPort...")
-            val proxyEnabled = ProxyUtils.enableIptablesProxy(ip, httpPort, httpsPort)
-            _isProxyActive.value = proxyEnabled
-            if (proxyEnabled) addLog("iptables proxy enabled") else addLog("ERROR: Failed to enable proxy")
-
-            // Step 3: Verify Burp is reachable
-            addLog("Checking Burp Suite at $ip:$httpPort...")
-            val burpReachable = ProxyUtils.isBurpReachable(ip, httpPort)
-            _isBurpReachable.value = burpReachable
-            if (burpReachable) {
-                addLog("Burp reachable — interception is ACTIVE")
-            } else {
-                addLog("WARNING: Burp not reachable — make sure Burp is running on your PC")
-            }
-
-            addLog("── DONE ──────────────────────────")
-            _isLoading.value = false
         }
     }
 
@@ -212,7 +188,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 addLog("── INSTALACIÓN INTELIGENTE ─────────")
                 if (!RootUtils.isRootAvailable()) {
                     _isRootAvailable.value = false
-                    addLog("ERROR: Se necesita acceso root para instalar Frida y configurar el proxy")
+                    addLog("ERROR: SE NECESITA ACCESO ROOT PARA INSTALAR FRIDA")
                     return@launch
                 }
                 _isRootAvailable.value = true
@@ -232,15 +208,8 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
 
                 val architecture = FridaUtils.getDeviceArchitecture()
-                addLog("Buscando la última versión de Frida compatible con $architecture...")
-                val releases = FridaUtils.getAvailableFridaReleases()
-                val version = releases.firstOrNull { release ->
-                    release.assets.any { it.architecture == architecture }
-                }?.version
-                if (version == null) {
-                    addLog("ERROR: No se encontraron versiones de Frida para la arquitectura $architecture")
-                    return@launch
-                }
+                val version = "16.7.19"
+                addLog("VERSIÓN RECOMENDADA FIJA: $version ($architecture)")
                 addLog("Versión seleccionada: $version")
 
                 if (!FridaUtils.isFridaServerInstalled() ||
@@ -380,6 +349,7 @@ fun DashboardScreen() {
     val isBurpReachable by viewModel.isBurpReachable.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val logs by viewModel.logs.collectAsState()
+    var pendingConfirmation by remember { mutableStateOf<String?>(null) }
 
     var hasStoragePermission by remember { mutableStateOf(storagePermissionGranted(context)) }
     var hasNotificationPermission by remember { mutableStateOf(notificationPermissionGranted(context)) }
@@ -479,33 +449,60 @@ fun DashboardScreen() {
             OneTabActionsCard(
                 isLoading = isLoading,
                 isRootAvailable = isRootAvailable,
-                onActivateAll = { viewModel.activateAll() },
-                onSmartInstall = { viewModel.smartInstallAll() },
-                onDeactivateAll = { viewModel.deactivateAll() },
-                onRefresh = { viewModel.refreshStatus() },
+                onActivateAll = { pendingConfirmation = "ACTIVAR TODO" },
+                onSmartInstall = { pendingConfirmation = "INSTALACIÓN INTELIGENTE" },
+                onDeactivateAll = { pendingConfirmation = "DETENER TODO" },
+                onRefresh = { pendingConfirmation = "ACTUALIZAR ESTADO" },
                 isNotificationVisible = isNotificationVisible,
                 canShowNotification = hasNotificationPermission,
-                onToggleNotification = {
-                    if (isNotificationVisible) {
-                        context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
-                            action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
-                        })
-                        isNotificationVisible = false
-                    } else if (hasNotificationPermission) {
-                        ContextCompat.startForegroundService(context,
-                            Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
-                        isNotificationVisible = true
-                    } else {
-                        if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
-                    }
-                }
+                onToggleNotification = { pendingConfirmation = if (isNotificationVisible) "OCULTAR NOTIFICACIÓN" else "MOSTRAR NOTIFICACIÓN" }
             )
 
             // ── Log panel ─────────────────────────────────────────────────────
             DashboardLogPanel(
                 logs = logs,
-                onClear = { viewModel.clearLogs() }
+                onClear = { viewModel.clearLogs() },
+                onExport = { exportLogFile(context, "inicio_log", logs) }
+            )
+        }
+
+        pendingConfirmation?.let { action ->
+            val description = when (action) {
+                "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER. NO SE ACTIVARÁ PROXY NI BURP."
+                "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT 16.7.19. PROXY Y BURP QUEDAN DESACTIVADOS."
+                "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER, Y LIMPIAR CONFIGURACIONES DE PROXY CONOCIDAS."
+                "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
+                "MOSTRAR NOTIFICACIÓN" -> "MOSTRAR LA NOTIFICACIÓN PERSISTENTE DE FRIDAGATE."
+                else -> "OCULTAR LA NOTIFICACIÓN PERSISTENTE DE FRIDAGATE."
+            }
+            AlertDialog(
+                onDismissRequest = { pendingConfirmation = null },
+                title = { Text(action.uppercase()) },
+                text = { Text(description.uppercase()) },
+                confirmButton = { TextButton(onClick = {
+                    pendingConfirmation = null
+                    when (action) {
+                        "ACTIVAR TODO" -> viewModel.activateAll()
+                        "INSTALACIÓN INTELIGENTE" -> viewModel.smartInstallAll()
+                        "DETENER TODO" -> viewModel.deactivateAll()
+                        "ACTUALIZAR ESTADO" -> viewModel.refreshStatus()
+                        "MOSTRAR NOTIFICACIÓN", "OCULTAR NOTIFICACIÓN" -> {
+                            if (isNotificationVisible) {
+                                context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
+                                    action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
+                                })
+                                isNotificationVisible = false
+                            } else if (hasNotificationPermission) {
+                                ContextCompat.startForegroundService(context, Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
+                                isNotificationVisible = true
+                            } else {
+                                if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                            }
+                        }
+                    }
+                }) { Text("SI") } },
+                dismissButton = { TextButton(onClick = { pendingConfirmation = null }) { Text("NO") } }
             )
         }
 
@@ -702,14 +699,17 @@ private fun OneTabActionsCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Acciones rápidas",
+                text = "ACCIONES RÁPIDAS",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Text(
-                text = "ACTIVAR TODO inicia frida-server y habilita el proxy iptables con un solo toque.",
+                text = "ACTIVAR TODO INICIA FRIDA-SERVER. NO ACTIVA PROXY NI BURP.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -779,7 +779,7 @@ private fun OneTabActionsCard(
  * Log panel for the dashboard — same pattern as the other screens.
  */
 @Composable
-private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit) {
+private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit, onExport: () -> Unit) {
     val listState = rememberLazyListState()
 
     LaunchedEffect(logs.size) {
@@ -793,8 +793,11 @@ private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Registro", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                TextButton(onClick = onClear) { Text("Limpiar") }
+                Text("REGISTRO", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onExport) { Text("EXPORTAR") }
+                    TextButton(onClick = onClear) { Text("LIMPIAR") }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -824,5 +827,19 @@ private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+
+private fun exportLogFile(context: Context, prefix: String, logs: List<String>) {
+    try {
+        val directory = java.io.File("/sdcard/download")
+        if (!directory.exists() && !directory.mkdirs()) throw java.io.IOException("No se pudo crear /sdcard/download")
+        val stamp = java.text.SimpleDateFormat("MM-dd-HH-mm", java.util.Locale.US).format(java.util.Date())
+        val file = java.io.File(directory, "${prefix}_(${stamp}).txt")
+        file.writeText(logs.joinToString("\n"))
+        android.widget.Toast.makeText(context, "LOG EXPORTADO: ${file.absolutePath}", android.widget.Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "ERROR AL EXPORTAR LOG: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
     }
 }
