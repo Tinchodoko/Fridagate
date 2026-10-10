@@ -208,7 +208,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
     fun smartInstallAll() {
         viewModelScope.launch {
             _isLoading.value = true
-            val version = "16.7.19"
             try {
                 addLog("── INSTALACIÓN INTELIGENTE ─────────")
                 if (!RootUtils.isRootAvailable()) {
@@ -218,13 +217,39 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
                 _isRootAvailable.value = true
 
+                val ip = prefs.burpIp.first()
+                val httpPort = prefs.burpHttpPort.first()
+                val httpsPort = prefs.burpHttpsPort.first()
+
+                // Remove a stale proxy first so downloads are not sent to an unavailable Burp listener.
+                addLog("Limpiando cualquier proxy anterior antes de descargar...")
+                val oldRulesCleared = ProxyUtils.disableIptablesProxy(ip, httpPort, httpsPort)
+                val oldSystemProxyCleared = ProxyUtils.clearSystemProxy()
+                if (oldRulesCleared && oldSystemProxyCleared) {
+                    addLog("Proxy anterior desactivado; conexión normal restaurada")
+                } else {
+                    addLog("ADVERTENCIA: no se pudo confirmar la limpieza completa del proxy anterior")
+                }
+
+                val architecture = FridaUtils.getDeviceArchitecture()
+                addLog("Buscando la última versión de Frida compatible con $architecture...")
+                val releases = FridaUtils.getAvailableFridaReleases()
+                val version = releases.firstOrNull { release ->
+                    release.assets.any { it.architecture == architecture }
+                }?.version
+                if (version == null) {
+                    addLog("ERROR: No se encontraron versiones de Frida para la arquitectura $architecture")
+                    return@launch
+                }
+                addLog("Versión seleccionada: $version")
+
                 if (!FridaUtils.isFridaServerInstalled() ||
                     FridaUtils.getInstalledFridaVersion() != version
                 ) {
                     addLog("Descargando e instalando frida-server $version...")
-                    val url = FridaUtils.getFridaServerUrl(version, FridaUtils.getDeviceArchitecture())
+                    val url = FridaUtils.getFridaServerUrl(version, architecture)
                     if (url == null) {
-                        addLog("ERROR: No se encontró la descarga de frida-server")
+                        addLog("ERROR: No se encontró la descarga de frida-server $version ($architecture)")
                         return@launch
                     }
                     val file = FridaUtils.downloadFridaServerFromUrl(appContext, url)
@@ -265,13 +290,26 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
                 addLog("frida-server iniciado")
 
-                val ip = prefs.burpIp.first()
-                val httpPort = prefs.burpHttpPort.first()
-                val httpsPort = prefs.burpHttpsPort.first()
-                addLog("Activando proxy iptables hacia $ip:$httpPort...")
+                // Do not redirect traffic until the Burp listener is reachable.
+                addLog("Comprobando Burp Suite en $ip:$httpPort antes de activar el proxy...")
+                _isBurpReachable.value = ProxyUtils.isBurpReachable(ip, httpPort)
+                if (!_isBurpReachable.value) {
+                    ProxyUtils.disableIptablesProxy(ip, httpPort, httpsPort)
+                    ProxyUtils.clearSystemProxy()
+                    _isProxyActive.value = false
+                    addLog("ADVERTENCIA: Burp no responde en $ip:$httpPort.")
+                    addLog("Proxy NO activado para evitar dejar el teléfono sin Internet.")
+                    addLog("Frida quedó instalado y ejecutándose; inicia Burp y verifica IP/puerto para configurar el proxy después.")
+                    addLog("── INSTALACIÓN INTELIGENTE FINALIZADA (proxy omitido) ──")
+                    return@launch
+                }
+
+                addLog("Burp responde. Activando proxy iptables hacia $ip:$httpPort...")
                 _isProxyActive.value = ProxyUtils.enableIptablesProxy(ip, httpPort, httpsPort)
                 if (!_isProxyActive.value) {
-                    addLog("ERROR: No se pudo activar el proxy iptables")
+                    ProxyUtils.clearSystemProxy()
+                    addLog("ADVERTENCIA: no se pudo activar iptables; el proxy del sistema se deja desactivado.")
+                    addLog("── INSTALACIÓN INTELIGENTE FINALIZADA (proxy omitido) ──")
                     return@launch
                 }
                 addLog("Proxy iptables activado")
@@ -279,16 +317,14 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 addLog("Configurando proxy del sistema...")
                 val systemProxySet = ProxyUtils.setSystemProxy(ip, httpPort)
                 if (systemProxySet) addLog("Proxy del sistema configurado")
-                else addLog("ADVERTENCIA: No se pudo configurar el proxy del sistema")
+                else addLog("ADVERTENCIA: no se pudo configurar el proxy del sistema")
 
                 addLog("Intentando instalar el certificado CA de Burp Suite...")
                 val certificateInstalled = ProxyUtils.installBurpCertificate(ip, httpPort)
                 if (certificateInstalled) addLog("Certificado CA de Burp Suite instalado")
-                else addLog("ADVERTENCIA: No se instaló el certificado CA; verifica que Burp esté ejecutándose y accesible")
+                else addLog("ADVERTENCIA: no se instaló el certificado CA; verifica el listener de Burp y el almacenamiento del sistema")
 
-                _isBurpReachable.value = ProxyUtils.isBurpReachable(ip, httpPort)
-                addLog(if (_isBurpReachable.value) "Burp Suite está accesible" else "ADVERTENCIA: Burp no responde; comprueba que esté abierto en tu PC")
-                addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ─")
+                addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ──")
             } catch (e: Exception) {
                 addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
             } finally {
@@ -314,7 +350,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
 
             // Step 2: Disable iptables proxy
             addLog("Disabling iptables proxy...")
-            val disabled = ProxyUtils.disableIptablesProxy()
+            val disabled = ProxyUtils.disableIptablesProxy(prefs.burpIp.first(), prefs.burpHttpPort.first(), prefs.burpHttpsPort.first())
             _isProxyActive.value = !disabled
             if (disabled) addLog("iptables proxy disabled") else addLog("ERROR: Failed to disable proxy")
 
