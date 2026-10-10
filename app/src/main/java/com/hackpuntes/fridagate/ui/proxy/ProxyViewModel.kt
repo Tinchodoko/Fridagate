@@ -199,7 +199,7 @@ class ProxyViewModel(context: Context) : ViewModel() {
                 }
             } else {
                 addLog("Disabling iptables proxy...")
-                val success = ProxyUtils.disableIptablesProxy()
+                val success = ProxyUtils.disableIptablesProxy(_burpIp.value, _httpPort.value, _httpsPort.value)
                 _isIptablesEnabled.value = !success
                 if (success) {
                     addLog("iptables proxy disabled — traffic flows normally")
