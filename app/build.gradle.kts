@@ -23,6 +23,11 @@ android {
             ?.plus(3)
             ?: 4
         versionName = "2.0.0"
+        buildConfigField(
+            "String",
+            "BUILD_NUMBER",
+            "\"\${providers.environmentVariable("GITHUB_RUN_NUMBER").orNull ?: "LOCAL"}\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -42,6 +47,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
