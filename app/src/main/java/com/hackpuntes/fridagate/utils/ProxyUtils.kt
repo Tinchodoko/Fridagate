@@ -103,6 +103,8 @@ object ProxyUtils {
                 """
                 while iptables -t nat -D OUTPUT -p tcp --dport 80 -j DNAT --to-destination $burpIp:$httpPort 2>/dev/null; do :; done
                 while iptables -t nat -D OUTPUT -p tcp --dport 443 -j DNAT --to-destination $burpIp:$httpsPort 2>/dev/null; do :; done
+                # Legacy FridaGate versions added this broad rule after flushing POSTROUTING.
+                while iptables -t nat -D POSTROUTING -j MASQUERADE 2>/dev/null; do :; done
                 """.trimIndent()
             } else ""
 
