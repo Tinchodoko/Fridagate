@@ -15,7 +15,13 @@ android {
         applicationId = "com.hackpuntes.fridagate"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
+        // Each GitHub Actions build gets a higher versionCode so Android can install it
+        // as an update. Local builds use 4 as a safe starting value above the original v2.0.0.
+        versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER")
+            .orNull
+            ?.toIntOrNull()
+            ?.plus(3)
+            ?: 4
         versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
