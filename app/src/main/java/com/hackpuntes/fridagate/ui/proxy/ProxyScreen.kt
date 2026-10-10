@@ -186,7 +186,6 @@ private fun ConnectionSettingsCard(
                 value = "",
                 onValueChange = onIpChange,
                 label = { Text("IP-CONFIG") },
-                placeholder = { Text("192.168.1.100") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = false,
                 singleLine = true,
