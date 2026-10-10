@@ -1,13 +1,19 @@
 package com.hackpuntes.fridagate.ui.viewmodels
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.content.ContentValues
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.hackpuntes.fridagate.FridaGateNotificationService
 import com.hackpuntes.fridagate.data.models.FridaScript
 import com.hackpuntes.fridagate.data.repository.ScriptRepository
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
@@ -248,16 +254,48 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             )
             result.forEach { addLog(it) }
             lastObservedInjectionLog = FridaInjectUtils.readCurrentInjectionLog()
-            val launchSucceeded = result.any {
+            val targetProcessFound = result.any {
                 it.contains("is running (PID", ignoreCase = true) ||
-                it.contains("Attached to $packageName", ignoreCase = true)
+                it.contains("Found target process $packageName", ignoreCase = true)
             }
+            val injectionReportedError = result.any {
+                it.contains("Agent connection closed unexpectedly", ignoreCase = true) ||
+                it.contains("Unable to load SELinux policy", ignoreCase = true) ||
+                it.contains("ERROR:", ignoreCase = true)
+            }
+            val launchSucceeded = targetProcessFound && !injectionReportedError
             if (launchSucceeded) {
                 _activeTargetPackage.value = packageName
-                addLog("🟢 Estado actualizado: $packageName está lanzada con los scripts habilitados.")
+                addLog("🟢 Aplicación iniciada; la inyección no reportó errores explícitos.")
+
+                val selectedNames = (enabledBuiltInScripts.map { it.name } + enabledUserScripts.map { it.name })
+                    .distinct()
+                val notificationScriptName = when {
+                    selectedNames.isEmpty() -> "Script"
+                    selectedNames.size == 1 -> selectedNames.first()
+                    selectedNames.size <= 3 -> selectedNames.joinToString(" + ")
+                    else -> "\${selectedNames.size} scripts"
+                }
+                val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+                if (canNotify) {
+                    val notificationIntent = Intent(context, FridaGateNotificationService::class.java).apply {
+                        action = FridaGateNotificationService.ACTION_SCRIPT_INJECTED
+                        putExtra(FridaGateNotificationService.EXTRA_SCRIPT_NAME, notificationScriptName)
+                        putExtra(FridaGateNotificationService.EXTRA_PACKAGE_NAME, packageName)
+                    }
+                    try {
+                        ContextCompat.startForegroundService(context, notificationIntent)
+                    } catch (e: Exception) {
+                        addLog("⚠️ No se pudo mostrar la notificación: \${e.message}")
+                    }
+                } else {
+                    addLog("ℹ️ Permiso de notificaciones denegado; no se mostró la notificación de inyección.")
+                }
             } else {
                 _activeTargetPackage.value = null
-                addLog("⚠️ No se pudo confirmar que $packageName haya quedado ejecutándose con la inyección.")
+                addLog("⚠️ No se pudo confirmar una inyección sin errores para $packageName.")
             }
         } catch (e: Exception) {
             addLog("❌ Error de inyección: ${e.message}")
@@ -273,7 +311,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         _isExecuting.value = false
     }
 
-    fun stopTargetApp(packageName: String) = viewModelScope.launch {
+    fun stopTargetApp(context: Context, packageName: String) = viewModelScope.launch {
         if (packageName.isBlank()) {
             addLog("⚠️ No hay una aplicación seleccionada para detener.")
             return@launch
@@ -282,6 +320,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         addLog("⏹️ Solicitando detener aplicación y scripts: $packageName")
         try {
             FridaInjectUtils.stopTargetApp(packageName).forEach { addLog(it) }
+            context.stopService(Intent(context, FridaGateNotificationService::class.java))
             if (_activeTargetPackage.value == packageName) {
                 _activeTargetPackage.value = null
             }
