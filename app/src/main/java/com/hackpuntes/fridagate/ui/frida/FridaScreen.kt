@@ -21,6 +21,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
 import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
@@ -71,6 +74,24 @@ fun FridaScreen(
     val injectInstalled by extrasViewModel.isFridaInjectInstalled.collectAsState()
     val injectVersion by extrasViewModel.fridaInjectVersion.collectAsState()
     val injectLoading by extrasViewModel.isLoading.collectAsState()
+
+    // Dashboard's smart installation can change device state while this ViewModel
+    // remains alive. Refresh when this screen is shown and whenever the app resumes.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(viewModel, extrasViewModel) {
+        viewModel.checkRootAndStatus()
+        extrasViewModel.refreshEnvironmentStatus()
+    }
+    DisposableEffect(lifecycleOwner, viewModel, extrasViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.checkRootAndStatus()
+                extrasViewModel.refreshEnvironmentStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // State for showing/hiding the custom flags dialog
     var showCustomFlagsDialog by remember { mutableStateOf(false) }
