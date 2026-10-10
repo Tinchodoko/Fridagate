@@ -124,6 +124,9 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     }
 
     fun refreshStatus() { _logs.value = emptyList(); checkEnvironment() }
+
+    /** Refresh device-side Frida state without clearing the user's logs. */
+    fun refreshEnvironmentStatus() { checkEnvironment() }
     fun clearLogs() { _logs.value = emptyList(); addLog("Logs cleared") }
 
     // -------------------------------------------------------------------------
