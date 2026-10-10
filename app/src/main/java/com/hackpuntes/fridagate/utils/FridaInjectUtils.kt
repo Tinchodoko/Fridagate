@@ -288,14 +288,36 @@ object FridaInjectUtils {
                 return@withContext lines
             }
             lines += "Launching $packageName with enabled scripts..."
-            Thread.sleep(4000)
 
-            val injectLog = RootUtils.executeSuCommand("cat $INJECT_LOG").trim()
-            if (injectLog.isNotEmpty()) {
-                lines += "frida-inject output:"
-                injectLog.lines().filter { it.isNotBlank() }.forEach { lines += "  $it" }
-            } else {
-                lines += "⚠️ frida-inject no produjo salida en la ventana inicial de diagnóstico; la ejecución del script sigue sin confirmarse."
+            // El spawn/inicio de Unity puede tardar; leer el archivo una sola vez a los 4 s
+            // puede ocultar el BOOT y los errores que aparezcan más tarde.
+            var injectLog = ""
+            var lastPrintedLog = ""
+            repeat(12) {
+                Thread.sleep(1000)
+                injectLog = RootUtils.executeSuCommand("cat $INJECT_LOG 2>/dev/null").trim()
+                if (injectLog.isNotBlank() && injectLog != lastPrintedLog) {
+                    val newLines = injectLog.removePrefix(lastPrintedLog).trim()
+                    if (newLines.isNotBlank()) {
+                        if (lastPrintedLog.isBlank()) lines += "frida-inject output:"
+                        newLines.lines().filter { it.isNotBlank() }.forEach { lines += "  $it" }
+                        lastPrintedLog = injectLog
+                    }
+                }
+                if (injectLog.contains("[FG-UNITY-IL2CPP]") || injectLog.contains("Error", ignoreCase = true)) {
+                    // Mantener una ventana corta adicional para recoger líneas consecutivas.
+                    if (it >= 4) return@repeat
+                }
+            }
+
+            if (injectLog.isBlank()) {
+                val injectorState = RootUtils.executeSuCommand(
+                    "if [ -f /data/local/tmp/fridagate_inject.pid ]; then p=\$(cat /data/local/tmp/fridagate_inject.pid); " +
+                    "if kill -0 \$p 2>/dev/null; then echo INJECTOR_ALIVE_PID=\$p; else echo INJECTOR_NOT_RUNNING; fi; fi"
+                ).trim()
+                val serverState = if (FridaUtils.isFridaServerRunning()) "frida-server sigue activo" else "frida-server NO está activo"
+                lines += "⚠️ No se recibió salida de frida-inject tras 12 s. Estado: $injectorState; $serverState."
+                lines += "ℹ️ El registro detallado se volverá a consultar al detener la inyección."
             }
 
             val pid = findProcessId(packageName)
@@ -389,6 +411,20 @@ object FridaInjectUtils {
         val lines = mutableListOf<String>()
         try {
             lines += "⏹️ Deteniendo scripts e inyección para $packageName…"
+
+            // Recuperar salida tardía del agente antes de terminar frida-inject.
+            val finalInjectLog = RootUtils.executeSuCommand("cat $INJECT_LOG 2>/dev/null").trim()
+            if (finalInjectLog.isNotBlank()) {
+                lines += "📋 Salida final de frida-inject:"
+                finalInjectLog.lines().takeLast(100).filter { it.isNotBlank() }.forEach { lines += "  $it" }
+            } else {
+                lines += "⚠️ El archivo de salida de frida-inject sigue vacío."
+            }
+            lines += if (FridaUtils.isFridaServerRunning()) {
+                "ℹ️ Estado al detener: frida-server está activo."
+            } else {
+                "⚠️ Estado al detener: frida-server no está activo."
+            }
 
             val pid = RootUtils.executeSuCommand("cat /data/local/tmp/fridagate_inject.pid 2>/dev/null").trim()
             if (pid.matches(Regex("\\d+"))) {
