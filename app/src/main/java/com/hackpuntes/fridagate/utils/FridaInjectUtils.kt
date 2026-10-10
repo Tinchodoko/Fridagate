@@ -441,7 +441,7 @@ object FridaInjectUtils {
     private suspend fun recordInjectedPackage(packageName: String) {
         if (packageName.matches(Regex("[A-Za-z0-9._]+"))) {
             RootUtils.executeSuCommand(
-                "touch \$INJECTED_PACKAGES_FILE; grep -Fx '\$packageName' \$INJECTED_PACKAGES_FILE >/dev/null 2>&1 || echo '\$packageName' >> \$INJECTED_PACKAGES_FILE"
+                "touch $INJECTED_PACKAGES_FILE; grep -Fx '$packageName' $INJECTED_PACKAGES_FILE >/dev/null 2>&1 || echo '$packageName' >> $INJECTED_PACKAGES_FILE"
             )
         }
     }
@@ -450,18 +450,18 @@ object FridaInjectUtils {
     suspend fun stopAllInjections(): List<String> = withContext(Dispatchers.IO) {
         val lines = mutableListOf<String>()
         try {
-            val packages = RootUtils.executeSuCommand("cat \$INJECTED_PACKAGES_FILE 2>/dev/null")
+            val packages = RootUtils.executeSuCommand("cat $INJECTED_PACKAGES_FILE 2>/dev/null")
                 .lineSequence().map { it.trim() }
                 .filter { it.matches(Regex("[A-Za-z0-9._]+")) }.distinct().toList()
             packages.forEach { pkg ->
-                RootUtils.executeSuCommand("am force-stop \$pkg")
-                lines += "✓ Scripts detenidos y aplicación cerrada: \$pkg"
+                RootUtils.executeSuCommand("am force-stop $pkg")
+                lines += "✓ Scripts detenidos y aplicación cerrada: $pkg"
             }
             RootUtils.executeSuCommand("pkill -9 -f '[f]rida-inject' 2>/dev/null || true")
             RootUtils.executeSuCommand(
-                "rm -f /data/local/tmp/fridagate_inject.pid \$INJECTED_PACKAGES_FILE " +
+                "rm -f /data/local/tmp/fridagate_inject.pid $INJECTED_PACKAGES_FILE " +
                 "/data/local/tmp/fridagate_enabled_scripts.js /data/local/tmp/fridagate_combined.js " +
-                "/data/local/tmp/fridagate_custom.js \$INJECT_LOG"
+                "/data/local/tmp/fridagate_custom.js $INJECT_LOG"
             )
             lines += "✓ Procesos de inyección y scripts temporales de FridaGate limpiados."
             if (packages.isEmpty()) lines += "ℹ️ No había aplicaciones registradas; no se cerraron aplicaciones ajenas."
@@ -475,7 +475,7 @@ object FridaInjectUtils {
     suspend fun uninstallFridaInject(): Boolean = withContext(Dispatchers.IO) {
         try {
             stopAllInjections()
-            RootUtils.executeSuCommand("rm -f \$INJECT_BINARY_PATH \$INJECT_VERSION_FILE \$INJECT_LOG /data/local/tmp/fridagate_inject.pid \$INJECTED_PACKAGES_FILE")
+            RootUtils.executeSuCommand("rm -f $INJECT_BINARY_PATH $INJECT_VERSION_FILE $INJECT_LOG /data/local/tmp/fridagate_inject.pid $INJECTED_PACKAGES_FILE")
             !isFridaInjectInstalled()
         } catch (_: Exception) { false }
     }
