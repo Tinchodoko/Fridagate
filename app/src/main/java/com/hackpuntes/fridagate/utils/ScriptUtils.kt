@@ -63,16 +63,7 @@ object ScriptUtils {
             assetPath   = "scripts/fridantiroot.js",
             fileName    = "fridantiroot.js"
         ),
-        BypassScript(
-            id          = "ssl_bypass",
-            name        = "Universal SSL Pinning Bypass",
-            description = "Omite la validación de certificados en TrustManager, OkHttp 2/3, Conscrypt, " +
-                          "HostnameVerifier, la configuración de seguridad de red de Android y TrustKit. " +
-                          "Compatible con muchas aplicaciones sin modificarlas.",
-            category    = "ssl",
-            assetPath   = "scripts/universal-android-ssl-pinning-bypass-with-frida.js",
-            fileName    = "universal-android-ssl-pinning-bypass-with-frida.js"
-        )
+
     )
 
     // -------------------------------------------------------------------------
