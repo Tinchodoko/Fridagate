@@ -1,13 +1,10 @@
 package com.hackpuntes.fridagate.ui.about
 
 import com.hackpuntes.fridagate.BuildConfig
-import com.hackpuntes.fridagate.utils.RootUtils
-import java.io.File
 import java.io.IOException
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -28,12 +25,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -43,14 +38,10 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     val uriHandler = LocalUriHandler.current
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val currentBuild = BuildConfig.BUILD_NUMBER.toIntOrNull() ?: 0
     var latestBuild by remember { mutableStateOf<Int?>(null) }
-    var updateUrl by remember { mutableStateOf<String?>(null) }
     var updateStatus by remember { mutableStateOf("COMPROBANDO ACTUALIZACIONES...") }
     var isCheckingUpdate by remember { mutableStateOf(true) }
-    var isInstallingUpdate by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
@@ -65,25 +56,13 @@ fun AboutScreen(onBack: () -> Unit) {
                     val tag = json.optString("tag_name")
                     val build = Regex("(\\d+)").find(tag)?.groupValues?.get(1)?.toIntOrNull()
                         ?: throw IOException("La publicación no contiene un número de build válido")
-                    val assets = json.optJSONArray("assets")
-                    var apkUrl: String? = null
-                    if (assets != null) {
-                        for (i in 0 until assets.length()) {
-                            val asset = assets.optJSONObject(i) ?: continue
-                            if (asset.optString("name").endsWith(".apk", ignoreCase = true)) {
-                                apkUrl = asset.optString("browser_download_url").takeIf { it.startsWith("https://") }
-                                if (apkUrl != null) break
-                            }
-                        }
-                    }
-                    Pair(build, apkUrl ?: throw IOException("La publicación no contiene un APK"))
+                    build
                 }
             }
-            latestBuild = release.first
-            updateUrl = release.second
+            latestBuild = release
             updateStatus = when {
-                release.first > currentBuild -> "HAY UNA ACTUALIZACIÓN DISPONIBLE."
-                release.first == currentBuild -> "FRIDAGATE ESTÁ ACTUALIZADA."
+                release > currentBuild -> "HAY UNA BUILD MÁS NUEVA DISPONIBLE EN GITHUB ACTIONS."
+                release == currentBuild -> "FRIDAGATE ESTÁ ACTUALIZADA."
                 else -> "TU BUILD ES MÁS NUEVO QUE LA ÚLTIMA PUBLICACIÓN."
             }
         } catch (e: Exception) {
@@ -218,6 +197,19 @@ fun AboutScreen(onBack: () -> Unit) {
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             
+            // GitHub Actions builds
+            ClickableText(
+                text = AnnotatedString("📍 GITHUB ACTIONS: TODAS LAS BUILDS"),
+                onClick = {
+                    uriHandler.openUri("https://github.com/Tinchodoko/Fridagate/actions")
+                },
+                style = TextStyle(
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 13.sp
+                ),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
             // Contact and suggestions
             Text(
                 "CONTACTO",
@@ -296,58 +288,6 @@ fun AboutScreen(onBack: () -> Unit) {
                             MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Button(
-                        onClick = {
-                            val apkUrl = updateUrl ?: return@Button
-                            scope.launch {
-                                isInstallingUpdate = true
-                                updateStatus = "DESCARGANDO E INSTALANDO BUILD " + (latestBuild ?: "") + "..."
-                                try {
-                                    val result = withContext(Dispatchers.IO) {
-                                        if (!RootUtils.isRootAvailable()) {
-                                            throw IOException("Se necesita acceso root para instalar la actualización directamente.")
-                                        }
-                                        val apkFile = File(context.cacheDir, "fridagate-update.apk")
-                                        val request = Request.Builder().url(apkUrl).build()
-                                        OkHttpClient.Builder()
-                                            .followRedirects(true)
-                                            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                                            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
-                                            .build()
-                                            .newCall(request).execute().use { response ->
-                                                if (!response.isSuccessful) throw IOException("No se pudo descargar el APK (HTTP " + response.code + ")")
-                                                val body = response.body ?: throw IOException("El APK descargado está vacío")
-                                                apkFile.outputStream().use { output -> body.byteStream().use { input -> input.copyTo(output) } }
-                                            }
-                                        val installOutput = RootUtils.executeSuCommand("pm install -r '${apkFile.absolutePath}'")
-                                        apkFile.delete()
-                                        if (!installOutput.contains("Success", ignoreCase = true)) {
-                                            throw IOException(installOutput.trim().ifBlank { "Android rechazó la instalación. Puede existir un conflicto de firma." })
-                                        }
-                                        "BUILD INSTALADO CORRECTAMENTE. ANDROID CERRARÁ FRIDAGATE PARA APLICAR LA ACTUALIZACIÓN."
-                                    }
-                                    updateStatus = result
-                                } catch (e: Exception) {
-                                    updateStatus = "ERROR AL ACTUALIZAR: " + (e.message ?: "ERROR DESCONOCIDO")
-                                } finally {
-                                    isInstallingUpdate = false
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isCheckingUpdate && !isInstallingUpdate &&
-                            updateUrl != null && (latestBuild ?: currentBuild) > currentBuild
-                    ) {
-                        if (isInstallingUpdate) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Text(if (isInstallingUpdate) "ACTUALIZANDO..." else "ACTUALIZAR")
-                    }
                 }
             }
 
