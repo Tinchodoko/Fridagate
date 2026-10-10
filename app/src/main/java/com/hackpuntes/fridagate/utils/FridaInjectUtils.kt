@@ -24,6 +24,7 @@ object FridaInjectUtils {
 
     // frida-inject writes its output here so we can read it back for logging
     private const val INJECT_LOG = "/data/local/tmp/fridagate_inject.log"
+    private const val INJECTED_PACKAGES_FILE = "/data/local/tmp/fridagate_injected_packages.txt"
 
     // -------------------------------------------------------------------------
     // Status checks
@@ -176,6 +177,7 @@ object FridaInjectUtils {
             //   No persistent shell in between, no job-control issues.
             //   We don't call waitFor() so it runs for the lifetime of the target app.
             //
+            recordInjectedPackage(packageName)
             // frida-inject --eternalize: keep the script alive even after frida-inject exits
             val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $scriptPath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
@@ -265,6 +267,7 @@ object FridaInjectUtils {
             Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
+            recordInjectedPackage(packageName)
             val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo \$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
             if (!launchResult.contains("INJECT_LAUNCHED")) {
@@ -329,6 +332,7 @@ object FridaInjectUtils {
             Thread.sleep(600)
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
+            recordInjectedPackage(packageName)
             val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
             if (!launchResult.contains("INJECT_LAUNCHED")) {
@@ -433,6 +437,49 @@ object FridaInjectUtils {
         lines
     }
 
+
+    private suspend fun recordInjectedPackage(packageName: String) {
+        if (packageName.matches(Regex("[A-Za-z0-9._]+"))) {
+            RootUtils.executeSuCommand(
+                "touch \$INJECTED_PACKAGES_FILE; grep -Fx '\$packageName' \$INJECTED_PACKAGES_FILE >/dev/null 2>&1 || echo '\$packageName' >> \$INJECTED_PACKAGES_FILE"
+            )
+        }
+    }
+
+    /** Stop tracked eternalized injections without force-stopping unrelated apps. */
+    suspend fun stopAllInjections(): List<String> = withContext(Dispatchers.IO) {
+        val lines = mutableListOf<String>()
+        try {
+            val packages = RootUtils.executeSuCommand("cat \$INJECTED_PACKAGES_FILE 2>/dev/null")
+                .lineSequence().map { it.trim() }
+                .filter { it.matches(Regex("[A-Za-z0-9._]+")) }.distinct().toList()
+            packages.forEach { pkg ->
+                RootUtils.executeSuCommand("am force-stop \$pkg")
+                lines += "✓ Scripts detenidos y aplicación cerrada: \$pkg"
+            }
+            RootUtils.executeSuCommand("pkill -9 -f '[f]rida-inject' 2>/dev/null || true")
+            RootUtils.executeSuCommand(
+                "rm -f /data/local/tmp/fridagate_inject.pid \$INJECTED_PACKAGES_FILE " +
+                "/data/local/tmp/fridagate_enabled_scripts.js /data/local/tmp/fridagate_combined.js " +
+                "/data/local/tmp/fridagate_custom.js \$INJECT_LOG"
+            )
+            lines += "✓ Procesos de inyección y scripts temporales de FridaGate limpiados."
+            if (packages.isEmpty()) lines += "ℹ️ No había aplicaciones registradas; no se cerraron aplicaciones ajenas."
+        } catch (_: Exception) {
+            lines += "❌ Error al detener inyecciones."
+        }
+        lines
+    }
+
+    /** Removes the frida-inject binary and its version metadata. */
+    suspend fun uninstallFridaInject(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            stopAllInjections()
+            RootUtils.executeSuCommand("rm -f \$INJECT_BINARY_PATH \$INJECT_VERSION_FILE \$INJECT_LOG /data/local/tmp/fridagate_inject.pid \$INJECTED_PACKAGES_FILE")
+            !isFridaInjectInstalled()
+        } catch (_: Exception) { false }
+    }
+
     /** Stops a custom-script frida-inject process without touching the predefined bypass injection. */
     suspend fun stopCustomScript(): List<String> = withContext(Dispatchers.IO) {
         try {
@@ -456,6 +503,7 @@ object FridaInjectUtils {
                 Thread.sleep(1000)
 
                 RootUtils.executeSuCommand("rm -f $INJECT_LOG")
+                recordInjectedPackage(packageName)
                 val attachCmd = "nohup $INJECT_BINARY_PATH -n $packageName -s $scriptPath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
                 val launchResult = RootUtils.executeSuCommand(attachCmd).trim()
                 if (!launchResult.contains("INJECT_LAUNCHED")) {
