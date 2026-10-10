@@ -380,21 +380,15 @@ private fun ActionButtons(
             Text("ENTORNO DE FRIDA", style = MaterialTheme.typography.titleMedium)
             StatusRow("frida-server", if (isRunning) "● En ejecución" else "● Detenido", isRunning)
             StatusRow("frida-inject", if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado", isInjectInstalled)
-            if (!isInjectInstalled) {
-                Text("Necesario para lanzar scripts desde el dispositivo. Se instala con la misma versión que frida-server.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = { pendingAction = "DESCARGAR FRIDA-INJECT" }, enabled = !isInjectLoading && !isLoading && isRootAvailable, modifier = Modifier.fillMaxWidth()) {
-                    Text("DESCARGAR FRIDA-INJECT")
-                }
-            }
             Divider()
 
             // Install button — always visible, disabled when root is unavailable or loading
             Button(
-                onClick = { pendingAction = "INSTALAR/ACTUALIZAR FRIDA SERVER" },
+                onClick = { pendingAction = "INSTALAR/ACTUALIZAR FRIDA" },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable
             ) {
-                Text("INSTALAR / ACTUALIZAR FRIDA SERVER")
+                Text("INSTALAR / ACTUALIZAR FRIDA")
             }
 
             // Start/Stop/Custom buttons — only shown when frida-server is installed
@@ -449,7 +443,7 @@ private fun ActionButtons(
     }
     pendingAction?.let { action ->
         val description = when (action) {
-            "INSTALAR/ACTUALIZAR FRIDA SERVER" -> "DESCARGAR E INSTALAR FRIDA-SERVER EN LA VERSIÓN 16.7.19."
+            "INSTALAR/ACTUALIZAR FRIDA" -> "INSTALAR O ACTUALIZAR FRIDA-SERVER Y FRIDA-INJECT EN LA VERSIÓN 16.7.19."
             "INICIAR" -> "INICIAR EL PROCESO FRIDA-SERVER."
             "DETENER" -> "DETENER EL PROCESO FRIDA-SERVER."
             "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, VERSIÓN, INSTALACIÓN Y ESTADO DEL SERVIDOR."
@@ -463,7 +457,7 @@ private fun ActionButtons(
             confirmButton = { TextButton(onClick = {
                 pendingAction = null
                 when (action) {
-                    "INSTALAR/ACTUALIZAR FRIDA SERVER" -> onInstall()
+                    "INSTALAR/ACTUALIZAR FRIDA" -> onInstall()
                     "INICIAR" -> onStart()
                     "DETENER" -> onStop()
                     "ACTUALIZAR ESTADO" -> onRefresh()
