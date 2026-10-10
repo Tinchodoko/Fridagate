@@ -470,17 +470,9 @@ fun ScriptsScreen(
                     },
                     bypassScripts = extrasViewModel.scripts,
                     onLaunchWithBypass = { frameworkTestScript ->
-                        val notificationPermissionMissing =
-                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                            PackageManager.PERMISSION_GRANTED
-                        if (notificationPermissionMissing) {
-                            pendingFrameworkTestScript = frameworkTestScript
-                            pendingLaunchAfterPermission = true
-                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            launchSelectedScripts(frameworkTestScript)
-                        }
+                        // La pantalla INICIO gestiona los permisos del servicio y de la burbuja.
+                        // No bloquear el lanzamiento mostrando un diálogo de notificaciones aquí.
+                        launchSelectedScripts(frameworkTestScript)
                     },
                     activeTargetPackage = activeTargetPackage,
                     onStopTargetApp = { packageName -> viewModel.stopTargetApp(context, packageName) },
