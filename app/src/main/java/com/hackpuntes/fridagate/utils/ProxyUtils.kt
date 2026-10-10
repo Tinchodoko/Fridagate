@@ -60,7 +60,7 @@ object ProxyUtils {
     ): Boolean = withContext(Dispatchers.IO) {
         // Never redirect device traffic to a listener that cannot be reached.
         if (!burpIp.matches(Regex("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")) ||
-            burpIp.split(".").any { it.toIntOrNull() !in 0..255 } ||
+            burpIp.split(".").any { (it.toIntOrNull() ?: 256) !in 0..255 } ||
             httpPort !in 1..65535 || httpsPort !in 1..65535 ||
             !isBurpReachable(burpIp, httpPort)) {
             return@withContext false
