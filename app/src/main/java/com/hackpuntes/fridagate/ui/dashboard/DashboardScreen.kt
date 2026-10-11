@@ -498,7 +498,7 @@ fun DashboardScreen() {
                         "MOSTRAR ICONO FLOTANTE", "OCULTAR ICONO FLOTANTE" -> {
                             if (isFloatingIconVisible) {
                                 context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
-                                    action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
+                                    this.action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
                                 })
                                 isFloatingIconVisible = false
                             } else if (hasOverlayPermission) {
