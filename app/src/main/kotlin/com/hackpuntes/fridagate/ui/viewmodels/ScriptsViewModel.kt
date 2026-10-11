@@ -52,6 +52,12 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
     private val _activeTargetPackage = MutableStateFlow<String?>(null)
     val activeTargetPackage = _activeTargetPackage.asStateFlow()
     
+    fun refreshActiveTarget(context: Context) {
+        _activeTargetPackage.value = context.getSharedPreferences(
+            FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE
+        ).getString(FridaGateNotificationService.PREF_TARGET, null)
+    }
+
     // Logs en tiempo real
     private val _logs = MutableStateFlow<List<String>>(emptyList())
     val logs = _logs.asStateFlow()
@@ -254,18 +260,19 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             )
             result.forEach { addLog(it) }
             lastObservedInjectionLog = FridaInjectUtils.readCurrentInjectionLog()
-            val targetProcessFound = result.any {
-                it.contains("is running (PID", ignoreCase = true) ||
-                it.contains("Found target process $packageName", ignoreCase = true)
+            val launchCommandStarted = result.any {
+                it.contains("Launching $packageName with enabled scripts", ignoreCase = true)
             }
             val injectionReportedError = result.any {
                 it.contains("Agent connection closed unexpectedly", ignoreCase = true) ||
                 it.contains("Unable to load SELinux policy", ignoreCase = true) ||
                 it.contains("ERROR:", ignoreCase = true)
             }
-            val launchSucceeded = targetProcessFound && !injectionReportedError
+            val launchSucceeded = launchCommandStarted && !injectionReportedError
             if (launchSucceeded) {
                 _activeTargetPackage.value = packageName
+                context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit().putString(FridaGateNotificationService.PREF_TARGET, packageName).apply()
                 addLog("⚠️ La aplicación está abierta y frida-inject fue lanzado, pero esto NO confirma que el agente ni el script se hayan ejecutado.")
 
                 val selectedNames = (enabledBuiltInScripts.map { it.name } + enabledUserScripts.map { it.name })
@@ -294,6 +301,8 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 }
             } else {
                 _activeTargetPackage.value = null
+                context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit().remove(FridaGateNotificationService.PREF_TARGET).apply()
                 addLog("⚠️ No se pudo confirmar una inyección sin errores para $packageName.")
             }
         } catch (e: Exception) {
@@ -323,6 +332,8 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             if (_activeTargetPackage.value == packageName) {
                 _activeTargetPackage.value = null
             }
+            context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().remove(FridaGateNotificationService.PREF_TARGET).apply()
             lastObservedInjectionLog = ""
             addLog("⚫ $packageName: solicitud de detención completada.")
         } catch (e: Exception) {
