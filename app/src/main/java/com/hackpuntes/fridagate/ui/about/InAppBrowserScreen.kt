@@ -8,6 +8,7 @@ import android.net.Uri
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +52,16 @@ fun InAppBrowserScreen(url: String, onBack: () -> Unit) {
             actions = {
                 IconButton(onClick = { webView?.reload() }) {
                     Icon(Icons.Default.Refresh, contentDescription = "Recargar")
+                }
+                IconButton(onClick = {
+                    val targetUrl = webView?.url ?: url
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)))
+                    } catch (_: ActivityNotFoundException) {
+                        Toast.makeText(context, "No hay un navegador externo disponible", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Icon(Icons.Default.OpenInBrowser, contentDescription = "Abrir en el navegador externo")
                 }
             }
         )
