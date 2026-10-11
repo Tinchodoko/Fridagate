@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
     val uriHandler = LocalUriHandler.current
     val currentBuild = BuildConfig.BUILD_NUMBER.toIntOrNull() ?: 0
     var latestBuild by remember { mutableStateOf<Int?>(null) }
@@ -162,7 +162,7 @@ fun AboutScreen(onBack: () -> Unit) {
             ClickableText(
                 text = AnnotatedString("📍 REPOSITORIO DE GITHUB: TINCHODOKO/FRIDAGATE"),
                 onClick = {
-                    uriHandler.openUri("https://github.com/Tinchodoko/Fridagate")
+                    onOpenUrl("https://github.com/Tinchodoko/Fridagate")
                 },
                 style = TextStyle(
                     color = MaterialTheme.colorScheme.primary,
@@ -175,7 +175,7 @@ fun AboutScreen(onBack: () -> Unit) {
             ClickableText(
                 text = AnnotatedString("📍 REPOSITORIO ORIGINAL: JAVIEROLMEDO/FRIDAGATE"),
                 onClick = {
-                    uriHandler.openUri("https://github.com/JavierOlmedo/Fridagate")
+                    onOpenUrl("https://github.com/JavierOlmedo/Fridagate")
                 },
                 style = TextStyle(
                     color = MaterialTheme.colorScheme.primary,
@@ -188,7 +188,7 @@ fun AboutScreen(onBack: () -> Unit) {
             ClickableText(
                 text = AnnotatedString("📍 SITIO OFICIAL DE FRIDA"),
                 onClick = {
-                    uriHandler.openUri("https://frida.re")
+                    onOpenUrl("https://frida.re")
                 },
                 style = TextStyle(
                     color = MaterialTheme.colorScheme.primary,
@@ -199,9 +199,9 @@ fun AboutScreen(onBack: () -> Unit) {
             
             // GitHub Actions builds
             ClickableText(
-                text = AnnotatedString("📍 GITHUB ACTIONS: TODAS LAS BUILDS"),
+                text = AnnotatedString("📍 VER BUILDS EN GITHUB"),
                 onClick = {
-                    uriHandler.openUri("https://github.com/Tinchodoko/Fridagate/actions")
+                    onOpenUrl("https://github.com/Tinchodoko/Fridagate/actions")
                 },
                 style = TextStyle(
                     color = MaterialTheme.colorScheme.primary,
@@ -228,7 +228,7 @@ fun AboutScreen(onBack: () -> Unit) {
             }
 
             OutlinedButton(
-                onClick = { uriHandler.openUri("https://github.com/Tinchodoko/Fridagate/issues/new") },
+                onClick = { onOpenUrl("https://github.com/Tinchodoko/Fridagate/issues/new") },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("SUGERENCIA EN GITHUB", modifier = Modifier.weight(1f))
@@ -236,7 +236,7 @@ fun AboutScreen(onBack: () -> Unit) {
             }
 
             OutlinedButton(
-                onClick = { uriHandler.openUri("https://t.me/tinchoDKO") },
+                onClick = { onOpenUrl("https://t.me/tinchoDKO") },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("SUGERENCIA EN TELEGRAM", modifier = Modifier.weight(1f))
