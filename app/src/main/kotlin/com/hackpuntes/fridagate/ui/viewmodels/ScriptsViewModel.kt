@@ -263,11 +263,6 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             val launchCommandStarted = result.any {
                 it.contains("Launching $packageName with enabled scripts", ignoreCase = true)
             }
-            val injectionReportedError = result.any {
-                it.contains("Agent connection closed unexpectedly", ignoreCase = true) ||
-                it.contains("Unable to load SELinux policy", ignoreCase = true) ||
-                it.contains("ERROR:", ignoreCase = true)
-            }
             val launchSucceeded = launchCommandStarted
             if (launchSucceeded) {
                 _activeTargetPackage.value = packageName
