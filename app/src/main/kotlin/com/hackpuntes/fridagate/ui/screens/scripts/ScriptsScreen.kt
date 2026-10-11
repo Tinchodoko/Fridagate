@@ -107,6 +107,7 @@ fun ScriptsScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 extrasViewModel.refreshEnvironmentStatus()
+                viewModel.refreshActiveTarget(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
