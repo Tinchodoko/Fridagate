@@ -252,8 +252,21 @@ object FridaInjectUtils {
                 }
                 customScripts.forEach { script ->
                     appendLine("// ===== ${script.name} =====")
-                    appendLine(script.code)
+                    val isUnityDiagnostics = script.name.equals("FridaGate_Unity_IL2CPP_Diagnostics", ignoreCase = true)
+                    val bundledDiagnostics = if (isUnityDiagnostics) {
+                        runCatching {
+                            context.assets.open("scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js")
+                                .bufferedReader()
+                                .use { it.readText() }
+                        }.getOrNull()
+                    } else null
+                    appendLine(bundledDiagnostics ?: script.code)
                     appendLine()
+                    if (isUnityDiagnostics && bundledDiagnostics == null) {
+                        lines += "⚠️ No se encontró el bundle de diagnóstico con bridges; se usó el código guardado del script."
+                    } else if (bundledDiagnostics != null) {
+                        lines += "✓ Bundle Unity IL2CPP cargado con bridges Java/IL2CPP."
+                    }
                 }
             }
             val localFile = File(context.filesDir, "fridagate_enabled_scripts.js")
