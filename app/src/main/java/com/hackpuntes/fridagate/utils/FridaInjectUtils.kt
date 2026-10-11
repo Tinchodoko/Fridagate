@@ -252,7 +252,14 @@ object FridaInjectUtils {
                 }
                 customScripts.forEach { script ->
                     appendLine("// ===== ${script.name} =====")
-                    val isUnityDiagnostics = script.name.equals("FridaGate_Unity_IL2CPP_Diagnostics", ignoreCase = true)
+                    // Accept both the canonical name and the shorter bundle name used by
+                    // previously imported copies (for example, FridaGate_Unity_IL2CPP_bundle).
+                    // This makes the APK's freshly built, self-contained agent take precedence
+                    // over a potentially stale copy saved in the script repository.
+                    val normalizedScriptName = script.name.lowercase().replace(Regex("[^a-z0-9]"), "")
+                    val isUnityDiagnostics =
+                        normalizedScriptName == "fridagateunityil2cppdiagnostics" ||
+                        normalizedScriptName == "fridagateunityil2cppbundle"
                     val bundledDiagnostics = if (isUnityDiagnostics) {
                         runCatching {
                             context.assets.open("scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js")
