@@ -252,6 +252,39 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         addLog("▶️ Lanzando $packageName con ${enabledBuiltInScripts.size + enabledUserScripts.size} script(s) activado(s)")
         frameworkTestScript?.let { addLog("🧪 Prueba de framework incluida: ${it.name}") }
         try {
+            val selectedNames = (enabledBuiltInScripts.map { it.name } + enabledUserScripts.map { it.name })
+                .distinct()
+            val notificationScriptName = when {
+                selectedNames.isEmpty() -> "Script"
+                selectedNames.size == 1 -> selectedNames.first()
+                selectedNames.size <= 3 -> selectedNames.joinToString(" + ")
+                else -> "${selectedNames.size} scripts"
+            }
+            val notificationIntent = Intent(context, FridaGateNotificationService::class.java).apply {
+                action = FridaGateNotificationService.ACTION_SCRIPT_INJECTED
+                putExtra(FridaGateNotificationService.EXTRA_SCRIPT_NAME, notificationScriptName)
+                putExtra(FridaGateNotificationService.EXTRA_PACKAGE_NAME, packageName)
+            }
+
+            // Prepare the log/overlay before frida-inject spawns the target process.
+            var floatingServiceStarted = false
+            if (Settings.canDrawOverlays(context)) {
+                context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(FridaGateNotificationService.PREF_TARGET, packageName)
+                    .putBoolean(FridaGateNotificationService.PREF_RETURN_TO_TARGET_NEXT, false)
+                    .apply()
+                try {
+                    ContextCompat.startForegroundService(context, notificationIntent)
+                    floatingServiceStarted = true
+                    addLog("🟣 Icono flotante preparado; ahora se lanzará la aplicación objetivo.")
+                } catch (e: Exception) {
+                    addLog("⚠️ No se pudo preparar el icono flotante antes del lanzamiento: ${e.message}")
+                }
+            } else {
+                addLog("ℹ️ Falta permiso de ventana flotante. Concédelo en INICIO → Estado del sistema.")
+            }
+
             val result = FridaInjectUtils.launchWithCombinedScripts(
                 context = context,
                 bypassScripts = enabledBuiltInScripts,
@@ -277,35 +310,17 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
                     .edit().putString(FridaGateNotificationService.PREF_TARGET, packageName).apply()
                 addLog("⚠️ La aplicación está abierta y frida-inject fue lanzado, pero esto NO confirma que el agente ni el script se hayan ejecutado.")
-
-                val selectedNames = (enabledBuiltInScripts.map { it.name } + enabledUserScripts.map { it.name })
-                    .distinct()
-                val notificationScriptName = when {
-                    selectedNames.isEmpty() -> "Script"
-                    selectedNames.size == 1 -> selectedNames.first()
-                    selectedNames.size <= 3 -> selectedNames.joinToString(" + ")
-                    else -> "${selectedNames.size} scripts"
-                }
-                val notificationIntent = Intent(context, FridaGateNotificationService::class.java).apply {
-                    action = FridaGateNotificationService.ACTION_SCRIPT_INJECTED
-                    putExtra(FridaGateNotificationService.EXTRA_SCRIPT_NAME, notificationScriptName)
-                    putExtra(FridaGateNotificationService.EXTRA_PACKAGE_NAME, packageName)
-                }
-                try {
-                    // Android exige notificación para el servicio en primer plano; la burbuja es complementaria.
-                    ContextCompat.startForegroundService(context, notificationIntent)
-                    if (Settings.canDrawOverlays(context)) {
-                        addLog("🟣 Servicio persistente solicitado; icono flotante activado.")
-                    } else {
-                        addLog("ℹ️ Falta permiso de ventana flotante. Concédelo en INICIO → Estado del sistema.")
-                    }
-                } catch (e: Exception) {
-                    addLog("⚠️ No se pudo iniciar el servicio persistente: ${e.message}")
+                if (floatingServiceStarted) {
+                    addLog("🟣 Servicio persistente activo; el icono flotante está disponible.")
                 }
             } else {
                 _activeTargetPackage.value = null
                 context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
                     .edit().remove(FridaGateNotificationService.PREF_TARGET).apply()
+                if (floatingServiceStarted) {
+                    context.stopService(Intent(context, FridaGateNotificationService::class.java))
+                    addLog("ℹ️ Icono flotante retirado porque no se confirmó el lanzamiento de Frida.")
+                }
                 addLog("⚠️ No se pudo confirmar una inyección sin errores para $packageName.")
             }
         } catch (e: Exception) {
