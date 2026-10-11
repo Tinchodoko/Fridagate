@@ -37,6 +37,7 @@ class FridaGateNotificationService : Service() {
     private var floatingView: View? = null
     private var bubbleView: ImageView? = null
     private var panelView: LinearLayout? = null
+    private var stopButtonView: Button? = null
     private var windowManager: WindowManager? = null
     private var activeTargetPackage: String = ""
 
@@ -79,6 +80,7 @@ class FridaGateNotificationService : Service() {
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                     .getString(PREF_TARGET, "").orEmpty()
             }
+        stopButtonView?.isEnabled = activeTargetPackage.isNotBlank()
 
         // Foreground services must post a notification on modern Android.
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
@@ -169,6 +171,7 @@ class FridaGateNotificationService : Service() {
                 setOnClickListener { stopTargetAndReturn(activeTargetPackage) }
             }
             panel.addView(stopButton, LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
+            stopButtonView = stopButton
 
             val byline = android.widget.TextView(this).apply {
                 text = "BY TINCHODOKO"
@@ -269,6 +272,7 @@ class FridaGateNotificationService : Service() {
         floatingView = null
         bubbleView = null
         panelView = null
+        stopButtonView = null
         windowManager = null
     }
 
