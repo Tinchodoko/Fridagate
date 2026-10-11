@@ -263,7 +263,15 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             val launchCommandStarted = result.any {
                 it.contains("Launching $packageName with enabled scripts", ignoreCase = true)
             }
-            val launchSucceeded = launchCommandStarted
+            val scriptSyntaxError = result.any { line ->
+                line.contains("SyntaxError", ignoreCase = true) ||
+                    line.contains("unexpected character", ignoreCase = true) ||
+                    line.contains("failed to compile", ignoreCase = true)
+            }
+            val launchSucceeded = launchCommandStarted && !scriptSyntaxError
+            if (scriptSyntaxError) {
+                addLog("❌ Frida rechazó el JavaScript antes de ejecutarlo; la aplicación abierta no se marcará como inyección activa.")
+            }
             if (launchSucceeded) {
                 _activeTargetPackage.value = packageName
                 context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)

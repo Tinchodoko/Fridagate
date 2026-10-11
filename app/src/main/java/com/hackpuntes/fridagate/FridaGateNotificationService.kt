@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
+import java.util.Locale
 import androidx.core.app.NotificationCompat
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +39,7 @@ class FridaGateNotificationService : Service() {
     private var bubbleView: ImageView? = null
     private var panelView: LinearLayout? = null
     private var stopButtonView: Button? = null
+    private var returnButtonView: Button? = null
     private var windowManager: WindowManager? = null
     private var activeTargetPackage: String = ""
 
@@ -75,12 +77,13 @@ class FridaGateNotificationService : Service() {
             }
         }
 
-        activeTargetPackage = intent?.getStringExtra(EXTRA_PACKAGE_NAME).orEmpty()
-            .ifBlank {
-                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                    .getString(PREF_TARGET, "").orEmpty()
-            }
-        stopButtonView?.isEnabled = activeTargetPackage.isNotBlank()
+        val targetFromIntent = intent?.getStringExtra(EXTRA_PACKAGE_NAME).orEmpty()
+        val preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        if (targetFromIntent.isNotBlank()) {
+            preferences.edit().putString(PREF_TARGET, targetFromIntent).apply()
+        }
+        activeTargetPackage = preferences.getString(PREF_TARGET, "").orEmpty()
+        updateTargetControls()
 
         // Foreground services must post a notification on modern Android.
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
@@ -155,20 +158,23 @@ class FridaGateNotificationService : Service() {
             })
 
             val returnButton = Button(this).apply {
-                text = "VOLVER A FRIDAGATE 2.0"
+                text = returnButtonLabel()
                 isAllCaps = true
                 setOnClickListener {
+                    updateTargetControls()
+                    val target = activeTargetPackage
                     panel.visibility = View.GONE
-                    openFridaGate()
+                    if (target.isBlank()) openFridaGate() else openTargetApp(target)
                 }
             }
+            returnButtonView = returnButton
             panel.addView(returnButton, LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
 
             val stopButton = Button(this).apply {
                 text = "DETENER APLICACIÓN"
                 isAllCaps = true
                 isEnabled = activeTargetPackage.isNotBlank()
-                setOnClickListener { stopTargetAndReturn(activeTargetPackage) }
+                setOnClickListener { stopTargetAndReturn(currentTargetPackage()) }
             }
             panel.addView(stopButton, LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
             stopButtonView = stopButton
@@ -223,6 +229,7 @@ class FridaGateNotificationService : Service() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (!moved) {
+                            updateTargetControls()
                             panel.visibility = if (panel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
                             runCatching { windowManager?.updateViewLayout(root, params) }
                         }
@@ -240,6 +247,48 @@ class FridaGateNotificationService : Service() {
             getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
                 .putBoolean(PREF_VISIBLE, false).apply()
         }
+    }
+
+    private fun currentTargetPackage(): String {
+        activeTargetPackage = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_TARGET, "").orEmpty()
+        return activeTargetPackage
+    }
+
+    private fun targetApplicationLabel(targetPackage: String): String {
+        if (targetPackage.isBlank()) return ""
+        return runCatching {
+            packageManager.getApplicationLabel(
+                packageManager.getApplicationInfo(targetPackage, 0)
+            ).toString().ifBlank { targetPackage }
+        }.getOrDefault(targetPackage)
+    }
+
+    private fun returnButtonLabel(): String {
+        val target = currentTargetPackage()
+        if (target.isBlank()) return "VOLVER A FRIDAGATE 2.0"
+        val appName = targetApplicationLabel(target).uppercase(Locale.getDefault())
+        return "VOLVER A $appName"
+    }
+
+    private fun updateTargetControls() {
+        val target = currentTargetPackage()
+        returnButtonView?.text = returnButtonLabel()
+        stopButtonView?.isEnabled = target.isNotBlank()
+    }
+
+    private fun openTargetApp(targetPackage: String) {
+        val launch = packageManager.getLaunchIntentForPackage(targetPackage)
+        if (launch == null) {
+            openFridaGate()
+            return
+        }
+        launch.addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        )
+        startActivity(launch)
     }
 
     private fun openFridaGate() {
@@ -273,6 +322,7 @@ class FridaGateNotificationService : Service() {
         bubbleView = null
         panelView = null
         stopButtonView = null
+        returnButtonView = null
         windowManager = null
     }
 

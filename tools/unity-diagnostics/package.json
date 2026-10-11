@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "frida-compile index.ts -o ../../app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js"
+    "build": "mkdir -p ../../app/src/main/assets/scripts && esbuild index.ts --bundle --platform=neutral --target=es2020 --format=iife --outfile=../../app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js"
   },
   "devDependencies": {
     "@types/frida-gum": "17.0.0",
-    "frida-compile": "16.4.2",
+    "esbuild": "0.25.2",
     "frida-il2cpp-bridge": "0.11.0",
     "frida-java-bridge": "7.0.4"
   }
