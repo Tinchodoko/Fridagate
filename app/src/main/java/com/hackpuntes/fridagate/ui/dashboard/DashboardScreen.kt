@@ -355,7 +355,7 @@ fun DashboardScreen() {
     var hasNotificationPermission by remember { mutableStateOf(notificationPermissionGranted(context)) }
     var hasOverlayPermission by remember { mutableStateOf(android.provider.Settings.canDrawOverlays(context)) }
     var hasBackgroundPermission by remember { mutableStateOf(backgroundExecutionAllowed(context)) }
-    var isNotificationVisible by remember { mutableStateOf(notificationIsVisible(context)) }
+    var isFloatingIconVisible by remember { mutableStateOf(floatingIconIsVisible(context)) }
     var isIgnoringBatteryOptimizations by remember { mutableStateOf(batteryOptimizationIgnored(context)) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -373,7 +373,7 @@ fun DashboardScreen() {
                 hasNotificationPermission = notificationPermissionGranted(context)
                 hasOverlayPermission = android.provider.Settings.canDrawOverlays(context)
                 hasBackgroundPermission = backgroundExecutionAllowed(context)
-                isNotificationVisible = notificationIsVisible(context)
+                isFloatingIconVisible = floatingIconIsVisible(context)
                 isIgnoringBatteryOptimizations = batteryOptimizationIgnored(context)
                 viewModel.refreshStatus()
             }
@@ -460,9 +460,9 @@ fun DashboardScreen() {
                 onSmartInstall = { pendingConfirmation = "INSTALACIÓN INTELIGENTE" },
                 onDeactivateAll = { pendingConfirmation = "DETENER TODO" },
                 onRefresh = { pendingConfirmation = "ACTUALIZAR ESTADO" },
-                isNotificationVisible = isNotificationVisible,
-                canShowNotification = hasNotificationPermission,
-                onToggleNotification = { pendingConfirmation = if (isNotificationVisible) "OCULTAR NOTIFICACIÓN" else "MOSTRAR NOTIFICACIÓN" }
+                isFloatingIconVisible = isFloatingIconVisible,
+                canShowFloatingIcon = hasOverlayPermission,
+                onToggleFloatingIcon = { pendingConfirmation = if (isFloatingIconVisible) "OCULTAR ICONO FLOTANTE" else "MOSTRAR ICONO FLOTANTE" }
             )
 
             // ── Log panel ─────────────────────────────────────────────────────
@@ -481,8 +481,8 @@ fun DashboardScreen() {
                 "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion. PROXY Y BURP QUEDAN DESACTIVADOS."
                 "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER, Y LIMPIAR CONFIGURACIONES DE PROXY CONOCIDAS."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
-                "MOSTRAR NOTIFICACIÓN" -> "MOSTRAR LA NOTIFICACIÓN PERSISTENTE DE FRIDAGATE."
-                else -> "OCULTAR LA NOTIFICACIÓN PERSISTENTE DE FRIDAGATE."
+                "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE SOBRE OTRAS APLICACIONES."
+                else -> "OCULTAR EL ICONO FLOTANTE DE FRIDAGATE."
             }
             AlertDialog(
                 onDismissRequest = { pendingConfirmation = null },
@@ -495,18 +495,19 @@ fun DashboardScreen() {
                         "INSTALACIÓN INTELIGENTE" -> viewModel.smartInstallAll()
                         "DETENER TODO" -> viewModel.deactivateAll()
                         "ACTUALIZAR ESTADO" -> viewModel.refreshStatus()
-                        "MOSTRAR NOTIFICACIÓN", "OCULTAR NOTIFICACIÓN" -> {
-                            if (isNotificationVisible) {
+                        "MOSTRAR ICONO FLOTANTE", "OCULTAR ICONO FLOTANTE" -> {
+                            if (isFloatingIconVisible) {
                                 context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
-                                    this.action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
+                                    action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
                                 })
-                                isNotificationVisible = false
-                            } else if (hasNotificationPermission) {
+                                isFloatingIconVisible = false
+                            } else if (hasOverlayPermission) {
                                 ContextCompat.startForegroundService(context, Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
-                                isNotificationVisible = true
+                                isFloatingIconVisible = true
                             } else {
-                                if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                                runCatching {
+                                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)))
+                                }
                             }
                         }
                     }
@@ -535,13 +536,9 @@ private fun storagePermissionGranted(context: Context): Boolean =
         (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
          ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
 
-private fun notificationIsVisible(context: Context): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        runCatching {
-            (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
-                .activeNotifications.any { it.id == 2200 }
-        }.getOrDefault(false)
-    } else false
+private fun floatingIconIsVisible(context: Context): Boolean =
+    context.getSharedPreferences("fridagate_runtime", Context.MODE_PRIVATE)
+        .getBoolean("floating_icon_visible", false)
 
 private fun notificationPermissionGranted(context: Context): Boolean =
     (Build.VERSION.SDK_INT < 33 ||
@@ -709,9 +706,9 @@ private fun OneTabActionsCard(
     onSmartInstall: () -> Unit,
     onDeactivateAll: () -> Unit,
     onRefresh: () -> Unit,
-    isNotificationVisible: Boolean,
-    canShowNotification: Boolean,
-    onToggleNotification: () -> Unit
+    isFloatingIconVisible: Boolean,
+    canShowFloatingIcon: Boolean,
+    onToggleFloatingIcon: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -785,11 +782,11 @@ private fun OneTabActionsCard(
             }
 
             OutlinedButton(
-                onClick = onToggleNotification,
+                onClick = onToggleFloatingIcon,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && (canShowNotification || isNotificationVisible)
+                enabled = !isLoading && (canShowFloatingIcon || isFloatingIconVisible)
             ) {
-                Text(if (isNotificationVisible) "OCULTAR NOTIFICACIÓN" else "MOSTRAR NOTIFICACIÓN")
+                Text(if (isFloatingIconVisible) "OCULTAR ICONO FLOTANTE" else "MOSTRAR ICONO FLOTANTE")
             }
         }
     }
