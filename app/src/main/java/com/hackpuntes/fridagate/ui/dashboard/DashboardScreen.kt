@@ -632,8 +632,20 @@ private fun StatusOverviewCard(
             // Each StatusIndicatorRow shows one component's status
             StatusIndicatorRow(label = "Frida Installed", active = isFridaInstalled, activeText = "Sí", inactiveText = "No")
             StatusIndicatorRow(label = "Frida Running", active = isFridaRunning, activeText = "En ejecución", inactiveText = "Detenido")
-            StatusIndicatorRow(label = "Proxy (iptables)", active = isProxyActive, activeText = "Activo", inactiveText = "Inactivo")
-            StatusIndicatorRow(label = "Burp reachable", active = isBurpReachable, activeText = "Sí", inactiveText = "No")
+            StatusIndicatorRow(
+                label = "Proxy (iptables)",
+                active = isProxyActive,
+                activeText = "Activo",
+                inactiveText = "Deshabilitado",
+                inactiveColor = Color(0xFF9C27B0)
+            )
+            StatusIndicatorRow(
+                label = "Burp reachable",
+                active = isBurpReachable,
+                activeText = "Sí",
+                inactiveText = "Deshabilitado",
+                inactiveColor = Color(0xFF9C27B0)
+            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
             StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
