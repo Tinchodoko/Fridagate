@@ -1,6 +1,7 @@
 package com.hackpuntes.fridagate
 
 import android.os.Bundle
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,12 +22,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.hackpuntes.fridagate.ui.about.AboutScreen
+import com.hackpuntes.fridagate.ui.about.InAppBrowserScreen
 import com.hackpuntes.fridagate.ui.dashboard.DashboardScreen
 import com.hackpuntes.fridagate.ui.extras.ExtrasScreen
 import com.hackpuntes.fridagate.ui.frida.FridaScreen
@@ -90,6 +94,7 @@ object Routes {
     const val EXTRAS    = "extras"
     const val ABOUT     = "about"
     const val SCRIPTS   = "scripts"
+    const val BROWSER   = "browser"
 }
 
 /**
@@ -219,7 +224,23 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
                         navController.navigate(Routes.DASHBOARD) {
                             launchSingleTop = true
                         }
+                    },
+                    onOpenUrl = { url ->
+                        navController.navigate("${Routes.BROWSER}?url=${Uri.encode(url)}")
                     }
+                )
+            }
+            composable(
+                route = "${Routes.BROWSER}?url={url}",
+                arguments = listOf(navArgument("url") {
+                    type = NavType.StringType
+                    defaultValue = "https://github.com/Tinchodoko/Fridagate"
+                })
+            ) { entry ->
+                InAppBrowserScreen(
+                    url = entry.arguments?.getString("url")
+                        ?: "https://github.com/Tinchodoko/Fridagate",
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Routes.SCRIPTS)   {
