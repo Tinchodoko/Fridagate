@@ -130,27 +130,78 @@ class ScriptRepository(private val context: Context) {
         }
     }
     
-    // IMPORT - Importar script desde archivo externo
-    suspend fun importScript(sourceFile: File): Boolean = withContext(Dispatchers.IO) {
+    // IMPORT - Importar por nombre y contenido sin duplicar scripts existentes.
+    // Si ya existe el mismo nombre, conserva su ID y actualiza el contenido si cambió.
+    suspend fun importScript(name: String, code: String): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
-            if (!sourceFile.exists() || !sourceFile.extension.equals("js", ignoreCase = true)) {
-                return@withContext false
+            val cleanName = name.trim().let {
+                if (it.endsWith(".js", ignoreCase = true)) it.dropLast(3) else it
+            }.ifBlank { "Script importado" }
+
+            if (code.isBlank()) return@withContext false
+
+            fun normalizeScriptName(value: String): String {
+                val trimmed = value.trim()
+                val withoutExtension = if (trimmed.endsWith(".js", ignoreCase = true)) {
+                    trimmed.dropLast(3)
+                } else {
+                    trimmed
+                }
+                return withoutExtension.trim().lowercase()
             }
-            
-            val code = sourceFile.readText()
-            val script = FridaScript(
-                name = sourceFile.nameWithoutExtension,
-                code = code,
-                supportsIL2CPP = code.contains("frida-il2cpp-bridge")
-            )
-            
-            createScript(script)
+
+            val matchingScripts = getAllScripts().filter {
+                normalizeScriptName(it.name) == normalizeScriptName(cleanName)
+            }
+            val existing = matchingScripts.maxByOrNull { it.updatedAt }
+            val supportsIL2CPP = code.contains("frida-il2cpp-bridge", ignoreCase = true)
+
+            if (existing != null) {
+                val updated = existing.copy(
+                    name = cleanName,
+                    code = code,
+                    updatedAt = System.currentTimeMillis(),
+                    supportsIL2CPP = supportsIL2CPP
+                )
+
+                if ((existing.code != code || existing.name != cleanName ||
+                        existing.supportsIL2CPP != supportsIL2CPP) && !updateScript(updated)) {
+                    return@withContext false
+                }
+
+                // Si ya había duplicados antiguos con el mismo nombre, conservar solo uno.
+                matchingScripts.filter { it.id != existing.id }.forEach { duplicate ->
+                    deleteScript(duplicate.id)
+                }
+                true
+            } else {
+                createScript(
+                    FridaScript(
+                        name = cleanName,
+                        code = code,
+                        supportsIL2CPP = supportsIL2CPP
+                    )
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             false
         }
     }
-    
+
+    // IMPORT - Importar script desde archivo externo.
+    suspend fun importScript(sourceFile: File): Boolean = withContext(Dispatchers.IO) {
+        return@withContext try {
+            if (!sourceFile.exists() || !sourceFile.extension.equals("js", ignoreCase = true)) {
+                return@withContext false
+            }
+            importScript(sourceFile.nameWithoutExtension, sourceFile.readText())
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     // Exportar script a TXT
     suspend fun exportScript(scriptId: String, targetPath: String): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
