@@ -168,11 +168,6 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             _message.value = "⚠️ El archivo está vacío"
             return@launch
         }
-        val script = FridaScript(
-            name = cleanName,
-            code = code,
-            supportsIL2CPP = code.contains("frida-il2cpp-bridge", ignoreCase = true)
-        )
         addLog("📥 Importando script: $cleanName")
         if (repository.importScript(cleanName, code)) {
             _scripts.value = repository.getAllScripts()
