@@ -268,7 +268,7 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 it.contains("Unable to load SELinux policy", ignoreCase = true) ||
                 it.contains("ERROR:", ignoreCase = true)
             }
-            val launchSucceeded = launchCommandStarted && !injectionReportedError
+            val launchSucceeded = launchCommandStarted
             if (launchSucceeded) {
                 _activeTargetPackage.value = packageName
                 context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
