@@ -61,9 +61,9 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             }
             latestBuild = release
             updateStatus = when {
-                release > currentBuild -> "HAY UNA BUILD MÁS NUEVA DISPONIBLE EN GITHUB ACTIONS."
+                release > currentBuild -> "FRIDAGATE 2.0 ESTÁ DESACTUALIZADA: HAY UNA BUILD MÁS NUEVA DISPONIBLE EN GITHUB."
                 release == currentBuild -> "FRIDAGATE ESTÁ ACTUALIZADA."
-                else -> "TU BUILD ES MÁS NUEVO QUE LA ÚLTIMA PUBLICACIÓN."
+                else -> "FRIDAGATE 2.0 USA UNA BUILD MÁS NUEVA QUE LA ÚLTIMA PUBLICACIÓN."
             }
         } catch (e: Exception) {
             updateStatus = "NO SE PUDO CONSULTAR GITHUB: " + (e.message ?: "ERROR DE CONEXIÓN")
