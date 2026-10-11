@@ -174,10 +174,10 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             supportsIL2CPP = code.contains("frida-il2cpp-bridge", ignoreCase = true)
         )
         addLog("📥 Importando script: $cleanName")
-        if (repository.createScript(script)) {
+        if (repository.importScript(cleanName, code)) {
             _scripts.value = repository.getAllScripts()
-            _message.value = "✅ Script importado: $cleanName"
-            addLog("✅ Script importado correctamente: $cleanName")
+            _message.value = "✅ Script importado o actualizado: $cleanName"
+            addLog("✅ Script importado sin duplicados: $cleanName")
         } else {
             _message.value = "❌ No se pudo guardar el script importado. Comprueba el almacenamiento."
             addLog("❌ Falló la importación del script: $cleanName")
