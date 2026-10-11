@@ -80,7 +80,10 @@ class FridaGateNotificationService : Service() {
         val targetFromIntent = intent?.getStringExtra(EXTRA_PACKAGE_NAME).orEmpty()
         val preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         if (targetFromIntent.isNotBlank()) {
-            preferences.edit().putString(PREF_TARGET, targetFromIntent).apply()
+            preferences.edit()
+                .putString(PREF_TARGET, targetFromIntent)
+                .putBoolean(PREF_RETURN_TO_TARGET_NEXT, false)
+                .apply()
         }
         activeTargetPackage = preferences.getString(PREF_TARGET, "").orEmpty()
         updateTargetControls()
@@ -161,10 +164,18 @@ class FridaGateNotificationService : Service() {
                 text = returnButtonLabel()
                 isAllCaps = true
                 setOnClickListener {
-                    updateTargetControls()
-                    val target = activeTargetPackage
+                    val target = currentTargetPackage()
                     panel.visibility = View.GONE
-                    if (target.isBlank()) openFridaGate() else openTargetApp(target)
+                    if (target.isBlank()) {
+                        openFridaGate()
+                    } else {
+                        val preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                        val returnToTarget = preferences.getBoolean(PREF_RETURN_TO_TARGET_NEXT, false)
+                        // Alterna el destino: desde el juego vuelve a FridaGate; desde FridaGate vuelve al juego.
+                        preferences.edit().putBoolean(PREF_RETURN_TO_TARGET_NEXT, !returnToTarget).apply()
+                        updateTargetControls()
+                        if (returnToTarget) openTargetApp(target) else openFridaGate()
+                    }
                 }
             }
             returnButtonView = returnButton
@@ -267,6 +278,9 @@ class FridaGateNotificationService : Service() {
     private fun returnButtonLabel(): String {
         val target = currentTargetPackage()
         if (target.isBlank()) return "VOLVER A FRIDAGATE 2.0"
+        val returnToTarget = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(PREF_RETURN_TO_TARGET_NEXT, false)
+        if (!returnToTarget) return "VOLVER A FRIDAGATE 2.0"
         val appName = targetApplicationLabel(target).uppercase(Locale.getDefault())
         return "VOLVER A $appName"
     }
@@ -307,6 +321,7 @@ class FridaGateNotificationService : Service() {
             withContext(Dispatchers.Main) {
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
                     .remove(PREF_TARGET)
+                    .putBoolean(PREF_RETURN_TO_TARGET_NEXT, false)
                     .putBoolean(PREF_VISIBLE, false)
                     .apply()
                 openFridaGate()
@@ -345,6 +360,7 @@ class FridaGateNotificationService : Service() {
         const val PREFS_NAME = "fridagate_runtime"
         const val PREF_VISIBLE = "floating_icon_visible"
         const val PREF_TARGET = "active_target_package"
+        private const val PREF_RETURN_TO_TARGET_NEXT = "return_to_target_next"
         private const val CHANNEL_ID = "fridagate_floating_service"
         private const val NOTIFICATION_ID = 2200
     }
