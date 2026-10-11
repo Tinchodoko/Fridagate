@@ -93,9 +93,6 @@ fun InAppBrowserScreen(url: String, onBack: () -> Unit) {
                     loadUrl(url)
                 }
             },
-            update = { view ->
-                if (view.url != url) view.loadUrl(url)
-            }
         )
     }
 }
