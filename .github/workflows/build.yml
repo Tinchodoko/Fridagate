@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: fridagate-main-build
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
