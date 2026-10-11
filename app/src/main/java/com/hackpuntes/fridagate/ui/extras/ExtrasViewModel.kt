@@ -49,6 +49,10 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     private val _fridaInjectVersion = MutableStateFlow<String?>(null)
     val fridaInjectVersion: StateFlow<String?> = _fridaInjectVersion.asStateFlow()
 
+    // Avoid repeating environment status lines every time the Scripts screen resumes.
+    private var lastLoggedServerRunning: Boolean? = null
+    private var environmentCheckInProgress = false
+
     // -------------------------------------------------------------------------
     // Initialization
     // -------------------------------------------------------------------------
@@ -153,22 +157,37 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     }
 
     private fun checkEnvironment() {
+        if (environmentCheckInProgress) return
+        environmentCheckInProgress = true
         viewModelScope.launch {
             _isLoading.value = true
-            val running = FridaUtils.isFridaServerRunning()
-            _isFridaRunning.value = running
-            addLog(if (running) "frida-server running ✓" else "frida-server not running")
+            try {
+                val running = FridaUtils.isFridaServerRunning()
+                val previousRunning = lastLoggedServerRunning
+                _isFridaRunning.value = running
 
-            val installed = FridaInjectUtils.isFridaInjectInstalled()
-            _isFridaInjectInstalled.value = installed
-            if (installed) {
-                val v = FridaInjectUtils.getInstalledVersion()
-                _fridaInjectVersion.value = v
-                addLog("frida-inject ${v ?: ""} installed ✓")
-            } else {
-                addLog("frida-inject not installed — tap Download")
+                val installed = FridaInjectUtils.isFridaInjectInstalled()
+                _isFridaInjectInstalled.value = installed
+                val version = if (installed) FridaInjectUtils.getInstalledVersion() else null
+                _fridaInjectVersion.value = version
+
+                // Report once on initial startup, then only when server state changes.
+                // On a stopped -> running transition, report both server and injector again.
+                if (previousRunning == null || previousRunning != running) {
+                    addLog(if (running) "frida-server running ✓" else "frida-server not running")
+                    if (previousRunning == null || (!previousRunning && running)) {
+                        if (installed) {
+                            addLog("frida-inject ${version ?: ""} installed ✓")
+                        } else {
+                            addLog("frida-inject not installed — tap Download")
+                        }
+                    }
+                    lastLoggedServerRunning = running
+                }
+            } finally {
+                _isLoading.value = false
+                environmentCheckInProgress = false
             }
-            _isLoading.value = false
         }
     }
 
