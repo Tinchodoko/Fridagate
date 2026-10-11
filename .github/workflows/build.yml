@@ -74,6 +74,22 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew assembleDebug
 
+    - name: Verify Unity diagnostics bundle is packaged in APK
+      run: |
+        APK="app/build/outputs/apk/debug/app-debug.apk"
+        ASSET="assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js"
+        if ! unzip -l "$APK" | grep -Fq "$ASSET"; then
+          echo "ERROR: Unity diagnostics bundle is missing from the APK."
+          exit 1
+        fi
+        unzip -p "$APK" "$ASSET" > /tmp/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js
+        test -s /tmp/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js
+        if grep -nE '^[[:space:]]*import[[:space:]]' /tmp/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js; then
+          echo "ERROR: The APK contains a bundle with unresolved ES module imports."
+          exit 1
+        fi
+        echo "Verified Unity diagnostics bundle inside APK ($(wc -c < /tmp/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js) bytes)."
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
