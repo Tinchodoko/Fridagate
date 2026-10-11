@@ -295,7 +295,7 @@ class FridaGateNotificationService : Service() {
         const val PREFS_NAME = "fridagate_runtime"
         const val PREF_VISIBLE = "floating_icon_visible"
         const val PREF_TARGET = "active_target_package"
-        private const val CHANNEL_ID = "fridagate_running"
+        private const val CHANNEL_ID = "fridagate_floating_service"
         private const val NOTIFICATION_ID = 2200
     }
 }
