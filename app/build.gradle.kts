@@ -113,3 +113,26 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+
+// --- Frida agent bundle ---
+// Builds tools/unity-diagnostics (esbuild) into app/src/main/assets/scripts/ before every build,
+// so FridaGate_Unity_IL2CPP_Diagnostics.bundle.js always exists (local builds included).
+val unityDiagnosticsDir = rootProject.layout.projectDirectory.dir("tools/unity-diagnostics")
+val isWindows = System.getProperty("os.name").lowercase().contains("win")
+
+val buildUnityDiagnostics by tasks.registering(Exec::class) {
+    group = "frida"
+    description = "Bundles the Unity IL2CPP Frida agent with esbuild"
+    workingDir = unityDiagnosticsDir.asFile
+    val cmd = "npm install --no-audit --no-fund && npm run build"
+    if (isWindows) commandLine("cmd", "/c", cmd) else commandLine("sh", "-c", cmd)
+    inputs.files(
+        unityDiagnosticsDir.file("index.ts"),
+        unityDiagnosticsDir.file("package.json"),
+        unityDiagnosticsDir.file("tsconfig.json")
+    )
+    outputs.file(layout.projectDirectory.file("src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js"))
+}
+
+tasks.named("preBuild") { dependsOn(buildUnityDiagnostics) }
