@@ -1,0 +1,14 @@
+{
+  "name": "fridagate-java-diagnostics",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "mkdir -p ../../app/src/main/assets/scripts && esbuild index.ts --bundle --platform=neutral --target=es2020 --format=iife --outfile=../../app/src/main/assets/scripts/FridaGate_Java_Diagnostics.bundle.js"
+  },
+  "devDependencies": {
+    "@types/frida-gum": "17.0.0",
+    "buffer": "6.0.3",
+    "esbuild": "0.25.2",
+    "frida-java-bridge": "7.0.4"
+  }
+}
