@@ -397,6 +397,7 @@ fun DashboardScreen() {
             // ── Log panel ─────────────────────────────────────────────────────
             DashboardLogPanel(
                 logs = logs,
+                context = context,
                 onClear = { viewModel.clearLogs() },
                 onExport = { exportLogFile(context, "inicio_log", logs) }
             )
@@ -721,7 +722,12 @@ private fun OneTabActionsCard(
  * Log panel for the dashboard — same pattern as the other screens.
  */
 @Composable
-private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit, onExport: () -> Unit) {
+private fun DashboardLogPanel(
+    logs: List<String>,
+    context: Context,
+    onClear: () -> Unit,
+    onExport: () -> Unit
+) {
     val listState = rememberLazyListState()
 
     LaunchedEffect(logs.size) {
@@ -737,6 +743,11 @@ private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit, onExport:
             ) {
                 Text("REGISTRO", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate - Inicio", logs.joinToString("\n")))
+                        android.widget.Toast.makeText(context, "REGISTROS COPIADOS", android.widget.Toast.LENGTH_SHORT).show()
+                    }) { Text("COPIAR") }
                     TextButton(onClick = onExport) { Text("EXPORTAR") }
                     TextButton(onClick = onClear) { Text("LIMPIAR") }
                 }
