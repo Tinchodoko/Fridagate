@@ -1086,8 +1086,8 @@ fun LogsTab(
                         .fillMaxSize()
                         .padding(8.dp)
                 ) {
-                    // Los mensajes más recientes aparecen arriba; los anteriores quedan debajo.
-                    items(logs.reversed()) { log ->
+                    // Conserva el orden cronológico original: primer mensaje arriba y los siguientes debajo.
+                    items(logs) { log ->
                         Text(
                             text = log,
                             fontSize = 9.sp,
