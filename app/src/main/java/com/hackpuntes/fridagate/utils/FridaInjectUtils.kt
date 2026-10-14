@@ -488,7 +488,7 @@ object FridaInjectUtils {
             // Recuperar salida tardía del agente antes de terminar frida-inject.
             val finalInjectLog = RootUtils.executeSuCommand("cat $INJECT_LOG 2>/dev/null").trim()
             if (finalInjectLog.isNotBlank()) {
-                lines += "📋 Salida final de frida-inject:"
+                lines += "📋 Salida final de frida-inject (ejecución que se está deteniendo):"
                 finalInjectLog.lines().takeLast(100).filter { it.isNotBlank() }.forEach { lines += "  $it" }
             } else {
                 lines += "⚠️ El archivo de salida de frida-inject sigue vacío."
