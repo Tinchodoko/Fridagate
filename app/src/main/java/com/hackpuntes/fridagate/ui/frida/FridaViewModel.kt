@@ -60,6 +60,10 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     private val _isServerRunning = MutableStateFlow(false)
     val isServerRunning: StateFlow<Boolean> = _isServerRunning.asStateFlow()
 
+    /** Whether the local Frida control port is listening (not a client handshake test). */
+    private val _isServerPortListening = MutableStateFlow(false)
+    val isServerPortListening: StateFlow<Boolean> = _isServerPortListening.asStateFlow()
+
     /** The version of the installed frida-server (e.g., "16.7.0") */
     private val _installedVersion = MutableStateFlow("Unknown")
     val installedVersion: StateFlow<String> = _installedVersion.asStateFlow()
@@ -146,12 +150,15 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                 // Check if the process is currently running
                 val isRunning = FridaUtils.isFridaServerRunning()
                 _isServerRunning.value = isRunning
+                _isServerPortListening.value = FridaUtils.isFridaServerPortListening()
 
                 val statusText = if (isRunning) "running" else "stopped"
+                addLog("Puerto local 27042: " + if (_isServerPortListening.value) "LISTENING" else "no confirmado")
                 addLog("Frida server ${_installedVersion.value} is installed and $statusText")
             } else {
                 addLog("Frida server is not installed")
                 _isServerRunning.value = false
+                _isServerPortListening.value = false
                 _installedVersion.value = "Not installed"
             }
 
