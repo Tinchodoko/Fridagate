@@ -53,18 +53,7 @@ object ScriptUtils {
      * All available bypass scripts, ordered by category.
      * Adding new scripts: create the .js in assets/scripts/ and add an entry here.
      */
-    val SCRIPTS = listOf(
-        BypassScript(
-            id          = "root_bypass",
-            name        = "Root Detection Bypass",
-            description = "Intercepta File.exists(), Runtime.exec(), SystemProperties y PackageManager " +
-                          "para ocultar indicios de acceso root, como su, Magisk, SuperSU y marcas de compilación.",
-            category    = "root",
-            assetPath   = "scripts/fridantiroot.js",
-            fileName    = "fridantiroot.js"
-        ),
-
-    )
+    val SCRIPTS: List<BypassScript> = emptyList()
 
     // -------------------------------------------------------------------------
     // Script content
