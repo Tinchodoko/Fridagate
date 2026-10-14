@@ -75,7 +75,7 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     }
 
     /** Downloads frida-inject at the same version as frida-server and mirrors progress to the Frida tab log. */
-    fun downloadFridaInject(onOperationLog: ((String) -> Unit)? = null) {
+    fun downloadFridaInject(version: String, onOperationLog: ((String) -> Unit)? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             fun logOperation(message: String) {
@@ -84,9 +84,8 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
             }
             try {
                 logOperation("INICIO DE INSTALACIÓN DE FRIDA-INJECT")
-                val version = FridaUtils.getInstalledFridaVersion()
-                if (version == null) {
-                    logOperation("ERROR: INSTALA FRIDA-SERVER PRIMERO; SERVER E INJECT DEBEN USAR LA MISMA VERSIÓN.")
+                if (!version.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))) {
+                    logOperation("ERROR: SELECCIONA UNA VERSIÓN ESTABLE VÁLIDA.")
                     return@launch
                 }
                 logOperation("DESCARGANDO FRIDA-INJECT $version (${FridaUtils.getDeviceArchitecture()})...")
