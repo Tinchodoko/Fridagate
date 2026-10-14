@@ -445,15 +445,15 @@ object FridaUtils {
     suspend fun getInstalledFridaVersion(): String? {
         return withContext(Dispatchers.IO) {
             try {
-                // First check if the version file exists
-                val checkResult = RootUtils.executeSuCommand("ls -la $FRIDA_VERSION_FILE")
-                if (!checkResult.contains(FRIDA_VERSION_FILE) || checkResult.contains("No such file")) {
-                    return@withContext null
+                // Prefer the executable's real version; metadata files can be stale after manual updates.
+                val binaryVersion = RootUtils.executeSuCommand("$FRIDA_BINARY_PATH --version").trim()
+                if (Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(binaryVersion)) {
+                    return@withContext binaryVersion
                 }
 
-                // Read the contents of the version file
-                val versionResult = RootUtils.executeSuCommand("cat $FRIDA_VERSION_FILE")
-                if (versionResult.isNotEmpty()) versionResult.trim() else null
+                // Fallback for older installations whose binary cannot report its version.
+                val versionResult = RootUtils.executeSuCommand("cat $FRIDA_VERSION_FILE 2>/dev/null").trim()
+                versionResult.takeIf { Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(it) }
             } catch (e: Exception) {
                 null
             }
@@ -571,6 +571,24 @@ object FridaUtils {
             } catch (e: Exception) {
                 false
             }
+        }
+    }
+
+    /**
+     * Checks whether the local Frida control port is listening.
+     * This is a socket-level check only; it does not prove a client handshake succeeded.
+     */
+    suspend fun isFridaServerPortListening(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val output = RootUtils.executeSuCommand(
+                "ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null"
+            )
+            output.lineSequence().any { line ->
+                line.contains("LISTEN", ignoreCase = true) &&
+                    Regex("(^|[:.])27042(\\s|$)").containsMatchIn(line)
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 
