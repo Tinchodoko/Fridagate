@@ -24,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -46,14 +48,15 @@ private val TerminalMuted = Color(0xFF8CA092)
 @Composable
 fun TerminalScreen() {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val lines = remember {
         mutableStateListOf(
-            "FridaGate 2.0 — Terminal integrada",
-            "Comandos ejecutados con el usuario de la app por defecto.",
-            "Usa el menú ⋮ para activar ejecución root cuando la necesites.",
-            ""
+            "~ FridaGate 2.0 — Terminal integrada",
+            "~ Comandos ejecutados con el usuario de la app por defecto.",
+            "~ Usa el menú ⋮ para activar ejecución root cuando la necesites.",
+            "~ "
         )
     }
     val history = remember { mutableStateListOf<String>() }
@@ -70,7 +73,9 @@ fun TerminalScreen() {
     }
 
     fun appendOutput(text: String) {
-        text.lineSequence().forEach { lines.add(it) }
+        text.lineSequence().forEach { outputLine ->
+            lines.add(if (outputLine.startsWith("~ ")) outputLine else "~ $outputLine")
+        }
         while (lines.size > 4000) lines.removeAt(0)
     }
 
@@ -80,7 +85,8 @@ fun TerminalScreen() {
         history.add(trimmed)
         while (history.size > 300) history.removeAt(0)
         historyIndex = -1
-        appendOutput("$ $trimmed")
+        lines.add("$ $trimmed")
+        while (lines.size > 4000) lines.removeAt(0)
         command = ""
         if (trimmed == "clear" || trimmed == "cls") {
             lines.clear()
@@ -147,6 +153,14 @@ fun TerminalScreen() {
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(
+                            text = { Text("Copiar toda la terminal") },
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(lines.joinToString("\n")))
+                                Toast.makeText(context, "Terminal copiada al portapapeles", Toast.LENGTH_SHORT).show()
+                                menuExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text(if (rootEnabled) "Desactivar ejecución root" else "Activar ejecución root (su)") },
                             onClick = { rootEnabled = !rootEnabled; menuExpanded = false }
                         )
@@ -180,8 +194,8 @@ fun TerminalScreen() {
                         text = line,
                         color = when {
                             line.startsWith("$ ") -> TerminalGreen
-                            line.startsWith("Error:") || line.startsWith("cd:") -> Color(0xFFFF8585)
-                            line.startsWith("[código de salida: 0]") -> TerminalMuted
+                            line.startsWith("~ Error:") || line.startsWith("~ cd:") -> Color(0xFFFF8585)
+                            line.startsWith("~ [código de salida: 0]") -> TerminalMuted
                             else -> TerminalText
                         },
                         fontFamily = FontFamily.Monospace,
