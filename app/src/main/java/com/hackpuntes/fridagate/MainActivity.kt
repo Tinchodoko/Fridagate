@@ -5,6 +5,9 @@ import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.abs
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -208,10 +211,38 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
     ) { innerPadding ->
         // ── NavHost — renders the correct screen for the current route ─────────
         // innerPadding is provided by Scaffold to avoid drawing behind the top/bottom bars
+        val swipeBackStackEntry by navController.currentBackStackEntryAsState()
+        val swipeRoute = swipeBackStackEntry?.destination?.route
         NavHost(
             navController = navController,
             startDestination = Routes.DASHBOARD, // Dashboard is the first screen shown
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .pointerInput(swipeRoute) {
+                    var horizontalDistance = 0f
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { _, dragAmount -> horizontalDistance += dragAmount },
+                        onDragEnd = {
+                            if (abs(horizontalDistance) > 90f) {
+                                val currentIndex = navItems.indexOfFirst { it.route == swipeRoute }
+                                val nextIndex = when {
+                                    currentIndex < 0 -> -1
+                                    horizontalDistance < 0 -> currentIndex + 1
+                                    else -> currentIndex - 1
+                                }
+                                if (nextIndex in navItems.indices) {
+                                    navController.navigate(navItems[nextIndex].route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            }
+                            horizontalDistance = 0f
+                        },
+                        onDragCancel = { horizontalDistance = 0f }
+                    )
+                }
         ) {
             // Each composable {} block maps a route string to a screen composable
             composable(Routes.DASHBOARD) { DashboardScreen() }
