@@ -80,7 +80,14 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
      * Each entry is a single line with a timestamp prefix.
      * We use a List so Compose can efficiently detect changes.
      */
-    private val _logs = MutableStateFlow<List<String>>(emptyList())
+    private val _logs = MutableStateFlow(
+        versionPreferences.getString("frida_operation_logs", "")
+            .orEmpty()
+            .lineSequence()
+            .filter { it.isNotBlank() }
+            .toList()
+            .takeLast(500)
+    )
     val logs: StateFlow<List<String>> = _logs.asStateFlow()
 
     /** The last set of custom flags entered by the user (remembered across sessions) */
@@ -229,18 +236,14 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
         addLog("VERSIÓN PERSONALIZADA SELECCIONADA: $version")
     }
 
-    /**
-     * Downloads and installs matching frida-server and frida-inject binaries.
-     * Keeping both components on exactly the same version avoids protocol mismatches.
-     */
+    /** Downloads and installs frida-server only. frida-inject has its own button. */
     fun downloadAndInstall(context: Context) {
         viewModelScope.launch {
             val version = _selectedVersion.value
             val architecture = FridaUtils.getDeviceArchitecture()
             _isLoading.value = true
+            addLog("INICIO DE INSTALACIÓN DE FRIDA-SERVER $version ($architecture)")
             try {
-                addLog("INSTALACIÓN CONJUNTA DE FRIDA-SERVER Y FRIDA-INJECT $version ($architecture)")
-
                 val serverUrl = FridaUtils.getFridaServerUrl(version, architecture)
                 if (serverUrl == null) {
                     addLog("ERROR: NO SE ENCONTRÓ LA DESCARGA DE FRIDA-SERVER $version ($architecture)")
@@ -263,18 +266,11 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                 }
                 _isServerInstalled.value = true
                 _installedVersion.value = version
+                _isServerRunning.value = FridaUtils.isFridaServerRunning()
                 addLog("FRIDA-SERVER $version INSTALADO CORRECTAMENTE")
-
-                addLog("DESCARGANDO E INSTALANDO FRIDA-INJECT $version...")
-                val injectInstalled = FridaInjectUtils.downloadAndInstall(context, version)
-                if (!injectInstalled) {
-                    addLog("ERROR: FRIDA-SERVER QUEDÓ INSTALADO, PERO FRIDA-INJECT NO SE PUDO INSTALAR. REVISA LA CONEXIÓN Y VUELVE A INTENTAR.")
-                    return@launch
-                }
-                addLog("FRIDA-INJECT $version INSTALADO CORRECTAMENTE")
-                addLog("INSTALACIÓN COMPLETA: FRIDA-SERVER Y FRIDA-INJECT USAN LA VERSIÓN $version")
+                addLog("FRIDA-INJECT NO SE MODIFICÓ. USA SU BOTÓN PARA INSTALARLO POR SEPARADO.")
             } catch (e: Exception) {
-                addLog("ERROR EN LA INSTALACIÓN CONJUNTA: ${e.message ?: "ERROR DESCONOCIDO"}")
+                addLog("ERROR AL INSTALAR FRIDA-SERVER: ${e.message ?: "ERROR DESCONOCIDO"}")
             } finally {
                 _isLoading.value = false
             }
@@ -349,46 +345,52 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    /** Removes Frida server and injector, stops tracked injections, and clears proxy settings. */
-    fun uninstallServer() {
+    /** Removes Frida processes, binaries, version markers and injection tracking files. */
+    fun uninstallServer(onFinished: (() -> Unit)? = null) {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("Desinstalando todos los componentes de Frida...")
+            addLog("=== INICIANDO DESINSTALACIÓN Y LIMPIEZA DE FRIDA ===")
             try {
-                FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
+                val output = RootUtils.executeSuCommand(
+                    """
+                    echo "=== Matando procesos frida activos ==="
+                    pkill -9 -x frida-server 2>/dev/null || true
+                    pkill -9 -x frida-inject 2>/dev/null || true
 
-                addLog("Deteniendo frida-server...")
-                FridaUtils.stopFridaServer()
+                    echo "=== Borrando binarios y versiones en /data/local/tmp ==="
+                    rm -f /data/local/tmp/frida-server
+                    rm -f /data/local/tmp/frida-version.txt
+                    rm -f /data/local/tmp/frida-inject
+                    rm -f /data/local/tmp/frida-inject-version.txt
+                    rm -f /data/local/tmp/fridagate_inject.log
+                    rm -f /data/local/tmp/fridagate_inject.pid
+                    rm -f /data/local/tmp/fridagate_injected_packages.txt
 
-                addLog("Eliminando frida-inject...")
-                val injectRemoved = FridaInjectUtils.uninstallFridaInject()
-                addLog(if (injectRemoved) "✓ frida-inject desinstalado" else "ADVERTENCIA: no se pudo confirmar la eliminación de frida-inject")
-
-                addLog("Eliminando frida-server...")
-                val serverRemoved = FridaUtils.uninstallFridaServer()
-                addLog(if (serverRemoved) "✓ frida-server desinstalado" else "ERROR: no se pudo eliminar frida-server")
-
-                addLog("Restaurando la configuración de red...")
-                val previousProxy = ProxyUtils.getSystemProxy()
-                val previousHost = previousProxy?.substringBeforeLast(':')
-                val previousPort = previousProxy?.substringAfterLast(':')?.toIntOrNull()
-                val iptablesRemoved = if (previousHost != null && previousPort != null) {
-                    ProxyUtils.disableIptablesProxy(previousHost, previousPort, previousPort)
+                    echo "=== Verificando que no quede nada ==="
+                    ls -la /data/local/tmp/ | grep -i frida || echo "No quedan archivos con frida en el nombre"
+                    ps -ef | grep -i frida || true
+                    echo "=== Limpieza completa ==="
+                    """.trimIndent()
+                )
+                if (output.isBlank()) {
+                    addLog("ERROR: la limpieza no devolvió salida; comprueba que el acceso root esté autorizado.")
                 } else {
-                    ProxyUtils.disableIptablesProxy()
+                    output.lineSequence().filter { it.isNotBlank() }.forEach { addLog(it) }
                 }
-                val proxyRemoved = ProxyUtils.clearSystemProxy()
-                addLog(if (proxyRemoved) "✓ Proxy global de Android eliminado" else "ADVERTENCIA: no se pudo confirmar la limpieza del proxy global")
-                addLog(if (iptablesRemoved) "✓ Reglas iptables de FridaGate eliminadas" else "ADVERTENCIA: no se pudo confirmar la limpieza de iptables")
-
-                _isServerInstalled.value = !serverRemoved
+                _isServerInstalled.value = FridaUtils.isFridaServerInstalled()
                 _isServerRunning.value = FridaUtils.isFridaServerRunning()
-                _installedVersion.value = if (serverRemoved) "Not installed" else "Unknown"
-                addLog(if (serverRemoved && injectRemoved) "Desinstalación completa de Frida finalizada." else "Desinstalación finalizada con advertencias; revisa los mensajes anteriores.")
-            } catch (_: Exception) {
-                addLog("ERROR durante la desinstalación completa de Frida.")
+                _installedVersion.value = FridaUtils.getInstalledFridaVersion() ?: "Not installed"
+                addLog(
+                    if (!_isServerInstalled.value && !FridaInjectUtils.isFridaInjectInstalled())
+                        "DESINSTALACIÓN COMPLETA: SERVER E INJECT YA NO ESTÁN INSTALADOS."
+                    else
+                        "ADVERTENCIA: QUEDAN COMPONENTES INSTALADOS; REVISA LA VERIFICACIÓN ANTERIOR."
+                )
+            } catch (e: Exception) {
+                addLog("ERROR DURANTE LA LIMPIEZA: ${e.message ?: "ERROR DESCONOCIDO"}")
             } finally {
                 _isLoading.value = false
+                onFinished?.invoke()
             }
         }
     }
@@ -414,10 +416,13 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     private fun addLog(message: String) {
         val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
             .format(java.util.Date())
-        // Create a new list with the new entry appended
-        // We never mutate the existing list — StateFlow needs a new object to detect the change
-        _logs.value = _logs.value + "[$time] $message"
+        val updated = (_logs.value + "[$time] $message").takeLast(500)
+        _logs.value = updated
+        versionPreferences.edit().putString("frida_operation_logs", updated.joinToString("\n")).apply()
     }
+
+    /** Adds a persistent operation log line from related components such as frida-inject. */
+    fun logOperation(message: String) = addLog(message)
 
     /**
      * Called automatically when the ViewModel is about to be destroyed.
