@@ -520,6 +520,7 @@ fun ScriptsScreen(
                 )
                 2 -> LogsTab(
                     logs = (logs + bypassLogs).takeLast(500),
+                    context = context,
                     onClearLogs = {
                         viewModel.clearLogs()
                         extrasViewModel.clearLogs()
@@ -1058,6 +1059,7 @@ fun EditorTab(
 @Composable
 fun LogsTab(
     logs: List<String>,
+    context: android.content.Context,
     onClearLogs: () -> Unit,
     onExportLogs: () -> Unit
 ) {
@@ -1113,6 +1115,16 @@ fun LogsTab(
                     .padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                Button(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate - Scripts", logs.joinToString("\n")))
+                        android.widget.Toast.makeText(context, "REGISTROS COPIADOS", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("📋 COPIAR", fontSize = 11.sp)
+                }
                 Button(
                     onClick = onClearLogs,
                     modifier = Modifier.weight(1f)
