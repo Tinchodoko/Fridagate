@@ -11,7 +11,9 @@ import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * FridaViewModel - Manages the state and business logic for the Frida screen.
@@ -351,7 +353,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
             _isLoading.value = true
             addLog("=== INICIANDO DESINSTALACIÓN Y LIMPIEZA DE FRIDA ===")
             try {
-                val output = RootUtils.executeSuCommand(
+                val output = withContext(Dispatchers.IO) {
+                    RootUtils.executeSuCommand(
                     """
                     echo "=== Matando procesos frida activos ==="
                     pkill -9 -x frida-server 2>/dev/null || true
@@ -371,7 +374,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                     ps -ef | grep -i frida || true
                     echo "=== Limpieza completa ==="
                     """.trimIndent()
-                )
+                    )
+                }
                 if (output.isBlank()) {
                     addLog("ERROR: la limpieza no devolvió salida; comprueba que el acceso root esté autorizado.")
                 } else {
