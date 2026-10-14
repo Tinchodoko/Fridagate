@@ -314,12 +314,17 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                     addLog("🟣 Servicio persistente activo; el icono flotante está disponible.")
                 }
             } else {
+                // A failed/unconfirmed injection must not terminate the floating service.
+                // The target app may still be running, and the floating control is useful
+                // for returning to FridaGate and inspecting logs or retrying the injection.
                 _activeTargetPackage.value = null
-                context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit().remove(FridaGateNotificationService.PREF_TARGET).apply()
                 if (floatingServiceStarted) {
-                    context.stopService(Intent(context, FridaGateNotificationService::class.java))
-                    addLog("ℹ️ Icono flotante retirado porque no se confirmó el lanzamiento de Frida.")
+                    context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit().putString(FridaGateNotificationService.PREF_TARGET, packageName).apply()
+                    addLog("🟣 La inyección no se confirmó; el icono flotante se mantiene para volver a FridaGate y revisar los registros.")
+                } else {
+                    context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit().remove(FridaGateNotificationService.PREF_TARGET).apply()
                 }
                 addLog("⚠️ No se pudo confirmar una inyección sin errores para $packageName.")
             }
