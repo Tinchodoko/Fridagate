@@ -202,8 +202,14 @@ object FridaInjectUtils {
 
             // Step 6: verify the app is running
             val pid = findProcessId(packageName)
+            val bootConfirmed = injectLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
             if (pid != null) {
-                lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
+                if (bootConfirmed) {
+                    lines += "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
+                    lines += "ℹ️ Esto confirma el inicio del script, no el éxito de todas sus operaciones posteriores."
+                } else {
+                    lines += "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
+                }
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, scriptPath)
@@ -426,8 +432,14 @@ object FridaInjectUtils {
             }
 
             val pid = findProcessId(packageName)
+            val bootConfirmed = injectLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
             if (pid != null) {
-                lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
+                if (bootConfirmed) {
+                    lines += "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
+                    lines += "ℹ️ Esto confirma el inicio del script, no el éxito de todas sus operaciones posteriores."
+                } else {
+                    lines += "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
+                }
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, devicePath)
