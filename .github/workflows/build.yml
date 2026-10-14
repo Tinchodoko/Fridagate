@@ -138,4 +138,5 @@ jobs:
           app/build/outputs/apk/debug/app-debug.apk
           app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js
           app/src/main/assets/scripts/FridaGate_Java_Diagnostics.bundle.js
+          app/src/main/assets/scripts/FridaGate_Runtime_Diagnostics.js
         make_latest: true
