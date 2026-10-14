@@ -305,6 +305,13 @@ object FridaInjectUtils {
                 return@withContext listOf("ERROR: Could not stage scripts at $devicePath: $copyResult")
             }
 
+            val installedInjectVersion = getInstalledVersion() ?: "desconocida"
+            val installedServerVersion = FridaUtils.getInstalledFridaVersion() ?: "desconocida"
+            lines += "ℹ️ Versiones detectadas: frida-server=$installedServerVersion; frida-inject=$installedInjectVersion"
+            if (installedServerVersion != installedInjectVersion) {
+                lines += "⚠️ Las versiones de frida-server y frida-inject no coinciden; actualiza ambos a la misma versión antes de seguir."
+            }
+
             lines += "Enabled scripts: ${bypassScripts.size + customScripts.size}"
             bypassScripts.forEach { lines += "✓ ${it.name}" }
             customScripts.forEach { lines += "✓ ${it.name}" }
@@ -375,6 +382,14 @@ object FridaInjectUtils {
                 // the process may have crashed/exited during script initialization.
                 lines += "⚠️ El script alcanzó su marcador inicial, pero el proceso $packageName ya no está activo."
                 lines += "ℹ️ Se omite el relanzamiento automático para evitar abrir la aplicación por segunda vez. Revisa la salida de frida-inject."
+                lines += "🔎 Recopilando errores recientes de Android para identificar por qué terminó el proceso..."
+                val crashDiagnostics = collectTargetCrashDiagnostics(packageName)
+                if (crashDiagnostics.isNotBlank()) {
+                    crashDiagnostics.lines().forEach { lines += "📱 $it" }
+                } else {
+                    lines += "ℹ️ Logcat no mostró una excepción/crash reconocible en el buffer reciente."
+                    lines += "ℹ️ Si vuelve a ocurrir, comparte este registro completo y el resultado de logcat del sistema."
+                }
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, devicePath)
@@ -635,6 +650,24 @@ object FridaInjectUtils {
                 }
             } catch (e: Exception) {
                 "ERROR (fallback): ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Captures Android crash/termination messages after an injected target disappears.
+     * The package name is validated before reaching this helper.
+     */
+    private suspend fun collectTargetCrashDiagnostics(packageName: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val pattern = "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|" +
+                    "tombstoned|crash_dump|am_crash|am_anr|has died|Killing .*\${packageName}|\${packageName}"
+                RootUtils.executeSuCommand(
+                    "logcat -d -t 800 2>/dev/null | grep -E -i -B 4 -A 18 '$pattern' | tail -n 100"
+                ).trim()
+            } catch (_: Exception) {
+                ""
             }
         }
     }
