@@ -662,7 +662,7 @@ object FridaInjectUtils {
         return withContext(Dispatchers.IO) {
             try {
                 val pattern = "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|" +
-                    "tombstoned|crash_dump|am_crash|am_anr|has died|Killing .*\${packageName}|\${packageName}"
+                    "tombstoned|crash_dump|am_crash|am_anr|has died|Killing .*${packageName}|${packageName}"
                 RootUtils.executeSuCommand(
                     "logcat -d -t 800 2>/dev/null | grep -E -i -B 4 -A 18 '$pattern' | tail -n 100"
                 ).trim()
