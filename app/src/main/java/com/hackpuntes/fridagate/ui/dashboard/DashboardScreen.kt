@@ -160,7 +160,11 @@ class DashboardViewModel(context: Context) : ViewModel() {
 
                 val architecture = FridaUtils.getDeviceArchitecture()
                 val version = appContext.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
-                    .getString("selected_frida_version", "17.6.0") ?: "17.6.0"
+                    .getString("selected_frida_version", "") ?: ""
+                if (version.isBlank()) {
+                    addLog("ERROR: SELECCIONA UNA VERSIÓN EN LA PESTAÑA FRIDA ANTES DE USAR INSTALACIÓN INTELIGENTE.")
+                    return@launch
+                }
                 addLog("VERSIÓN SELECCIONADA EN PESTAÑA FRIDA: $version ($architecture)")
 
                 if (!FridaUtils.isFridaServerInstalled() ||
