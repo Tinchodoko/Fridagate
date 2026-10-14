@@ -74,26 +74,36 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
         _enabledScripts.value = if (current.contains(id)) current - id else current + id
     }
 
-    /** Downloads frida-inject at the same version as frida-server */
-    fun downloadFridaInject() {
+    /** Downloads frida-inject at the same version as frida-server and mirrors progress to the Frida tab log. */
+    fun downloadFridaInject(onOperationLog: ((String) -> Unit)? = null) {
         viewModelScope.launch {
             _isLoading.value = true
-            val version = FridaUtils.getInstalledFridaVersion()
-            if (version == null) {
-                addLog("ERROR: Install frida-server first (Frida tab) — versions must match")
+            fun logOperation(message: String) {
+                addLog(message)
+                onOperationLog?.invoke(message)
+            }
+            try {
+                logOperation("INICIO DE INSTALACIÓN DE FRIDA-INJECT")
+                val version = FridaUtils.getInstalledFridaVersion()
+                if (version == null) {
+                    logOperation("ERROR: INSTALA FRIDA-SERVER PRIMERO; SERVER E INJECT DEBEN USAR LA MISMA VERSIÓN.")
+                    return@launch
+                }
+                logOperation("DESCARGANDO FRIDA-INJECT $version (${FridaUtils.getDeviceArchitecture()})...")
+                val ok = FridaInjectUtils.downloadAndInstall(context, version)
+                if (ok) {
+                    _isFridaInjectInstalled.value = true
+                    _fridaInjectVersion.value = version
+                    logOperation("FRIDA-INJECT $version INSTALADO CORRECTAMENTE.")
+                } else {
+                    logOperation("ERROR: NO SE PUDO INSTALAR FRIDA-INJECT. COMPRUEBA LA CONEXIÓN Y LOS REGISTROS.")
+                }
+            } catch (e: Exception) {
+                logOperation("ERROR AL INSTALAR FRIDA-INJECT: ${e.message ?: "ERROR DESCONOCIDO"}")
+            } finally {
                 _isLoading.value = false
-                return@launch
+                refreshEnvironmentStatus()
             }
-            addLog("Downloading frida-inject $version (${FridaUtils.getDeviceArchitecture()})...")
-            val ok = FridaInjectUtils.downloadAndInstall(context, version)
-            if (ok) {
-                _isFridaInjectInstalled.value = true
-                _fridaInjectVersion.value = version
-                addLog("frida-inject $version installed ✓")
-            } else {
-                addLog("ERROR: Download failed — check internet connection")
-            }
-            _isLoading.value = false
         }
     }
 

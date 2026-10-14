@@ -144,7 +144,7 @@ fun FridaScreen() {
                 isInjectInstalled = injectInstalled,
                 injectVersion = injectVersion,
                 isInjectLoading = injectLoading,
-                onDownloadInject = { extrasViewModel.downloadFridaInject() },
+                onDownloadInject = { extrasViewModel.downloadFridaInject { viewModel.logOperation(it) } },
                 isInstalled = isInstalled,
                 isRunning = isRunning,
                 isLoading = isLoading,
@@ -153,7 +153,7 @@ fun FridaScreen() {
                 onStart = { viewModel.startServer() },
                 onStartCustom = { showCustomFlagsDialog = true },
                 onStop = { viewModel.stopServer() },
-                onUninstall = { viewModel.uninstallServer() },
+                onUninstall = { viewModel.uninstallServer { extrasViewModel.refreshEnvironmentStatus() } },
                 onRefresh = {
                     viewModel.checkRootAndStatus()
                     viewModel.loadAvailableReleases()
@@ -406,13 +406,22 @@ private fun ActionButtons(
             StatusRow("frida-inject", if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado", isInjectInstalled)
             Divider()
 
-            // Install button — always visible, disabled when root is unavailable or loading
+            // Install server independently from frida-inject.
             Button(
-                onClick = { pendingAction = "INSTALAR/ACTUALIZAR FRIDA" },
+                onClick = { pendingAction = "INSTALAR/ACTUALIZAR SERVER" },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable
             ) {
-                Text("INSTALAR / ACTUALIZAR FRIDA")
+                Text("INSTALAR / ACTUALIZAR SERVER")
+            }
+
+            // frida-inject is installed separately, using the server's installed version.
+            Button(
+                onClick = { pendingAction = "INSTALAR/ACTUALIZAR INJECT" },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isInjectLoading && !isLoading && isRootAvailable && isInstalled
+            ) {
+                Text(if (isInjectInstalled) "INSTALAR / ACTUALIZAR INJECT" else "INSTALAR / ACTUALIZAR INJECT")
             }
 
             // Start/Stop/Custom buttons — only shown when frida-server is installed
@@ -442,16 +451,17 @@ private fun ActionButtons(
                     ) { Text("DETENER") }
                 }
 
-                // Uninstall button
-                OutlinedButton(
-                    onClick = { pendingAction = "DESINSTALAR FRIDA" },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading && isRootAvailable,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) { Text("DESINSTALAR FRIDA") }
             }
+
+            // Uninstall remains available even if only frida-inject is installed or status is stale.
+            OutlinedButton(
+                onClick = { pendingAction = "DESINSTALAR" },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading && !isInjectLoading && isRootAvailable,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) { Text("DESINSTALAR") }
 
             // Refresh button — always available
             OutlinedButton(
@@ -467,12 +477,13 @@ private fun ActionButtons(
     }
     pendingAction?.let { action ->
         val description = when (action) {
-            "INSTALAR/ACTUALIZAR FRIDA" -> "INSTALAR O ACTUALIZAR FRIDA-SERVER Y FRIDA-INJECT EN LA MISMA VERSIÓN COMPATIBLE CON ANDROID 16."
+            "INSTALAR/ACTUALIZAR SERVER" -> "INSTALAR O ACTUALIZAR ÚNICAMENTE FRIDA-SERVER."
+            "INSTALAR/ACTUALIZAR INJECT" -> "INSTALAR O ACTUALIZAR ÚNICAMENTE FRIDA-INJECT EN LA MISMA VERSIÓN QUE FRIDA-SERVER."
             "INICIAR" -> "INICIAR EL PROCESO FRIDA-SERVER."
             "DETENER" -> "DETENER EL PROCESO FRIDA-SERVER."
             "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, VERSIÓN, INSTALACIÓN Y ESTADO DEL SERVIDOR."
-            "DESINSTALAR FRIDA" -> "DETENER LAS INYECCIONES Y ELIMINAR FRIDA-SERVER Y FRIDA-INJECT."
-            else -> "DESCARGAR FRIDA-INJECT EN LA MISMA VERSIÓN QUE FRIDA-SERVER."
+            "DESINSTALAR" -> "MATAR LOS PROCESOS FRIDA Y ELIMINAR BINARIOS, ARCHIVOS DE VERSIÓN, REGISTROS DE INYECCIÓN Y PAQUETES SEGUIDOS."
+            else -> "CONFIRMAR ACCIÓN."
         }
         AlertDialog(
             onDismissRequest = { pendingAction = null },
@@ -481,12 +492,12 @@ private fun ActionButtons(
             confirmButton = { TextButton(onClick = {
                 pendingAction = null
                 when (action) {
-                    "INSTALAR/ACTUALIZAR FRIDA" -> onInstall()
+                    "INSTALAR/ACTUALIZAR SERVER" -> onInstall()
+                    "INSTALAR/ACTUALIZAR INJECT" -> onDownloadInject()
                     "INICIAR" -> onStart()
                     "DETENER" -> onStop()
                     "ACTUALIZAR ESTADO" -> onRefresh()
-                    "DESINSTALAR FRIDA" -> onUninstall()
-                    else -> onDownloadInject()
+                    "DESINSTALAR" -> onUninstall()
                 }
             }) { Text("SI") } },
             dismissButton = { TextButton(onClick = { pendingAction = null }) { Text("NO") } }
