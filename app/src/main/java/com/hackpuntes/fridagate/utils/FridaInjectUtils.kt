@@ -369,6 +369,12 @@ object FridaInjectUtils {
                     lines += "⚠️ Proceso $packageName activo (PID $pid), pero la ejecución completa no está confirmada: marcadores $observedScriptBoots/$expectedScriptBoots."
                     lines += "ℹ️ Revisa la salida de frida-inject para detectar errores de sintaxis, carga o ejecución."
                 }
+            } else if (observedScriptBoots > 0) {
+                // If frida-inject already emitted the script's boot marker, it did start
+                // the app with the agent. Do not launch the app a second time via monkey:
+                // the process may have crashed/exited during script initialization.
+                lines += "⚠️ El script alcanzó su marcador inicial, pero el proceso $packageName ya no está activo."
+                lines += "ℹ️ Se omite el relanzamiento automático para evitar abrir la aplicación por segunda vez. Revisa la salida de frida-inject."
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, devicePath)
