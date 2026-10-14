@@ -1084,9 +1084,9 @@ fun LogsTab(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(8.dp),
-                    reverseLayout = true
+                        .padding(8.dp)
                 ) {
+                    // Los mensajes más recientes aparecen arriba; los anteriores quedan debajo.
                     items(logs.reversed()) { log ->
                         Text(
                             text = log,
