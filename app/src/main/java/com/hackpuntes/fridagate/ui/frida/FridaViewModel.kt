@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
-import com.hackpuntes.fridagate.utils.ProxyUtils
 import com.hackpuntes.fridagate.utils.FridaUtils.FridaRelease
 import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
