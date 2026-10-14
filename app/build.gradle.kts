@@ -101,7 +101,7 @@ dependencies {
 
     // --- Persistent Storage ---
     // DataStore: modern replacement for SharedPreferences
-    // Used to save user settings (Burp IP, port, etc.) across app restarts
+    // Used to save app settings across restarts
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // --- Testing ---
