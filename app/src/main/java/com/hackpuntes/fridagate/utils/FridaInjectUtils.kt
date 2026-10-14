@@ -251,6 +251,9 @@ object FridaInjectUtils {
             val source = buildString {
                 bypassScripts.forEach { script ->
                     appendLine("// ===== ${script.name} =====")
+                    // A marker emitted by the injected JavaScript lets the UI distinguish
+                    // a running target process from a script that actually began execution.
+                    appendLine("console.log('[FRIDAGATE-SCRIPT-BOOT]');")
                     appendLine(ScriptUtils.readScriptContent(context, script))
                     appendLine()
                 }
@@ -271,6 +274,9 @@ object FridaInjectUtils {
                                 .use { it.readText() }
                         }.getOrNull()
                     } else null
+                    // Emit the same verifiable boot marker for every custom script,
+                    // including DIVA diagnostics and scripts unrelated to Unity.
+                    appendLine("console.log('[FRIDAGATE-SCRIPT-BOOT]');")
                     appendLine(bundledDiagnostics ?: script.code)
                     appendLine()
                     if (isUnityDiagnostics && bundledDiagnostics == null) {
@@ -344,15 +350,18 @@ object FridaInjectUtils {
                 lines += "ℹ️ El registro detallado se volverá a consultar al detener la inyección."
             }
 
-            val scriptBootConfirmed = injectLog.contains("[FG-UNITY-IL2CPP]") &&
-                injectLog.contains("BOOT")
+            val bootMarker = "[FRIDAGATE-SCRIPT-BOOT]"
+            val expectedScriptBoots = bypassScripts.size + customScripts.size
+            val observedScriptBoots = injectLog.split(bootMarker).size - 1
+            val scriptBootConfirmed = observedScriptBoots >= expectedScriptBoots
             val pid = findProcessId(packageName)
             if (pid != null) {
                 if (scriptBootConfirmed) {
-                    lines += "✅ El JavaScript de diagnóstico se ejecutó dentro de Frida (BOOT confirmado)."
-                    lines += "ℹ️ Esto confirma el arranque del script; los hooks IL2CPP se confirman por separado en sus propios registros."
+                    lines += "✅ Confirmación de ejecución: $observedScriptBoots/$expectedScriptBoots scripts alcanzaron su marcador inicial dentro de Frida."
+                    lines += "ℹ️ Esto confirma que el agente ejecutó el inicio de cada script; no garantiza que todas sus operaciones posteriores hayan terminado sin errores."
                 } else {
-                    lines += "⚠️ $packageName is running (PID $pid), but this does NOT confirm that Frida injected or executed the script."
+                    lines += "⚠️ Proceso $packageName activo (PID $pid), pero la ejecución completa no está confirmada: marcadores $observedScriptBoots/$expectedScriptBoots."
+                    lines += "ℹ️ Revisa la salida de frida-inject para detectar errores de sintaxis, carga o ejecución."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
