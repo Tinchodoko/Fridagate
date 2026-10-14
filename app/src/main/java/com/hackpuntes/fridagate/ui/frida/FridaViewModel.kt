@@ -371,7 +371,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
 
                     echo "=== Verificando que no quede nada ==="
                     ls -la /data/local/tmp/ | grep -i frida || echo "No quedan archivos con frida en el nombre"
-                    ps -ef | grep -i frida || true
+                    ps -A | grep -iE '[f]rida-server|[f]rida-inject' || echo "No quedan procesos frida activos"
                     echo "=== Limpieza completa ==="
                     """.trimIndent()
                     )
