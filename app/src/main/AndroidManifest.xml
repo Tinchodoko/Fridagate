@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- INTERNET: required to download Frida binaries from GitHub and reach Burp Suite -->
+    <!-- INTERNET: required to download Frida binaries and scripts from GitHub -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- QUERY_ALL_PACKAGES: required on Android 11+ to list installed apps in the target dropdown -->
