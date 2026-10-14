@@ -11,13 +11,12 @@ import kotlin.math.abs
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,7 +36,7 @@ import com.hackpuntes.fridagate.ui.about.InAppBrowserScreen
 import com.hackpuntes.fridagate.ui.dashboard.DashboardScreen
 import com.hackpuntes.fridagate.ui.extras.ExtrasScreen
 import com.hackpuntes.fridagate.ui.frida.FridaScreen
-import com.hackpuntes.fridagate.ui.proxy.ProxyScreen
+import com.hackpuntes.fridagate.ui.terminal.TerminalScreen
 import com.hackpuntes.fridagate.ui.theme.FridagateTheme
 import com.hackpuntes.fridagate.ui.screens.scripts.ScriptsScreen
 import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
@@ -56,7 +55,7 @@ import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModelFactory
  *      └── FridagateApp (Scaffold with BottomNavigationBar)
  *          ├── DashboardScreen  (tab: Home)
  *          ├── FridaScreen      (tab: Frida)
- *          └── ProxyScreen      (tab: Proxy)
+ *          └── TerminalScreen   (tab: Terminal)
  */
 class MainActivity : ComponentActivity() {
 
@@ -93,7 +92,7 @@ class MainActivity : ComponentActivity() {
 object Routes {
     const val DASHBOARD = "dashboard"
     const val FRIDA     = "frida"
-    const val PROXY     = "proxy"
+    const val TERMINAL  = "terminal"
     const val EXTRAS    = "extras"
     const val ABOUT     = "about"
     const val SCRIPTS   = "scripts"
@@ -145,7 +144,7 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
         BottomNavItem(Routes.DASHBOARD, "INICIO", Icons.Default.Home),
         BottomNavItem(Routes.FRIDA,     "FRIDA",     Icons.Default.Star),
         BottomNavItem(Routes.SCRIPTS,   "SCRIPTS",   Icons.Default.Code),
-        BottomNavItem(Routes.PROXY,     "PROXY",     Icons.Default.Settings),
+        BottomNavItem(Routes.TERMINAL,  "TERMINAL",  Icons.Default.Terminal),
         BottomNavItem(Routes.ABOUT,     "INFO", Icons.Default.Info)
     )
 
@@ -247,7 +246,7 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
             // Each composable {} block maps a route string to a screen composable
             composable(Routes.DASHBOARD) { DashboardScreen() }
             composable(Routes.FRIDA)     { FridaScreen() }
-            composable(Routes.PROXY)     { ProxyScreen() }
+            composable(Routes.TERMINAL)  { TerminalScreen() }
             composable(Routes.EXTRAS)    { ExtrasScreen() }
             composable(Routes.ABOUT) {
                 AboutScreen(
