@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,22 +52,17 @@ fun TerminalScreen() {
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val lines = remember {
-        mutableStateListOf(
-            "~ FridaGate 2.0 — Terminal integrada",
-            "~ Comandos ejecutados con el usuario de la app por defecto.",
-            "~ Usa el menú ⋮ para activar ejecución root cuando la necesites.",
-            "~ "
-        )
-    }
-    val history = remember { mutableStateListOf<String>() }
-    var command by remember { mutableStateOf("") }
-    var historyIndex by remember { mutableIntStateOf(-1) }
-    var rootEnabled by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
+    // A ViewModel keeps the shell session alive when this screen leaves composition.
+    val terminalViewModel: TerminalViewModel = viewModel()
+    val lines = terminalViewModel.lines
+    val history = terminalViewModel.history
+    var command by terminalViewModel.command
+    var historyIndex by terminalViewModel.historyIndex
+    var rootEnabled by terminalViewModel.rootEnabled
+    var busy by terminalViewModel.busy
+    var currentDirectory by terminalViewModel.currentDirectory
     var menuExpanded by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
-    var currentDirectory by remember { mutableStateOf("/sdcard") }
 
     LaunchedEffect(lines.size) {
         if (lines.isNotEmpty()) listState.animateScrollToItem(lines.lastIndex)
