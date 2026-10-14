@@ -37,15 +37,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.hackpuntes.fridagate.data.AppPreferences
 import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
-import com.hackpuntes.fridagate.utils.ProxyUtils
 import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,8 +52,7 @@ import kotlinx.coroutines.launch
 /**
  * DashboardViewModel - Manages the global status overview and one-tap actions.
  *
- * This ViewModel reads from both FridaUtils and ProxyUtils to give the user
- * a single view of the entire interception setup state.
+ * This ViewModel reports Android permissions and manages Frida actions.
  *
  * It also provides "ACTIVATE ALL" and "DEACTIVATE ALL" — convenience actions
  * that run the full setup or teardown sequence in a single coroutine.
@@ -67,7 +63,6 @@ import kotlinx.coroutines.launch
 class DashboardViewModel(context: Context) : ViewModel() {
 
     private val appContext = context.applicationContext
-    private val prefs = AppPreferences(appContext)
 
     // ── Status flags ──────────────────────────────────────────────────────────
 
@@ -82,14 +77,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
     /** Whether frida-server process is running */
     private val _isFridaRunning = MutableStateFlow(false)
     val isFridaRunning: StateFlow<Boolean> = _isFridaRunning.asStateFlow()
-
-    /** Whether iptables proxy rules are active */
-    private val _isProxyActive = MutableStateFlow(false)
-    val isProxyActive: StateFlow<Boolean> = _isProxyActive.asStateFlow()
-
-    /** Whether Burp Suite is reachable at the saved IP/port */
-    private val _isBurpReachable = MutableStateFlow(false)
-    val isBurpReachable: StateFlow<Boolean> = _isBurpReachable.asStateFlow()
 
     /** Whether a background operation is in progress */
     private val _isLoading = MutableStateFlow(false)
@@ -125,17 +112,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
             val fridaRunning = if (fridaInstalled) FridaUtils.isFridaServerRunning() else false
             _isFridaRunning.value = fridaRunning
 
-            // Check proxy
-            val proxyActive = ProxyUtils.isIptablesProxyEnabled()
-            _isProxyActive.value = proxyActive
-
-            // Check Burp reachability using saved settings
-            val ip = prefs.burpIp.first()
-            val port = prefs.burpHttpPort.first()
-            val burpReachable = ProxyUtils.isBurpReachable(ip, port)
-            _isBurpReachable.value = burpReachable
-
-            addLog("Root: $root | Frida: $fridaRunning | Proxy: $proxyActive | Burp: $burpReachable")
             _isLoading.value = false
         }
     }
@@ -145,7 +121,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
     /**
      * Runs the full interception setup in sequence:
      *  1. Start frida-server (bypasses SSL pinning)
-     *  2. Enable iptables proxy (redirects all traffic to Burp)
      *
      * Uses a single coroutine so steps run in order, not in parallel.
      * Each step is logged so the user can follow the progress.
@@ -161,9 +136,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
                 val started = if (FridaUtils.isFridaServerRunning()) true else FridaUtils.startFridaServer()
                 _isFridaRunning.value = started
-                _isProxyActive.value = false
-                _isBurpReachable.value = false
-                addLog(if (started) "FRIDA-SERVER ESTÁ EN EJECUCIÓN. PROXY Y BURP NO SE MODIFICARON." else "ERROR: NO SE PUDO INICIAR FRIDA-SERVER")
+                addLog(if (started) "FRIDA-SERVER ESTÁ EN EJECUCIÓN." else "ERROR: NO SE PUDO INICIAR FRIDA-SERVER")
             } catch (e: Exception) {
                 addLog("ERROR AL ACTIVAR FRIDA: ${e.message ?: "DESCONOCIDO"}")
             } finally {
@@ -175,7 +148,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
     /**
      * Tears down the interception setup in sequence:
      *  1. Stop frida-server
-     *  2. Disable iptables proxy
      */
     /**
      * Instala y prepara en secuencia los componentes principales de FridaGate.
@@ -192,20 +164,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
                     return@launch
                 }
                 _isRootAvailable.value = true
-
-                val ip = prefs.burpIp.first()
-                val httpPort = prefs.burpHttpPort.first()
-                val httpsPort = prefs.burpHttpsPort.first()
-
-                // Remove a stale proxy first so downloads are not sent to an unavailable Burp listener.
-                addLog("Limpiando cualquier proxy anterior antes de descargar...")
-                val oldRulesCleared = ProxyUtils.disableIptablesProxy(ip, httpPort, httpsPort)
-                val oldSystemProxyCleared = ProxyUtils.clearSystemProxy()
-                if (oldRulesCleared && oldSystemProxyCleared) {
-                    addLog("Proxy anterior desactivado; conexión normal restaurada")
-                } else {
-                    addLog("ADVERTENCIA: no se pudo confirmar la limpieza completa del proxy anterior")
-                }
 
                 val architecture = FridaUtils.getDeviceArchitecture()
                 val version = appContext.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
@@ -259,15 +217,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
                 addLog("frida-server iniciado")
 
-                // FridaGate's smart install is Frida-only. Proxy/Burp are optional
-                // and are deliberately never enabled by this action.
-                _isProxyActive.value = false
-                _isBurpReachable.value = false
-                addLog("Frida-server está instalado y en ejecución.")
-                addLog("frida-inject está instalado con la misma versión.")
-                addLog("Proxy del sistema e iptables: desactivados.")
-                addLog("Burp Suite y su certificado no son necesarios para inyectar scripts.")
-                addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ──")
+
             } catch (e: Exception) {
                 addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
             } finally {
@@ -289,18 +239,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 _isFridaRunning.value = !FridaUtils.isFridaServerRunning()
                 addLog(if (stopped && !_isFridaRunning.value) "✓ frida-server detenido" else "ADVERTENCIA: no se pudo confirmar que frida-server se detuviera")
 
-                addLog("Eliminando reglas de proxy antiguas de FridaGate...")
-                val ip = prefs.burpIp.first()
-                val httpPort = prefs.burpHttpPort.first()
-                val httpsPort = prefs.burpHttpsPort.first()
-                val iptablesCleared = ProxyUtils.disableIptablesProxy(ip, httpPort, httpsPort)
-                addLog(if (iptablesCleared) "✓ Reglas iptables de FridaGate desactivadas" else "ADVERTENCIA: no se pudo confirmar la limpieza de todas las reglas iptables")
-
-                val systemProxyCleared = ProxyUtils.clearSystemProxy()
-                addLog(if (systemProxyCleared) "✓ Proxy global de Android eliminado" else "ADVERTENCIA: no se pudo confirmar la eliminación del proxy global")
-
-                _isProxyActive.value = false
-                _isBurpReachable.value = false
                 addLog("Detener todo finalizado. Los binarios de Frida se conservan instalados.")
             } catch (e: Exception) {
                 addLog("ERROR al detener todo: ${e.message ?: "desconocido"}")
@@ -345,8 +283,6 @@ fun DashboardScreen() {
     val isRootAvailable by viewModel.isRootAvailable.collectAsState()
     val isFridaInstalled by viewModel.isFridaInstalled.collectAsState()
     val isFridaRunning by viewModel.isFridaRunning.collectAsState()
-    val isProxyActive by viewModel.isProxyActive.collectAsState()
-    val isBurpReachable by viewModel.isBurpReachable.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val logs by viewModel.logs.collectAsState()
     var pendingConfirmation by remember { mutableStateOf<String?>(null) }
@@ -443,8 +379,6 @@ fun DashboardScreen() {
                 isRootAvailable = isRootAvailable,
                 isFridaInstalled = isFridaInstalled,
                 isFridaRunning = isFridaRunning,
-                isProxyActive = isProxyActive,
-                isBurpReachable = isBurpReachable,
                 hasStoragePermission = hasStoragePermission,
                 hasNotificationPermission = hasNotificationPermission,
                 hasOverlayPermission = hasOverlayPermission,
@@ -477,9 +411,9 @@ fun DashboardScreen() {
             val selectedFridaVersion = context.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
                 .getString("selected_frida_version", "17.6.0") ?: "17.6.0"
             val description = when (action) {
-                "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER. NO SE ACTIVARÁ PROXY NI BURP."
-                "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion. PROXY Y BURP QUEDAN DESACTIVADOS."
-                "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER, Y LIMPIAR CONFIGURACIONES DE PROXY CONOCIDAS."
+                "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER."
+                "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion."
+                "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
                 "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE SOBRE OTRAS APLICACIONES."
                 else -> "OCULTAR EL ICONO FLOTANTE DE FRIDAGATE."
@@ -607,8 +541,6 @@ private fun StatusOverviewCard(
     isRootAvailable: Boolean,
     isFridaInstalled: Boolean,
     isFridaRunning: Boolean,
-    isProxyActive: Boolean,
-    isBurpReachable: Boolean,
     hasStoragePermission: Boolean,
     hasNotificationPermission: Boolean,
     hasOverlayPermission: Boolean,
@@ -632,20 +564,6 @@ private fun StatusOverviewCard(
             // Each StatusIndicatorRow shows one component's status
             StatusIndicatorRow(label = "Frida Installed", active = isFridaInstalled, activeText = "Sí", inactiveText = "No")
             StatusIndicatorRow(label = "Frida Running", active = isFridaRunning, activeText = "En ejecución", inactiveText = "Detenido")
-            StatusIndicatorRow(
-                label = "Proxy (iptables)",
-                active = isProxyActive,
-                activeText = "Activo",
-                inactiveText = "Deshabilitado",
-                inactiveColor = Color(0xFF9C27B0)
-            )
-            StatusIndicatorRow(
-                label = "Burp reachable",
-                active = isBurpReachable,
-                activeText = "Sí",
-                inactiveText = "Deshabilitado",
-                inactiveColor = Color(0xFF9C27B0)
-            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
             StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
             StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
@@ -735,7 +653,7 @@ private fun OneTabActionsCard(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Text(
-                text = "ACTIVAR TODO INICIA FRIDA-SERVER. NO ACTIVA PROXY NI BURP.",
+                text = "ACTIVAR TODO INICIA FRIDA-SERVER.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -756,7 +674,7 @@ private fun OneTabActionsCard(
                 )
             }
 
-            // SMART INSTALL — installs Frida server + inject and configures the proxy
+            // SMART INSTALL — installs Frida server + inject
             Button(
                 onClick = onSmartInstall,
                 modifier = Modifier.fillMaxWidth(),
@@ -845,7 +763,7 @@ private fun DashboardLogPanel(logs: List<String>, onClear: () -> Unit, onExport:
                         items(logs) { line ->
                             Text(
                                 text = line,
-                                // White/grey for dashboard logs — neutral, not Frida green or Proxy blue
+                                // White/grey for dashboard logs — neutral
                                 color = Color(0xFFCCCCCC),
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
