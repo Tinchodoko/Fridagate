@@ -211,7 +211,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     /** Allows a custom stable Frida version, provided it supports modern Android SELinux policy formats. */
     fun setCustomVersion(version: String) {
         if (!isValidStableVersion(version)) {
-            addLog("VERSIÓN INVÁLIDA: introduce una versión estable con formato X.Y.Z, por ejemplo 16.7.19.")
+            _selectedVersion.value = ""
+            versionPreferences.edit().remove("selected_frida_version").apply()
             return
         }
         _selectedVersion.value = version
