@@ -296,7 +296,11 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                     line.contains("unexpected character", ignoreCase = true) ||
                     line.contains("failed to compile", ignoreCase = true)
             }
-            val launchSucceeded = launchCommandStarted && !scriptSyntaxError
+            // A successful process launch is not proof of script execution. Use the
+            // boot marker emitted by the combined script to avoid contradictory status logs.
+            val bootMarkerConfirmed = result.any { it.contains("[FRIDAGATE-SCRIPT-BOOT]") } ||
+                lastObservedInjectionLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
+            val launchSucceeded = launchCommandStarted && bootMarkerConfirmed && !scriptSyntaxError
             if (scriptSyntaxError) {
                 addLog("❌ Frida rechazó el JavaScript antes de ejecutarlo; la aplicación abierta no se marcará como inyección activa.")
             }
@@ -304,7 +308,8 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 _activeTargetPackage.value = packageName
                 context.getSharedPreferences(FridaGateNotificationService.PREFS_NAME, Context.MODE_PRIVATE)
                     .edit().putString(FridaGateNotificationService.PREF_TARGET, packageName).apply()
-                addLog("⚠️ La aplicación está abierta y frida-inject fue lanzado, pero esto NO confirma que el agente ni el script se hayan ejecutado.")
+                addLog("✅ Inyección confirmada: se detectó el marcador de inicio del script dentro del proceso.")
+                addLog("ℹ️ La confirmación acredita el inicio del script; no garantiza que todas sus operaciones posteriores hayan terminado correctamente.")
                 if (floatingServiceStarted) {
                     addLog("🟣 Servicio persistente activo; el icono flotante está disponible.")
                 }
