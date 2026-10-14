@@ -62,6 +62,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // A new app session starts with an empty Frida version selector.
+        // The chosen version is still shared across tabs while this session is running.
+        getSharedPreferences("fridagate_settings", MODE_PRIVATE).edit()
+            .remove("selected_frida_version")
+            .apply()
+
         // enableEdgeToEdge makes the app draw behind the system status bar and navigation bar
         // giving a more immersive, modern look
         enableEdgeToEdge()
