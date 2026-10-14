@@ -144,14 +144,14 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             )
             
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text("✅ FRIDA 17.6.0: GESTIÓN DE FRIDA-SERVER Y FRIDA-INJECT CON VERSIONES COINCIDENTES", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ FRIDA: INSTALACIÓN, ACTUALIZACIÓN, EJECUCIÓN Y DESINSTALACIÓN DE SERVER E INJECT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR Y ELIMINAR SCRIPTS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN Y EJECUCIÓN DE SCRIPTS HABILITADOS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ CONSOLA: REGISTROS EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ UNITY IL2CPP: AGENTE DE DIAGNÓSTICO CON BRIDGES JAVASCRIPT INCLUIDOS EN EL BUNDLE", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ ICONO FLOTANTE: ACCESO RÁPIDO PARA ALTERNAR ENTRE FRIDAGATE Y LA APLICACIÓN OBJETIVO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR LA PÁGINA EN EL NAVEGADOR EXTERNO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ ESTADO DEL SISTEMA: ROOT, FRIDA, PROXY IPTABLES, BURP Y PERMISOS DE ANDROID", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN DE SALIDA A TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
             }
             
             // Links Section
