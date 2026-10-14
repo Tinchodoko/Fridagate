@@ -409,10 +409,10 @@ fun DashboardScreen() {
 
         pendingConfirmation?.let { action ->
             val selectedFridaVersion = context.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
-                .getString("selected_frida_version", "17.6.0") ?: "17.6.0"
+                .getString("selected_frida_version", "") ?: ""
             val description = when (action) {
                 "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER."
-                "INSTALACIÓN INTELIGENTE" -> "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion."
+                "INSTALACIÓN INTELIGENTE" -> if (selectedFridaVersion.isBlank()) "PRIMERO SELECCIONA UNA VERSIÓN EN LA PESTAÑA FRIDA." else "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion."
                 "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
                 "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE SOBRE OTRAS APLICACIONES."
