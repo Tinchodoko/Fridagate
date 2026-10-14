@@ -119,11 +119,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
     // ── One-tap actions ───────────────────────────────────────────────────────
 
     /**
-     * Runs the full interception setup in sequence:
-     *  1. Start frida-server (bypasses SSL pinning)
-     *
-     * Uses a single coroutine so steps run in order, not in parallel.
-     * Each step is logged so the user can follow the progress.
+     * Starts frida-server. Uses a coroutine and logs each step for the user.
      */
     fun activateAll() {
         viewModelScope.launch {
@@ -145,10 +141,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
         }
     }
 
-    /**
-     * Tears down the interception setup in sequence:
-     *  1. Stop frida-server
-     */
+    /** Stops injected scripts and frida-server while preserving installed binaries. */
     /**
      * Instala y prepara en secuencia los componentes principales de FridaGate.
      * Requiere root y conexión a Internet. Usa la misma versión para server e inject.
@@ -216,7 +209,9 @@ class DashboardViewModel(context: Context) : ViewModel() {
                     return@launch
                 }
                 addLog("frida-server iniciado")
-
+                addLog("Frida-server está instalado y en ejecución.")
+                addLog("frida-inject está instalado con la misma versión.")
+                addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ──")
 
             } catch (e: Exception) {
                 addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
