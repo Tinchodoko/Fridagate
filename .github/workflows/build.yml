@@ -39,6 +39,20 @@ jobs:
         echo "Verified self-contained Frida agent bundle ($(wc -c < "$BUNDLE") bytes)."
         head -c 180 "$BUNDLE"; echo
 
+    - name: Build bundled Java diagnostics agent
+      run: |
+        cd tools/java-diagnostics
+        npm install --no-audit --no-fund
+        npm run build
+        BUNDLE="../../app/src/main/assets/scripts/FridaGate_Java_Diagnostics.bundle.js"
+        if grep -nE '^[[:space:]]*import[[:space:]]' "$BUNDLE"; then
+          echo "ERROR: The generated Java diagnostics agent still contains ES module imports."
+          exit 1
+        fi
+        test -s "$BUNDLE"
+        echo "Verified self-contained Java diagnostics bundle ($(wc -c < "$BUNDLE") bytes)."
+        head -c 180 "$BUNDLE"; echo
+
     - name: Set up JDK 11
       uses: actions/setup-java@v4
       with:
@@ -90,6 +104,22 @@ jobs:
         fi
         echo "Verified Unity diagnostics bundle inside APK ($(wc -c < /tmp/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js) bytes)."
 
+    - name: Verify Java diagnostics bundle is packaged in APK
+      run: |
+        APK="app/build/outputs/apk/debug/app-debug.apk"
+        ASSET="assets/scripts/FridaGate_Java_Diagnostics.bundle.js"
+        if ! unzip -l "$APK" | grep -Fq "$ASSET"; then
+          echo "ERROR: Java diagnostics bundle is missing from the APK."
+          exit 1
+        fi
+        unzip -p "$APK" "$ASSET" > /tmp/FridaGate_Java_Diagnostics.bundle.js
+        test -s /tmp/FridaGate_Java_Diagnostics.bundle.js
+        if grep -nE '^[[:space:]]*import[[:space:]]' /tmp/FridaGate_Java_Diagnostics.bundle.js; then
+          echo "ERROR: The APK contains a Java diagnostics bundle with unresolved ES module imports."
+          exit 1
+        fi
+        echo "Verified Java diagnostics bundle inside APK ($(wc -c < /tmp/FridaGate_Java_Diagnostics.bundle.js) bytes)."
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
@@ -107,4 +137,5 @@ jobs:
         files: |
           app/build/outputs/apk/debug/app-debug.apk
           app/src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js
+          app/src/main/assets/scripts/FridaGate_Java_Diagnostics.bundle.js
         make_latest: true
