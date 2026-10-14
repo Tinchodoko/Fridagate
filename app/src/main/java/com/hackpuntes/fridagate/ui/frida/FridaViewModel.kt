@@ -336,8 +336,10 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     fun uninstallServer(onFinished: (() -> Unit)? = null) {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("=== INICIANDO DESINSTALACIÓN Y LIMPIEZA DE FRIDA ===")
+            addLog("=== INICIANDO DESINSTALACIÓN Y LIMPIEZA COMPLETA DE FRIDA ===")
             try {
+                addLog("Deteniendo primero las aplicaciones y las inyecciones registradas...")
+                FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
                 val output = withContext(Dispatchers.IO) {
                     RootUtils.executeSuCommand(
                     """
