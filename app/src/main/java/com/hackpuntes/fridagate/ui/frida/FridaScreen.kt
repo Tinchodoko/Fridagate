@@ -65,6 +65,7 @@ fun FridaScreen() {
     val isLoading by viewModel.isLoading.collectAsState()
     val isInstalled by viewModel.isServerInstalled.collectAsState()
     val isRunning by viewModel.isServerRunning.collectAsState()
+    val isServerPortListening by viewModel.isServerPortListening.collectAsState()
     val installedVersion by viewModel.installedVersion.collectAsState()
     val availableReleases by viewModel.availableReleases.collectAsState()
     val selectedVersion by viewModel.selectedVersion.collectAsState()
@@ -125,6 +126,7 @@ fun FridaScreen() {
             StatusCard(
                 isInstalled = isInstalled,
                 isRunning = isRunning,
+                isPortListening = isServerPortListening,
                 installedVersion = installedVersion,
                 activeFlags = lastCustomFlags
             )
@@ -241,6 +243,7 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
 private fun StatusCard(
     isInstalled: Boolean,
     isRunning: Boolean,
+    isPortListening: Boolean,
     installedVersion: String,
     activeFlags: String
 ) {
@@ -255,7 +258,12 @@ private fun StatusCard(
 
             StatusRow(label = "Instalado", value = if (isInstalled) "Sí" else "No", isActive = isInstalled)
             StatusRow(label = "En ejecución", value = if (isRunning) "Sí" else "No", isActive = isRunning)
-            StatusRow(label = "Versión", value = installedVersion, isActive = installedVersion != "No instalado")
+            StatusRow(
+                label = "Puerto local 27042",
+                value = if (isPortListening) "Escuchando" else "No confirmado",
+                isActive = isPortListening
+            )
+            StatusRow(label = "Versión real", value = installedVersion, isActive = installedVersion != "No instalado")
 
             // Show active flags only when the server is running
             if (isRunning) {
