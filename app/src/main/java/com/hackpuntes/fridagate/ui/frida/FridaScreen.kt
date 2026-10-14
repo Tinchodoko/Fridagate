@@ -165,6 +165,7 @@ fun FridaScreen() {
             // ── Section: Log Panel ────────────────────────────────────────────
             LogPanel(
                 logs = logs,
+                context = context,
                 onClear = { viewModel.clearLogs() },
                 onExport = { exportFridaLog(context, logs) }
             )
@@ -523,6 +524,7 @@ private fun ActionButtons(
 @Composable
 private fun LogPanel(
     logs: List<String>,
+    context: android.content.Context,
     onClear: () -> Unit,
     onExport: () -> Unit
 ) {
@@ -550,6 +552,11 @@ private fun LogPanel(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate - Frida", logs.joinToString("\n")))
+                        Toast.makeText(context, "REGISTROS COPIADOS", Toast.LENGTH_SHORT).show()
+                    }) { Text("COPIAR") }
                     TextButton(onClick = onExport) { Text("EXPORTAR") }
                     TextButton(onClick = onClear) { Text("LIMPIAR") }
                 }
