@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -54,72 +53,7 @@ class AppPreferences(private val context: Context) {
      * Think of these like column names in a database table.
      */
     private object Keys {
-        val BURP_IP = stringPreferencesKey("burp_ip")
-        val BURP_HTTP_PORT = intPreferencesKey("burp_http_port")
-        val BURP_HTTPS_PORT = intPreferencesKey("burp_https_port")
         val FRIDA_SELECTED_VERSION = stringPreferencesKey("frida_selected_version")
-    }
-
-    // -------------------------------------------------------------------------
-    // Burp Suite IP address
-    // -------------------------------------------------------------------------
-
-    /**
-     * A Flow that emits the saved Burp IP address whenever it changes.
-     *
-     * Flow is like a stream of values over time:
-     *  - When you first observe it, it emits the current saved value
-     *  - If the value changes (via saveBurpIp), it emits the new value automatically
-     *
-     * The .map {} transforms each emitted Preferences object into just the IP string.
-     * The "?: DEFAULT_IP" is the Elvis operator — it returns the default if the value is null
-     * (null means the key hasn't been saved yet).
-     */
-    val burpIp: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[Keys.BURP_IP] ?: DEFAULT_BURP_IP
-    }
-
-    /**
-     * Saves the Burp IP address to persistent storage.
-     *
-     * edit() is a suspend function that opens the DataStore for writing.
-     * The lambda receives a MutablePreferences object where we set the value.
-     * The write is atomic — either it fully succeeds or fully fails.
-     *
-     * @param ip The IP address to save (e.g., "192.168.1.100")
-     */
-    suspend fun saveBurpIp(ip: String) {
-        context.dataStore.edit { preferences ->
-            preferences[Keys.BURP_IP] = ip
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Burp Suite ports
-    // -------------------------------------------------------------------------
-
-    /** Flow that emits the saved HTTP proxy port (default: 8080) */
-    val burpHttpPort: Flow<Int> = context.dataStore.data.map { preferences ->
-        preferences[Keys.BURP_HTTP_PORT] ?: DEFAULT_HTTP_PORT
-    }
-
-    /** Saves the HTTP proxy port */
-    suspend fun saveBurpHttpPort(port: Int) {
-        context.dataStore.edit { preferences ->
-            preferences[Keys.BURP_HTTP_PORT] = port
-        }
-    }
-
-    /** Flow that emits the saved HTTPS proxy port (default: 8443) */
-    val burpHttpsPort: Flow<Int> = context.dataStore.data.map { preferences ->
-        preferences[Keys.BURP_HTTPS_PORT] ?: DEFAULT_HTTPS_PORT
-    }
-
-    /** Saves the HTTPS proxy port */
-    suspend fun saveBurpHttpsPort(port: Int) {
-        context.dataStore.edit { preferences ->
-            preferences[Keys.BURP_HTTPS_PORT] = port
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -143,8 +77,5 @@ class AppPreferences(private val context: Context) {
     // -------------------------------------------------------------------------
 
     companion object {
-        const val DEFAULT_BURP_IP = "192.168.100.224"
-        const val DEFAULT_HTTP_PORT = 8080
-        const val DEFAULT_HTTPS_PORT = 8080
     }
 }
