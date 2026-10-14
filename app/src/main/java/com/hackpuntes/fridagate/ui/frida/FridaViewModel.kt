@@ -73,7 +73,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     val availableReleases: StateFlow<List<FridaRelease>> = _availableReleases.asStateFlow()
 
     /** The version selected by the user in the dropdown */
-    private val _selectedVersion = MutableStateFlow(versionPreferences.getString("selected_frida_version", "17.6.0") ?: "17.6.0")
+    // Keep the picker blank until the user explicitly chooses a version.
+    private val _selectedVersion = MutableStateFlow("")
     val selectedVersion: StateFlow<String> = _selectedVersion.asStateFlow()
 
     /** Whether root access is available on the device */
@@ -175,55 +176,29 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
             _isLoading.value = true
             addLog("BUSCANDO VERSIÓN RECOMENDADA Y ÚLTIMA VERSIÓN ESTABLE DE FRIDA...")
             val fetched = FridaUtils.getAvailableFridaReleases()
-            val compatible = fetched.filter { isAndroid16CompatibleVersion(it.version) }
-            val recommendedVersion = "17.6.0"
-            val recommended = compatible.find { it.version == recommendedVersion } ?: FridaRelease(
-                version = recommendedVersion,
-                releaseDate = "",
-                assets = listOf("arm", "arm64", "x86", "x86_64").map { arch ->
-                    FridaUtils.FridaAsset(
-                        name = "frida-server-$recommendedVersion-android-$arch.xz",
-                        downloadUrl = "https://github.com/frida/frida/releases/download/$recommendedVersion/frida-server-$recommendedVersion-android-$arch.xz",
-                        architecture = arch,
-                        size = 0L
-                    )
-                }
-            )
-            val latest = compatible.firstOrNull()
-            _availableReleases.value = if (latest != null && latest.version != recommendedVersion) {
-                listOf(recommended, latest)
-            } else {
-                listOf(recommended)
+            val requestedVersions = listOf("17.23.3", "17.6.0", "16.7.19")
+            _availableReleases.value = requestedVersions.map { version ->
+                fetched.find { it.version == version } ?: FridaRelease(
+                    version = version,
+                    releaseDate = "",
+                    assets = listOf("arm", "arm64", "x86", "x86_64").map { arch ->
+                        FridaUtils.FridaAsset(
+                            name = "frida-server-$version-android-$arch.xz",
+                            downloadUrl = "https://github.com/frida/frida/releases/download/$version/frida-server-$version-android-$arch.xz",
+                            architecture = arch,
+                            size = 0L
+                        )
+                    }
+                )
             }
-            // Preserve the user's selection across screens and app restarts.
-            val savedSelection = versionPreferences.getString("selected_frida_version", recommendedVersion)
-                ?: recommendedVersion
-            _selectedVersion.value = if (_availableReleases.value.any { it.version == savedSelection }) {
-                savedSelection
-            } else {
-                recommendedVersion
-            }
-            versionPreferences.edit().putString("selected_frida_version", _selectedVersion.value).apply()
-            addLog("VERSIÓN SELECCIONADA: " + _selectedVersion.value)
-            latest?.takeIf { it.version != recommendedVersion }?.let {
-                addLog("ÚLTIMA VERSIÓN ESTABLE DISPONIBLE: ${it.version}")
-            }
+            // Do not auto-select a version: require an explicit choice each time the app opens.
+            addLog("VERSIONES DISPONIBLES: " + requestedVersions.joinToString(", "))
             _isLoading.value = false
         }
     }
 
-    private fun isAndroid16CompatibleVersion(version: String): Boolean {
-        // Ignore prereleases; compare numeric components rather than lexical strings.
-        if ('-' in version) return false
-        val parts = version.split(".").map { it.toIntOrNull() ?: -1 }
-        if (parts.size < 3 || parts.any { it < 0 }) return false
-        val minimum = listOf(17, 6, 0)
-        for (i in minimum.indices) {
-            val current = parts.getOrElse(i) { 0 }
-            if (current != minimum[i]) return current > minimum[i]
-        }
-        return true
-    }
+    private fun isValidStableVersion(version: String): Boolean =
+        version.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))
 
     /** Updates the selected version when the user picks a release from the list. */
     fun setSelectedVersion(version: String) {
@@ -235,8 +210,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
 
     /** Allows a custom stable Frida version, provided it supports modern Android SELinux policy formats. */
     fun setCustomVersion(version: String) {
-        if (!isAndroid16CompatibleVersion(version)) {
-            addLog("VERSIÓN NO COMPATIBLE: usa Frida 17.6.0 o posterior estable para Android 16.")
+        if (!isValidStableVersion(version)) {
+            addLog("VERSIÓN INVÁLIDA: introduce una versión estable con formato X.Y.Z, por ejemplo 16.7.19.")
             return
         }
         _selectedVersion.value = version
@@ -248,6 +223,10 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     fun downloadAndInstall(context: Context) {
         viewModelScope.launch {
             val version = _selectedVersion.value
+            if (version.isBlank()) {
+                addLog("ERROR: SELECCIONA UNA VERSIÓN DE FRIDA ANTES DE INSTALAR SERVER.")
+                return@launch
+            }
             val architecture = FridaUtils.getDeviceArchitecture()
             _isLoading.value = true
             addLog("INICIO DE INSTALACIÓN DE FRIDA-SERVER $version ($architecture)")
@@ -374,6 +353,10 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                     rm -f /data/local/tmp/fridagate_inject.log
                     rm -f /data/local/tmp/fridagate_inject.pid
                     rm -f /data/local/tmp/fridagate_injected_packages.txt
+                    rm -f /data/local/tmp/fridagate_enabled_scripts.js
+                    rm -f /data/local/tmp/fridagate_combined.js
+                    rm -f /data/local/tmp/fridagate_custom.js
+                    rm -f /data/local/tmp/fridagate_custom.log
 
                     echo "=== Verificando que no quede nada ==="
                     ls -la /data/local/tmp/ | grep -i frida || echo "No quedan archivos con frida en el nombre"
