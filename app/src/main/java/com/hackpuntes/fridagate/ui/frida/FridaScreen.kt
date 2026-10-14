@@ -373,7 +373,7 @@ private fun VersionSelector(
                 value = customVersion,
                 onValueChange = { value ->
                     customVersion = value
-                    if (value.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))) onCustomVersion(value)
+                    onCustomVersion(value)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("VERSION DE FRIDA...") },
