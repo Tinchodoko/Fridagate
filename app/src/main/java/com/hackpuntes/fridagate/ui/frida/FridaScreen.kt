@@ -146,7 +146,8 @@ fun FridaScreen() {
                 isInjectInstalled = injectInstalled,
                 injectVersion = injectVersion,
                 isInjectLoading = injectLoading,
-                onDownloadInject = { extrasViewModel.downloadFridaInject { viewModel.logOperation(it) } },
+                selectedVersion = selectedVersion,
+                onDownloadInject = { version -> extrasViewModel.downloadFridaInject(version) { viewModel.logOperation(it) } },
                 isInstalled = isInstalled,
                 isRunning = isRunning,
                 isLoading = isLoading,
@@ -155,7 +156,12 @@ fun FridaScreen() {
                 onStart = { viewModel.startServer() },
                 onStartCustom = { showCustomFlagsDialog = true },
                 onStop = { viewModel.stopServer() },
-                onUninstall = { viewModel.uninstallServer { extrasViewModel.refreshEnvironmentStatus() } },
+                onUninstall = {
+                    viewModel.uninstallServer {
+                        viewModel.checkRootAndStatus()
+                        extrasViewModel.refreshEnvironmentStatus()
+                    }
+                },
                 onRefresh = {
                     viewModel.checkRootAndStatus()
                     viewModel.loadAvailableReleases()
@@ -326,13 +332,12 @@ private fun VersionSelector(
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val recommendedVersion = "17.6.0"
-    val versions = releases.map { release ->
-        release.version to when (release.version) {
-            recommendedVersion -> "RECOMENDADA"
-            else -> "ÚLTIMA DISPONIBLE"
-        }
-    }.ifEmpty { listOf(recommendedVersion to "RECOMENDADA") }
+    var customVersion by remember { mutableStateOf("") }
+    val versions = releases.map { it.version }.distinct().sortedWith(
+        compareByDescending<String> { it.substringBefore('.').toIntOrNull() ?: 0 }
+            .thenByDescending { it.substringAfter('.', "").substringBefore('.').toIntOrNull() ?: 0 }
+            .thenByDescending { it.substringAfterLast('.').toIntOrNull() ?: 0 }
+    )
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -344,35 +349,40 @@ private fun VersionSelector(
                 onExpandedChange = { if (enabled) expanded = !expanded }
             ) {
                 OutlinedTextField(
-                    value = when {
-                        selectedVersion == recommendedVersion -> "$selectedVersion (RECOMENDADA)"
-                        selectedVersion.isEmpty() -> "Seleccionar versión..."
-                        else -> selectedVersion
-                    },
+                    value = selectedVersion,
                     onValueChange = {},
+                    placeholder = { Text("SELECCIONA UNA VERSIÓN DE FRIDA") },
                     readOnly = true,
                     trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expandir") },
                     modifier = Modifier.fillMaxWidth()
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled),
-                    enabled = enabled
+                    enabled = enabled,
+                    singleLine = true
                 )
                 ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    versions.forEach { (version, label) ->
+                    versions.forEach { version ->
                         DropdownMenuItem(
-                            text = {
-                                Text(
-                                    if (label.isNotBlank()) "$version ($label)" else version,
-                                    fontWeight = if (label.isNotBlank()) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            onClick = {
-                                onVersionSelected(version)
-                                expanded = false
-                            }
+                            text = { Text(version, fontWeight = FontWeight.Normal) },
+                            onClick = { onVersionSelected(version); customVersion = ""; expanded = false }
                         )
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = customVersion,
+                onValueChange = { value ->
+                    customVersion = value
+                    if (value.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))) onCustomVersion(value)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("VERSION DE FRIDA...") },
+                label = { Text("Versión manual") },
+                singleLine = true,
+                enabled = enabled
+            )
+            Text("Versiones disponibles: 17.23.3, 17.6.0 y 16.7.19",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -386,7 +396,8 @@ private fun ActionButtons(
     isInjectInstalled: Boolean,
     injectVersion: String?,
     isInjectLoading: Boolean,
-    onDownloadInject: () -> Unit,
+    selectedVersion: String,
+    onDownloadInject: (String) -> Unit,
     isInstalled: Boolean,
     isRunning: Boolean,
     isLoading: Boolean,
@@ -419,7 +430,7 @@ private fun ActionButtons(
             Button(
                 onClick = { pendingAction = "INSTALAR/ACTUALIZAR SERVER" },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && isRootAvailable
+                enabled = !isLoading && isRootAvailable && selectedVersion.isNotBlank()
             ) {
                 Text("INSTALAR / ACTUALIZAR SERVER")
             }
@@ -428,7 +439,7 @@ private fun ActionButtons(
             Button(
                 onClick = { pendingAction = "INSTALAR/ACTUALIZAR INJECT" },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isInjectLoading && !isLoading && isRootAvailable && isInstalled
+                enabled = !isInjectLoading && !isLoading && isRootAvailable && selectedVersion.isNotBlank()
             ) {
                 Text(if (isInjectInstalled) "INSTALAR / ACTUALIZAR INJECT" else "INSTALAR / ACTUALIZAR INJECT")
             }
@@ -487,7 +498,7 @@ private fun ActionButtons(
     pendingAction?.let { action ->
         val description = when (action) {
             "INSTALAR/ACTUALIZAR SERVER" -> "INSTALAR O ACTUALIZAR ÚNICAMENTE FRIDA-SERVER."
-            "INSTALAR/ACTUALIZAR INJECT" -> "INSTALAR O ACTUALIZAR ÚNICAMENTE FRIDA-INJECT EN LA MISMA VERSIÓN QUE FRIDA-SERVER."
+            "INSTALAR/ACTUALIZAR INJECT" -> "INSTALAR O ACTUALIZAR FRIDA-INJECT EN LA VERSIÓN SELECCIONADA ($selectedVersion), SIN NECESITAR INSTALAR FRIDA-SERVER PRIMERO."
             "INICIAR" -> "INICIAR EL PROCESO FRIDA-SERVER."
             "DETENER" -> "DETENER EL PROCESO FRIDA-SERVER."
             "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, VERSIÓN, INSTALACIÓN Y ESTADO DEL SERVIDOR."
@@ -502,7 +513,7 @@ private fun ActionButtons(
                 pendingAction = null
                 when (action) {
                     "INSTALAR/ACTUALIZAR SERVER" -> onInstall()
-                    "INSTALAR/ACTUALIZAR INJECT" -> onDownloadInject()
+                    "INSTALAR/ACTUALIZAR INJECT" -> onDownloadInject(selectedVersion)
                     "INICIAR" -> onStart()
                     "DETENER" -> onStop()
                     "ACTUALIZAR ESTADO" -> onRefresh()
