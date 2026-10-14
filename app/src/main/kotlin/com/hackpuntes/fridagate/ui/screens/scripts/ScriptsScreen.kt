@@ -18,6 +18,9 @@ import android.provider.Settings
 import android.provider.OpenableColumns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.abs
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -212,8 +215,22 @@ fun ScriptsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .pointerInput(selectedTab) {
+                var horizontalDistance = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, dragAmount -> horizontalDistance += dragAmount },
+                    onDragEnd = {
+                        if (abs(horizontalDistance) > 70f) {
+                            selectedTab = (selectedTab + if (horizontalDistance < 0) 1 else -1).coerceIn(0, 2)
+                        }
+                        horizontalDistance = 0f
+                    },
+                    onDragCancel = { horizontalDistance = 0f }
+                )
+            }
     ) {
-        // Target app selector is intentionally above the Script Manager header.
+        // The target selector belongs to the script-list tab. Editor and Logs use the full content area.
+        if (selectedTab == 0) {
         Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
             Column(modifier = Modifier.padding(10.dp)) {
                 Row(
@@ -393,6 +410,7 @@ fun ScriptsScreen(
                     }
                 }
             }
+        }
         }
 
         // Header
