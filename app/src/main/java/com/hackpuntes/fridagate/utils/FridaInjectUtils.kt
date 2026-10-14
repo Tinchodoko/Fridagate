@@ -39,9 +39,13 @@ object FridaInjectUtils {
 
     suspend fun getInstalledVersion(): String? = withContext(Dispatchers.IO) {
         try {
-            val check = RootUtils.executeSuCommand("ls $INJECT_VERSION_FILE")
-            if (check.contains("No such file")) return@withContext null
-            RootUtils.executeSuCommand("cat $INJECT_VERSION_FILE").trim().ifEmpty { null }
+            // Read the executable itself first so manually replaced binaries report the true version.
+            val binaryVersion = RootUtils.executeSuCommand("$INJECT_BINARY_PATH --version").trim()
+            if (Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(binaryVersion)) {
+                return@withContext binaryVersion
+            }
+            val metadataVersion = RootUtils.executeSuCommand("cat $INJECT_VERSION_FILE 2>/dev/null").trim()
+            metadataVersion.takeIf { Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(it) }
         } catch (e: Exception) { null }
     }
 
