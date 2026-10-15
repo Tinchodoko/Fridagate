@@ -1118,7 +1118,7 @@ fun LogsTab(
                 Button(
                     onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate - Scripts", logs.joinToString("\n")))
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate 2.0 — Scripts", logs.joinToString("\n")))
                         android.widget.Toast.makeText(context, "REGISTROS COPIADOS", android.widget.Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.weight(1f)
