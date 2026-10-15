@@ -106,7 +106,6 @@ El número de build no es lo mismo que la versión funcional de la aplicación. 
 - `app/src/main/assets/scripts/`: scripts de diagnóstico empaquetados.
 - `tools/`: fuentes y configuración de los agentes de diagnóstico que se generan durante la compilación.
 - `.github/workflows/build.yml`: compilación, verificación y publicación de APK.
-- `.github/workflows/claude.yml`: workflow de asistencia técnica mediante modelos seleccionados en comentarios.
 
 ### Nota sobre nombres internos
 
