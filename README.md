@@ -1,454 +1,134 @@
-# 🪝 Fridagate
+# FridaGate 2.0
 
-**Herramienta Android de pentesting con Frida** | Gestor de scripts, inyección de código y análisis de logs en tiempo real
+**Herramienta Android de instrumentación dinámica y diagnóstico con Frida.** Administra el entorno de Frida, scripts JavaScript, registros y pruebas directamente desde el dispositivo.
 
-[![GitHub](https://img.shields.io/badge/GitHub-Tinchodoko/Fridagate-181717?logo=github)](https://github.com/Tinchodoko/Fridagate)
-[![License](https://img.shields.io/badge/License-GPLv3-green)](#licencia)
-[![Android](https://img.shields.io/badge/Android-8.0+-green?logo=android)]()
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-purple?logo=kotlin)]()
+[![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-Android-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4)](https://developer.android.com/jetpack/compose)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
----
+> Proyecto en desarrollo activo. Las funciones y los resultados de diagnóstico deben validarse en cada dispositivo y aplicación de destino.
 
-## 📖 Descripción
+## ¿Qué es FridaGate 2.0?
 
-**Fridagate** es una aplicación Android nativa desarrollada en **Kotlin + Jetpack Compose** que proporciona una interfaz gráfica completa para trabajar con [Frida](https://frida.re) en pentesting móvil.
+FridaGate 2.0 es una aplicación Android nativa creada con Kotlin y Jetpack Compose para facilitar el trabajo con [Frida](https://frida.re). Reúne la administración del entorno de Frida, la gestión de scripts, el diagnóstico del runtime y herramientas de apoyo en una interfaz móvil.
 
-Pensada para investigadores de seguridad, desarrolladores y profesionales de análisis dinámico que necesitan:
-- ✅ Crear, editar y ejecutar scripts Frida directamente en el dispositivo
-- ✅ Inyectar código en procesos objetivo sin reiniciar
-- ✅ Capturar y exportar logs en tiempo real
-- ✅ Soporte completo para **IL2CPP** (juegos y apps con Mono/Unity)
-- ✅ Gestión de almacenamiento persistente
+El proyecto está orientado a pruebas autorizadas, análisis de seguridad, depuración y aprendizaje sobre aplicaciones propias o en las que tengas permiso para realizar pruebas.
 
----
+## Funciones
 
-## 🚀 Características
+### Entorno de Frida
+- Consultar el estado de root, frida-server y el entorno de ejecución.
+- Descargar, instalar, iniciar, detener y actualizar frida-server.
+- Consultar versiones disponibles y la versión detectada en el dispositivo.
+- Gestionar frida-inject desde las herramientas de la aplicación.
+- Ver registros de las operaciones y del estado del entorno.
 
-### 📝 Gestor de Scripts
-- **Crear**: Genera nuevos scripts Frida desde templates predefinidos
-- **Editar**: Editor de código completo con syntax highlighting
-- **Ejecutar**: Inyecta scripts en procesos vivos sin reiniciar
-- **Guardar**: Almacenamiento persistente en `/Documentos/Fridagate2.0/Scripts/`
-- **Importar**: Carga scripts .js desde el almacenamiento externo
-- **Exportar**: Descarga scripts y logs en formato TXT
+### Gestor de scripts
+- Crear y administrar scripts JavaScript.
+- Importar archivos `.js` desde el almacenamiento del dispositivo.
+- Seleccionar una aplicación de destino cuando corresponda.
+- Ejecutar scripts y consultar sus registros.
+- Exportar scripts y resultados para revisarlos fuera de la aplicación.
+- Usar scripts de diagnóstico para identificar señales de Android nativo, Java, Unity/IL2CPP u otros runtimes compatibles. La detección es orientativa y depende de la aplicación y del proceso.
 
-### 🛡️ Scripts Predefinidos
-- **Root Detection Bypass**: Evita detecciones de root
-- **SSL Pinning Bypass**: Intercepta certificados pinned para análisis HTTPS
+### Terminal integrada
+- Ejecutar comandos en el shell de Android desde la aplicación.
+- Utilizar el modo root cuando el dispositivo y la configuración lo permitan.
+- Consultar la salida de los comandos, el código de salida y el historial reciente.
+- Copiar los registros y exportar la salida de la terminal.
 
-### 🔗 Soporte IL2CPP
-Detección automática y soporte para juegos/apps basadas en:
-- Mono/.NET Framework
-- Unity Engine
-- Aplicaciones IL2CPP compiladas
+**Precaución:** los comandos se ejecutan en el dispositivo y pueden modificarlo. El acceso root amplía considerablemente sus efectos. Ejecuta únicamente comandos que entiendas y necesites.
 
-### 📊 Sistema de Logs
-- Captura en tiempo real con timestamps
-- Colorización automática (errores, advertencias, info)
-- Exportación a TXT para análisis posterior
-- Limpieza manual de logs
+### Navegador integrado
+- Abrir páginas web dentro de la aplicación mediante Android WebView.
+- Consultar el progreso de carga, volver a la página anterior y recargar.
+- Abrir una página en el navegador externo cuando lo necesites.
 
-### 📱 Target App Selector
-- Lista de aplicaciones instaladas
-- Selección de PID objetivo
-- Integración con ADB para gestión remota
+### Diagnóstico y registros
+- Scripts de diagnóstico de runtime, Java y Unity/IL2CPP incluidos o generados durante la compilación.
+- Registro de operaciones para facilitar la investigación de errores.
+- Exportación de logs para análisis posterior.
+- Pantalla de información con comprobación de publicaciones de GitHub cuando la conexión está disponible.
 
----
+## Requisitos
 
-## 🛠️ Requisitos
+- Dispositivo Android compatible.
+- Para instalar o iniciar frida-server y usar las operaciones privilegiadas, normalmente se necesita root y un binario de Frida compatible con la arquitectura y la versión del dispositivo.
+- Una versión de frida-server compatible con las herramientas cliente/runtime que se utilicen.
+- Conexión a Internet para consultar publicaciones o descargar componentes.
 
-### Hardware
-- **Dispositivo Android 8.0+** con acceso root
-- **Frida server** compilado para ARM/ARM64
-- Conexión ADB local o remota
+FridaGate 2.0 **no requiere publicarse en Google Play** para compilarse, instalarse y probarse mediante APK.
 
-### Software
-- **Android Studio** 4.0+
-- **Kotlin** 1.9+
-- **Jetpack Compose** latest
-- **JDK 11+**
+## Instalar la aplicación
 
-### Permisos Android
-La app requiere:
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-```
+### Opción A: descargar una build de GitHub
 
----
+1. Abre [GitHub Actions](https://github.com/Tinchodoko/Fridagate/actions) o las [publicaciones](https://github.com/Tinchodoko/Fridagate/releases).
+2. Elige una compilación que haya terminado correctamente.
+3. Descarga el artefacto APK o el APK adjunto a la publicación.
+4. Instálalo en tu dispositivo Android. Android puede solicitar permiso para instalar aplicaciones de esa fuente.
 
-## 💻 Instalación
+Las publicaciones automáticas usan etiquetas con el formato `build-N`, donde `N` corresponde al número de ejecución de GitHub Actions. La disponibilidad de una build depende de que el workflow haya terminado correctamente.
 
-### 1️⃣ Compilación desde código
+### Opción B: compilar desde el código
+
+El entorno de compilación requiere JDK 11 y Node.js 20 para generar los bundles de diagnóstico.
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/Tinchodoko/Fridagate.git
 cd Fridagate
-
-# Compilar APK debug
+chmod +x gradlew
 ./gradlew assembleDebug
-
-# APK generado en: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 2️⃣ Instalación en dispositivo
-
-```bash
-# Conectar dispositivo via ADB
-adb devices
-
-# Instalar APK
-adb install app-debug.apk
-
-# O con GitHub Actions (compilación automática)
-# Descarga el APK desde Artifacts
-```
-
-### 3️⃣ Configurar Frida Server
-
-```bash
-# En tu PC (servidor Frida)
-frida-server -l 0.0.0.0:27042 &
-
-# En el dispositivo con root
-# Asegúrate de que Frida está corriendo:
-su
-frida-server -l 127.0.0.1:27042 &
-```
-
-### 4️⃣ Conectar dispositivo
-
-```bash
-# Forwarding local
-adb forward tcp:27042 tcp:27042
-
-# O configurar conexión remota en la app
-```
-
----
-
-## 📚 Guía de Uso
-
-### Crear un Script
-
-1. Abre pestaña **Scripts**
-2. Presiona **+ Nuevo Script**
-3. Nombra tu script
-4. Ve a pestaña **Editor**
-5. Elige un template o escribe código Frida
-6. Presiona **💾 Guardar**
-
-### Ejecutar un Script
-
-1. Selecciona el target app en **📱 Target App**
-2. Selecciona tu script de la lista
-3. Ve a pestaña **Logs**
-4. Presiona **▶️ Ejecutar**
-5. Monitorea logs en tiempo real
-
-### Exportar Resultados
-
-1. En pestaña **Logs**, presiona **💾 Exportar**
-2. Se guardará en: `/Documentos/Fridagate2.0/Logs/`
-3. Comparte o analiza offline
-
----
-
-## 🧬 Estructura del Proyecto
+APK de depuración:
 
 ```
-Fridagate/
-├── app/src/main/kotlin/com/hackpuntes/fridagate/
-│   ├── data/
-│   │   ├── models/FridaScript.kt
-│   │   └── repository/ScriptRepository.kt
-│   ├── core/
-│   │   ├── FridaInjectionService.kt
-│   │   └── FilePickerHelper.kt
-│   ├── ui/
-│   │   ├── viewmodels/ScriptsViewModel.kt
-│   │   └── screens/
-│   │       ├── scripts/ScriptsScreen.kt
-│   │       └── AboutScreen.kt
-│   └── MainActivity.kt
-├── app/src/main/AndroidManifest.xml
-├── build.gradle.kts
-├── .github/workflows/build.yml (CI/CD)
-└── README.md
+app/build/outputs/apk/debug/app-debug.apk
 ```
 
----
+Los pasos de compilación automatizados se encuentran en [`.github/workflows/build.yml`](.github/workflows/build.yml). El workflow construye los agentes de diagnóstico, compila el APK y publica artefactos; las publicaciones automáticas se generan en pushes exitosos a `main`.
 
-## 📦 Almacenamiento de Scripts
+## Número de build y actualizaciones
 
-### Estructura de directorios
+- En GitHub Actions, cada ejecución tiene un número de build.
+- El proyecto utiliza `GITHUB_RUN_NUMBER` para identificar la ejecución y generar el `versionCode` de Android.
+- Las publicaciones automáticas se etiquetan como `build-N`.
+- Las builds locales se identifican como `LOCAL` en el valor de diagnóstico correspondiente.
+- Consulta [Actions](https://github.com/Tinchodoko/Fridagate/actions) para ver el historial y [Releases](https://github.com/Tinchodoko/Fridagate/releases) para ver las builds publicadas.
 
-```
-/Documentos/Fridagate2.0/
-├── Scripts/
-│   ├── script_1.js
-│   ├── script_1.meta
-│   ├── script_2.js
-│   ├── script_2.meta
-│   └── ...
-└── Logs/
-    ├── export_20241009_120530.txt
-    └── ...
-```
+El número de build no es lo mismo que la versión funcional de la aplicación. La versión declarada actualmente en Gradle es `2.0.0`; el número de ejecución de CI cambia con cada build.
 
-### Archivo .meta (Metadatos)
+## Estructura del proyecto
 
-```
-name=Mi Script
-description=Detecta root en la app
-createdAt=1728516000000
-updatedAt=1728516000000
-supportsIL2CPP=true
-tags=bypass,root,security
-```
+- `app/src/main/java/`: aplicación Android, interfaz y lógica.
+- `app/src/main/java/com/hackpuntes/fridagate/ui/terminal/`: terminal integrada.
+- `app/src/main/java/com/hackpuntes/fridagate/ui/about/`: pantalla de información y navegador integrado.
+- `app/src/main/assets/scripts/`: scripts de diagnóstico empaquetados.
+- `tools/`: fuentes y configuración de los agentes de diagnóstico que se generan durante la compilación.
+- `.github/workflows/build.yml`: compilación, verificación y publicación de APK.
+- `.github/workflows/claude.yml`: workflow de asistencia técnica mediante modelos seleccionados en comentarios.
 
----
+### Nota sobre nombres internos
 
-## 🔧 Ejemplos de Scripts
+El identificador de aplicación y algunos paquetes de código conservan el espacio de nombres heredado `com.hackpuntes.fridagate`. Se mantienen deliberadamente para evitar romper la identidad de instalación y las actualizaciones de la app. Esto no significa que la interfaz actual conserve la descripción o las funciones antiguas.
 
-### Script Básico (Detección de Frida)
+## Uso responsable
 
-```javascript
-// Detección de Frida en tiempo real
-if (Process.arch === 'arm64' || Process.arch === 'arm') {
-    console.log('[*] Arquitectura: ' + Process.arch);
-    
-    // Buscar módulos sospechosos
-    Module.enumerateModules().forEach(function(module) {
-        if (module.name.includes('frida')) {
-            console.log('[!] ⚠️ Detectado: ' + module.name);
-        }
-    });
-}
-```
+Usa la herramienta únicamente en dispositivos, aplicaciones y entornos que sean tuyos o para los que tengas autorización explícita. La instrumentación dinámica, los comandos root y los scripts pueden alterar el comportamiento de la aplicación objetivo o del dispositivo. Revisa cada script antes de ejecutarlo y conserva copias de los datos importantes.
 
-### Script IL2CPP
+## Licencia y atribución
 
-```javascript
-// Soporte para frida-il2cpp-bridge
-if (typeof Il2Cpp !== 'undefined') {
-    console.log('[*] IL2CPP Bridge detectado');
-    
-    const app = Il2Cpp.Image.findClassByName('Assembly-CSharp', 'MyApp');
-    if (app) {
-        console.log('[+] Clase encontrada: MyApp');
-        const method = app.method('IsRoot');
-        if (method) {
-            method.implementation = function() {
-                console.log('[!] IsRoot() llamado - retornando false');
-                return false;
-            };
-        }
-    }
-} else {
-    console.log('[-] IL2CPP Bridge no disponible');
-}
-```
+El fork se distribuye bajo la licencia MIT. Consulta [LICENSE](LICENSE) para ver el texto completo y los avisos de copyright del proyecto original y de las modificaciones del fork.
 
-### Bypass de Root Detection
+FridaGate 2.0 reconoce el trabajo previo de Javier Olmedo en el proyecto original. Las modificaciones, la integración y el mantenimiento de este fork corresponden a Tinchodoko.
 
-```javascript
-// Template predefinido: Root Detection Bypass
-function bypassRootDetection() {
-    // Buscar métodos de verificación de root comunes
-    const methods = [
-        'isDeviceRooted',
-        'checkRoot',
-        'isRoot',
-        'hasRoot',
-        'detectRoot'
-    ];
-    
-    methods.forEach(method => {
-        try {
-            const target = Java.use('java.lang.ProcessBuilder');
-            console.log('[+] Hooked: ' + method);
-        } catch(e) {
-            // Ignorar si no existe
-        }
-    });
-}
+## Soporte y contribuciones
 
-bypassRootDetection();
-console.log('[✓] Root Detection Bypass activo');
-```
+- [Reportar problemas o proponer mejoras](https://github.com/Tinchodoko/Fridagate/issues)
+- [Ver el código fuente](https://github.com/Tinchodoko/Fridagate)
+- [Ver compilaciones](https://github.com/Tinchodoko/Fridagate/actions)
+- [Ver publicaciones](https://github.com/Tinchodoko/Fridagate/releases)
 
----
-
-## 🔌 Integración con Frida
-
-### Arquitectura de Inyección
-
-```
-Fridagate (Android App)
-    ↓
-FridaInjectionService (Socket localhost:27042)
-    ↓
-Frida Server (root)
-    ↓
-Proceso Objetivo
-```
-
-### Conexión Automática
-La app intenta conexión en este orden:
-1. Socket local (127.0.0.1:27042) — Recomendado
-2. Fallback a shell script (rooted device)
-3. Error si Frida no está disponible
-
----
-
-## 📊 Captura de Pantallas
-
-### Pestaña Scripts
-- Selector de Target App en la parte superior
-- Lista de scripts creados
-- Scripts predefinidos (toggles activables)
-- Botones: Nuevo Script, Importar .js
-
-### Pestaña Editor
-- Editor de código con syntax highlighting
-- Templates predefinidos (Básico, IL2CPP)
-- Guardado automático de metadatos
-
-### Pestaña Logs
-- Captura en tiempo real con timestamps
-- Colores: ✅ Verde (éxito), ❌ Rojo (error), ⚠️ Amarillo (warn)
-- Exportar a TXT
-- Limpiar logs
-
----
-
-## 🐛 Troubleshooting
-
-### "Frida Server no responde"
-```bash
-# En el dispositivo (root):
-su
-frida-server -l 127.0.0.1:27042 &
-
-# En tu PC:
-adb forward tcp:27042 tcp:27042
-```
-
-### "Permisos de almacenamiento rechazados"
-1. Abre Configuración → Aplicaciones → Fridagate
-2. Permisos → Archivos: Permitir
-3. Reinicia la app
-
-### "Script no inyecta en la app"
-1. Verifica que el Target App esté seleccionado
-2. Comprueba que el proceso está vivo: `adb shell ps | grep -i "app_name"`
-3. Asegúrate de que Frida Server está corriendo
-
-### "IL2CPP Bridge no detectado"
-- Solo funciona en apps con IL2CPP compilado
-- Requiere frida-il2cpp-bridge en el servidor Frida
-- Verifica: `pip install frida-il2cpp-bridge`
-
----
-
-## 🤝 Contribuir
-
-### Fork + Pull Request
-```bash
-# 1. Fork el repositorio
-# 2. Crea una rama:
-git checkout -b feature/tu-feature
-
-# 3. Commit cambios:
-git commit -m "Add: descripción clara del cambio"
-
-# 4. Push:
-git push origin feature/tu-feature
-
-# 5. Abre Pull Request
-```
-
-### Reporte de Bugs
-Abre un issue en: https://github.com/Tinchodoko/Fridagate/issues
-
----
-
-## 📜 Licencia
-
-Este proyecto está bajo licencia **GPLv3**. Lee el archivo [LICENSE](LICENSE) para más detalles.
-
-```
-Fridagate - Android Frida GUI
-Copyright (C) 2024 Tinchodoko
-
-Este software es libre: puedes redistribuirlo y/o modificarlo bajo los 
-términos de la Licencia Pública General GNU tal como está publicada por la 
-Free Software Foundation, ya sea la versión 3 de la Licencia o cualquier 
-versión posterior.
-```
-
----
-
-## 🙏 Créditos
-
-### Trabajo Original
-**Javier Olmedo** - Creador original de Fridagate  
-Repositorio: https://github.com/JavierOlmedo/Fridagate
-
-### Fork Actual
-**Tinchodoko** - Mejoras, Script Manager, IL2CPP support  
-Repositorio: https://github.com/Tinchodoko/Fridagate
-
-### Tecnologías
-- [Frida](https://frida.re) - Dynamic Instrumentation Toolkit
-- [Kotlin](https://kotlinlang.org) - Language
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) - UI Framework
-- [Android NDK](https://developer.android.com/ndk) - Native Development Kit
-
----
-
-## 📞 Contacto & Soporte
-
-- **GitHub Issues**: [Reportar bug](https://github.com/Tinchodoko/Fridagate/issues)
-- **GitHub Discussions**: [Q&A](https://github.com/Tinchodoko/Fridagate/discussions)
-- **Owner Original**: [@JavierOlmedo](https://github.com/JavierOlmedo)
-
----
-
-## ⚠️ Disclaimer Legal
-
-**Fridagate** es una herramienta de pentesting. Su uso está restringido a:
-- Testing de aplicaciones **de tu propiedad**
-- Análisis de seguridad **autorizado**
-- Investigación académica **con consentimiento**
-
-**El uso no autorizado de esta herramienta es ilegal.** El autor no es responsable de usos maliciosos o ilegales.
-
----
-
-## 📅 Changelog
-
-### v2.0 (Actual)
-- ✅ Script Manager completo (CRUD)
-- ✅ Almacenamiento en `/Fridagate2.0/Scripts/`
-- ✅ Importación de scripts .js
-- ✅ Toggles para scripts predefinidos
-- ✅ Target App selector mejorado
-- ✅ Logs exportables a TXT
-- ✅ Soporte IL2CPP bridge
-- ✅ UI rediseñada en Jetpack Compose
-
-### v1.0 (Original)
-- Interfaz básica de Frida
-- Ejecución de scripts simple
-- Captura de output
-
----
-
-**Hecho en Argentina 🇦🇷 por Tinchodoko 👿**
-
-*Última actualización: Octubre 2024*
+Al informar un problema, incluye el número de build, versión de Android, arquitectura del dispositivo, versión de Frida y los logs relevantes. No publiques claves, tokens, contraseñas ni datos privados.
