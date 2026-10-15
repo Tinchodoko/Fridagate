@@ -103,7 +103,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             )
             
             Text(
-                "HERRAMIENTA DE ANÁLISIS DE SEGURIDAD PARA ANDROID",
+                "HERRAMIENTA ANDROID PARA PRUEBAS AUTORIZADAS, INSTRUMENTACIÓN Y DIAGNÓSTICO",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 16.dp)
