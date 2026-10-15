@@ -415,8 +415,8 @@ fun DashboardScreen() {
                 "INSTALACIÓN INTELIGENTE" -> if (selectedFridaVersion.isBlank()) "PRIMERO SELECCIONA UNA VERSIÓN EN LA PESTAÑA FRIDA." else "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion."
                 "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
-                "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE SOBRE OTRAS APLICACIONES."
-                else -> "OCULTAR EL ICONO FLOTANTE DE FRIDAGATE."
+                "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE 2.0 SOBRE OTRAS APLICACIONES."
+                else -> "OCULTAR EL ICONO FLOTANTE DE FRIDAGATE 2.0."
             }
             AlertDialog(
                 onDismissRequest = { pendingConfirmation = null },
@@ -749,7 +749,7 @@ private fun DashboardLogPanel(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate - Inicio", logs.joinToString("\n")))
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate 2.0 — Inicio", logs.joinToString("\n")))
                         android.widget.Toast.makeText(context, "REGISTROS COPIADOS", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Text("COPIAR") }
                     TextButton(onClick = onExport) { Text("EXPORTAR") }
