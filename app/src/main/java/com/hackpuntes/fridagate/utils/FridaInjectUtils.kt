@@ -273,22 +273,32 @@ object FridaInjectUtils {
                     val isUnityDiagnostics =
                         normalizedScriptName == "fridagateunityil2cppdiagnostics" ||
                         normalizedScriptName == "fridagateunityil2cppbundle"
-                    val bundledDiagnostics = if (isUnityDiagnostics) {
-                        runCatching {
+                    val isRuntimeDiagnostics =
+                        normalizedScriptName == "fridagateruntimediagnostics" ||
+                        normalizedScriptName == "fridagateruntimediagnosticss"
+                    val bundledDiagnostics = when {
+                        isUnityDiagnostics -> runCatching {
                             context.assets.open("scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js")
                                 .bufferedReader()
                                 .use { it.readText() }
                         }.getOrNull()
-                    } else null
-                    // Emit the same verifiable boot marker for every custom script,
-                    // including DIVA diagnostics and scripts unrelated to Unity.
+                        isRuntimeDiagnostics -> runCatching {
+                            context.assets.open("scripts/FridaGate_Runtime_Diagnostics.bundle.js")
+                                .bufferedReader()
+                                .use { it.readText() }
+                        }.getOrNull()
+                        else -> null
+                    }
+                    // One boot marker per selected script lets the injector confirm startup.
                     appendLine("console.log('[FRIDAGATE-SCRIPT-BOOT]');")
                     appendLine(bundledDiagnostics ?: script.code)
                     appendLine()
-                    if (isUnityDiagnostics && bundledDiagnostics == null) {
-                        lines += "⚠️ No se encontró el bundle de diagnóstico con bridges; se usó el código guardado del script."
-                    } else if (bundledDiagnostics != null) {
+                    if ((isUnityDiagnostics || isRuntimeDiagnostics) && bundledDiagnostics == null) {
+                        lines += "⚠️ No se encontró el bundle de diagnóstico esperado; se usó el código guardado del script."
+                    } else if (bundledDiagnostics != null && isUnityDiagnostics) {
                         lines += "✓ Bundle Unity IL2CPP cargado con bridges Java/IL2CPP."
+                    } else if (bundledDiagnostics != null && isRuntimeDiagnostics) {
+                        lines += "✓ Bundle Runtime Diagnostics cargado con frida-java-bridge integrado."
                     }
                 }
             }
