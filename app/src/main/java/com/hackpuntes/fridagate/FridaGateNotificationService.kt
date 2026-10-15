@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Mantiene el icono flotante de FridaGate durante las pruebas.
+ * Mantiene el icono flotante de FridaGate 2.0 durante las pruebas.
  * Android exige una notificación para mantener un servicio en primer plano;
  * se usa una notificación mínima y silenciosa, sin el antiguo título de marca.
  */
@@ -49,7 +49,7 @@ class FridaGateNotificationService : Service() {
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Servicio de icono flotante", NotificationManager.IMPORTANCE_MIN).apply {
-                    description = "Mantiene disponible el icono flotante de FridaGate"
+                    description = "Mantiene disponible el icono flotante de FridaGate 2.0"
                     setShowBadge(false)
                 }
             )
@@ -101,7 +101,7 @@ class FridaGateNotificationService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.fridagate_icon)
             .setContentTitle("Servicio de icono flotante")
-            .setContentText("Icono flotante de FridaGate activo")
+            .setContentText("Icono flotante de FridaGate 2.0 activo")
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOngoing(true)
             .setSilent(true)
@@ -128,7 +128,7 @@ class FridaGateNotificationService : Service() {
             val bubble = ImageView(this).apply {
                 setImageDrawable(packageManager.getApplicationIcon(packageName))
                 scaleType = ImageView.ScaleType.CENTER_CROP
-                contentDescription = "Icono flotante de FridaGate. Toca para abrir el menú."
+                contentDescription = "Icono flotante de FridaGate 2.0. Toca para abrir el menú."
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(Color.rgb(72, 90, 180))
@@ -171,7 +171,7 @@ class FridaGateNotificationService : Service() {
                     } else {
                         val preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                         val returnToTarget = preferences.getBoolean(PREF_RETURN_TO_TARGET_NEXT, false)
-                        // Alterna el destino: desde el juego vuelve a FridaGate; desde FridaGate vuelve al juego.
+                        // Alterna el destino: desde la aplicación objetivo vuelve a FridaGate 2.0; desde FridaGate 2.0 vuelve a la aplicación objetivo.
                         preferences.edit().putBoolean(PREF_RETURN_TO_TARGET_NEXT, !returnToTarget).apply()
                         updateTargetControls()
                         if (returnToTarget) openTargetApp(target) else openFridaGate()
