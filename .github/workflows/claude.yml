@@ -70,6 +70,7 @@ jobs:
       - name: Run Claude Code via OpenRouter
         uses: anthropics/claude-code-action@v1
         with:
+          show_full_output: true
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           trigger_phrase: "@${{ steps.model.outputs.command }}"
           claude_args: |
