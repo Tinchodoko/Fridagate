@@ -43,7 +43,7 @@ import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
 import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModelFactory
 
 /**
- * MainActivity - The single Activity that hosts the entire app.
+ * MainActivity - Activity principal que aloja FridaGate 2.0.
  *
  * In modern Android with Jetpack Compose, apps typically have just ONE Activity.
  * All navigation between screens happens inside Compose using a NavController,
@@ -51,7 +51,7 @@ import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModelFactory
  *
  * Structure:
  *  MainActivity (Activity)
- *  └── FridagateTheme (applies colors, typography)
+ *  └── FridaGate 2.0 theme (colores y tipografía)
  *      └── FridagateApp (Scaffold with BottomNavigationBar)
  *          ├── DashboardScreen  (tab: Home)
  *          ├── FridaScreen      (tab: Frida)
@@ -119,7 +119,7 @@ data class BottomNavItem(
 )
 
 /**
- * FridagateApp - Root composable that sets up the navigation scaffold.
+ * FridagateApp - Composable raíz que configura la navegación de FridaGate 2.0.
  *
  * Scaffold is a Material3 layout that provides slots for common UI elements:
  *  - topBar: toolbar at the top
