@@ -14,6 +14,12 @@ jobs:
         contains(github.event.comment.body, '@sonnet-45') ||
         contains(github.event.comment.body, '@haiku-55') ||
         contains(github.event.comment.body, '@haiku-45') ||
+        contains(github.event.comment.body, '@nemotron') ||
+        contains(github.event.comment.body, '@laguna') ||
+        contains(github.event.comment.body, '@north') ||
+        contains(github.event.comment.body, '@inkling') ||
+        contains(github.event.comment.body, '@gemma') ||
+        contains(github.event.comment.body, '@auto') ||
         contains(github.event.comment.body, '@claude')
       )
     runs-on: ubuntu-latest
@@ -42,7 +48,7 @@ jobs:
 
           body = os.environ.get("COMMENT_BODY", "")
           match = re.search(
-              r"(?<!\S)@(sonnet-55|sonnet-45|haiku-55|haiku-45|claude)(?![\w-])",
+              r"(?<!\S)@(sonnet-55|sonnet-45|haiku-55|haiku-45|nemotron|laguna|north|inkling|gemma|auto|claude)(?![\w-])",
               body,
               re.IGNORECASE,
           )
@@ -56,6 +62,12 @@ jobs:
               "sonnet-45": "anthropic/claude-sonnet-4.5",
               "haiku-55": "anthropic/claude-haiku-5.5",
               "haiku-45": "anthropic/claude-haiku-4.5",
+              "nemotron": "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "laguna": "poolside/laguna-s-2.1:free",
+              "north": "cohere/north-mini-code:free",
+              "inkling": "thinkingmachines/inkling:free",
+              "gemma": "google/gemma-4-31b-it:free",
+              "auto": "openrouter/free",
               "claude": "anthropic/claude-sonnet-5.5",
           }
           print(f"command={command}")
