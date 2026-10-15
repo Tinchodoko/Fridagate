@@ -4,7 +4,7 @@ Esta guía corresponde al estado actual del proyecto. Para el inventario de func
 
 ## Obtener una APK
 
-1. Abre [GitHub Actions](https://github.com/Tinchodoko/Fridagate/actions) y elige una ejecución exitosa de **Build APK**.
+1. Abre [GitHub Actions](https://github.com/Tinchodoko/Fridagate/actions) y elige una ejecución exitosa de **Build FridaGate 2.0 APK**.
 2. Descarga el artefacto `app-debug`, o revisa [Releases](https://github.com/Tinchodoko/Fridagate/releases) para las publicaciones automáticas con etiqueta `build-N`.
 3. Instala el APK en tu dispositivo Android. Puede ser necesario autorizar la instalación desde la fuente elegida.
 
