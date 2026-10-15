@@ -28,7 +28,7 @@ chmod +x gradlew
 ./gradlew assembleDebug
 ```
 
-El APK de depuración se genera en `app/build/outputs/apk/debug/app-debug.apk`. También puedes usar el workflow **Build APK** de GitHub Actions.
+El APK de depuración se genera en `app/build/outputs/apk/debug/app-debug.apk`. También puedes usar el workflow **Build FridaGate 2.0 APK** de GitHub Actions.
 
 ## Reglas para cambios futuros
 
