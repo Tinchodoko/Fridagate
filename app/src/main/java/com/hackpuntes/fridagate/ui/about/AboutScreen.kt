@@ -149,7 +149,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 Text("✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN Y EJECUCIÓN DE SCRIPTS HABILITADOS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ CONSOLA: REGISTROS EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ UNITY IL2CPP: AGENTE DE DIAGNÓSTICO CON BRIDGES JAVASCRIPT INCLUIDOS EN EL BUNDLE", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ ICONO FLOTANTE: ACCESO RÁPIDO PARA ALTERNAR ENTRE FRIDAGATE Y LA APLICACIÓN OBJETIVO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ ICONO FLOTANTE: ACCESO RÁPIDO PARA ALTERNAR ENTRE FRIDAGATE 2.0 Y LA APLICACIÓN OBJETIVO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR LA PÁGINA EN EL NAVEGADOR EXTERNO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN DE SALIDA A TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
             }
@@ -163,7 +163,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             
             // Github Repository
             ClickableText(
-                text = AnnotatedString("📍 REPOSITORIO DE GITHUB: TINCHODOKO/FRIDAGATE"),
+                text = AnnotatedString("📍 CÓDIGO FUENTE: FRIDAGATE 2.0"),
                 onClick = {
                     onOpenUrl("https://github.com/Tinchodoko/Fridagate")
                 },
@@ -176,7 +176,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             
             // Owner Repository
             ClickableText(
-                text = AnnotatedString("📍 REPOSITORIO ORIGINAL: JAVIEROLMEDO/FRIDAGATE"),
+                text = AnnotatedString("📍 CRÉDITO DEL PROYECTO ORIGINAL: JAVIER OLMEDO"),
                 onClick = {
                     onOpenUrl("https://github.com/JavierOlmedo/Fridagate")
                 },
