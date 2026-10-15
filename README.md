@@ -58,8 +58,6 @@ El proyecto está orientado a pruebas autorizadas, análisis de seguridad, depur
 - Una versión de frida-server compatible con las herramientas cliente/runtime que se utilicen.
 - Conexión a Internet para consultar publicaciones o descargar componentes.
 
-FridaGate 2.0 **no requiere publicarse en Google Play** para compilarse, instalarse y probarse mediante APK.
-
 ## Instalar la aplicación
 
 ### Opción A: descargar una build de GitHub
