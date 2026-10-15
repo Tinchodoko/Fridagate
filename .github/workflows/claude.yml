@@ -79,5 +79,5 @@ jobs:
               "model": "${{ steps.model.outputs.model }}"
             }
         env:
-          ANTHROPIC_BASE_URL: "https://openrouter.ai/api"
+          ANTHROPIC_BASE_URL: "https://openrouter.ai/api/v1"
           ANTHROPIC_MODEL: ${{ steps.model.outputs.model }}
