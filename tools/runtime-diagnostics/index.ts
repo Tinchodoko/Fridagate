@@ -49,7 +49,6 @@ try {
       try {
         const Activity = Java.use("android.app.Activity");
         log("TEST 6 PASS: android.app.Activity is accessible.");
-        Activity.$dispose();
       } catch (error) {
         reportError("Java.use(android.app.Activity)", error);
       }
