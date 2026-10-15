@@ -565,7 +565,7 @@ private fun LogPanel(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate - Frida", logs.joinToString("\n")))
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate 2.0 — Frida", logs.joinToString("\n")))
                         Toast.makeText(context, "REGISTROS COPIADOS", Toast.LENGTH_SHORT).show()
                     }) { Text("COPIAR") }
                     TextButton(onClick = onExport) { Text("EXPORTAR") }
