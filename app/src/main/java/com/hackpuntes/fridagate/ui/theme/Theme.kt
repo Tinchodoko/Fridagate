@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Fridagate always uses the dark hacker theme — no light mode.
+ * FridaGate 2.0 usa por defecto el tema oscuro de la aplicación.
  *
  * Material3 darkColorScheme maps our custom colors to semantic roles:
  *
