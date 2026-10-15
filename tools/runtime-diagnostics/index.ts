@@ -37,57 +37,27 @@ try {
   threads.slice(0, 10).forEach(t => log("  Thread ID=" + t.id + " name=" + (t.name || "(unnamed)")));
 } catch (error) { reportError("thread enumeration", error); }
 
-function validateJavaBridge(method: string): void {
-  if (javaValidationCompleted) {
-    log("TEST 6 INFO: " + method + " callback arrived after validation was already completed.");
-    return;
-  }
-  javaValidationCompleted = true;
-  log("TEST 6 PASS: " + method + " callback executed.");
-  try {
-    log("Android version = " + Java.androidVersion);
-  } catch (error) {
-    reportError("Java.androidVersion", error);
-  }
-  try {
-    Java.use("android.app.Activity");
-    log("TEST 6 PASS: android.app.Activity is accessible.");
-  } catch (error) {
-    reportError("Java.use(android.app.Activity)", error);
-  }
-  try {
-    const Version = Java.use("android.os.Build$VERSION");
-    log("Android release = " + Version.RELEASE.value + "; SDK_INT = " + Version.SDK_INT.value);
-  } catch (error) {
-    reportError("Android Build.VERSION", error);
-  }
-  log("TEST 6 DONE: Java bridge validation finished.");
-}
-
-let javaValidationCompleted = false;
-
 try {
   log("TEST 6: frida-java-bridge bundle loaded.");
   log("Java.available = " + Java.available);
   if (!Java.available) {
     log("TEST 6 WARN: bridge is bundled, but Java VM is not available in this process yet.");
   } else {
-    log("TEST 6 INFO: scheduling Java.perform() callback.");
-    Java.perform(() => validateJavaBridge("Java.perform"));
-
-    // Java.perform() may wait for the application class loader to become available.
-    // Use performNow as a bounded fallback so the diagnostic can still test Android's
-    // bootstrap classes and report whether the callback was merely delayed.
-    setTimeout(() => {
-      if (javaValidationCompleted) return;
-      log("TEST 6 WARN: Java.perform() callback did not run within 3000 ms; trying Java.performNow().");
+    Java.perform(() => {
+      log("TEST 6 PASS: Java.perform() callback executed.");
+      log("Android version = " + Java.androidVersion);
       try {
-        Java.performNow(() => validateJavaBridge("Java.performNow fallback"));
+        Java.use("android.app.Activity");
+        log("TEST 6 PASS: android.app.Activity is accessible.");
       } catch (error) {
-        reportError("Java.performNow fallback", error);
-        log("TEST 6 FAIL: neither Java.perform() nor its synchronous fallback completed validation.");
+        reportError("Java.use(android.app.Activity)", error);
       }
-    }, 3000);
+      try {
+        const Version = Java.use("android.os.Build$VERSION");
+        log("Android release = " + Version.RELEASE.value + "; SDK_INT = " + Version.SDK_INT.value);
+      } catch (error) { reportError("Android Build.VERSION", error); }
+      log("TEST 6 DONE: Java bridge validation finished.");
+    });
   }
 } catch (error) {
   reportError("Java bridge initialization", error);
@@ -100,4 +70,4 @@ try {
   log("Flutter detected = " + names.some(n => n.includes("flutter")));
 } catch (error) { reportError("framework detection", error); }
 
-log("========== INITIAL RUNTIME DIAGNOSTICS FINISHED; JAVA CHECK MAY CONTINUE ==========");
+log("========== RUNTIME DIAGNOSTICS FINISHED ==========");
