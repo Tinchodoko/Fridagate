@@ -1,4 +1,4 @@
-name: Build APK
+name: Build FridaGate 2.0 APK
 
 on:
   push:
