@@ -330,6 +330,85 @@ object FridaInjectUtils {
                 lines += "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
             }
 
+            // Runtime Diagnostics includes frida-java-bridge. Starting the app with that
+            // bridge injected from the first instruction can hold Android's cold-start path
+            // long enough to trigger ActivityTaskManager's launch timeout. For this one
+            // diagnostic script, launch the app normally first and attach only after its PID
+            // has remained available. Other script combinations retain the existing spawn flow.
+            val runtimeDiagnosticsOnly =
+                bypassScripts.isEmpty() &&
+                customScripts.size == 1 &&
+                customScripts.any { script ->
+                    val normalized = script.name.lowercase().replace(Regex("[^a-z0-9]"), "")
+                    normalized == "fridagateruntimediagnostics" ||
+                    normalized == "fridagateruntimediagnosticsjs" ||
+                    normalized == "fridagateruntimediagnosticss"
+                }
+
+            if (runtimeDiagnosticsOnly) {
+                lines += "ℹ️ Diagnóstico Runtime: iniciando la aplicación normalmente antes de adjuntar Frida."
+                RootUtils.executeSuCommand("rm -f $INJECT_LOG")
+                recordInjectedPackage(packageName)
+
+                val normalLaunch = RootUtils.executeSuCommand("monkey -p $packageName 1 2>&1").trim()
+                if (normalLaunch.isNotBlank()) {
+                    normalLaunch.lines().filter { it.isNotBlank() }.forEach { lines += "  $it" }
+                }
+
+                var targetPid = ""
+                repeat(20) {
+                    targetPid = RootUtils.executeSuCommand("pidof $packageName")
+                        .trim().split(Regex("\\s+")).firstOrNull().orEmpty()
+                    if (targetPid.isBlank()) Thread.sleep(500)
+                }
+                if (!targetPid.matches(Regex("\\d+"))) {
+                    lines += "❌ La aplicación no llegó a iniciar normalmente; no se inyectó el diagnóstico."
+                    return@withContext lines
+                }
+
+                // Give Android time to complete the first Activity launch before attaching.
+                Thread.sleep(2000)
+                lines += "✓ Aplicación iniciada normalmente (PID $targetPid). Adjuntando diagnóstico..."
+
+                val attachCmd = "nohup $INJECT_BINARY_PATH -p $targetPid -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo \$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
+                val attachResult = RootUtils.executeSuCommand(attachCmd).trim()
+                if (!attachResult.contains("INJECT_LAUNCHED")) {
+                    lines += "❌ No se pudo iniciar frida-inject en modo attach."
+                    if (attachResult.isNotBlank()) lines += attachResult
+                    return@withContext lines
+                }
+
+                var attachLog = ""
+                var lastAttachLog = ""
+                repeat(10) {
+                    Thread.sleep(1000)
+                    attachLog = RootUtils.executeSuCommand("cat $INJECT_LOG 2>/dev/null").trim()
+                    if (attachLog.isNotBlank() && attachLog != lastAttachLog) {
+                        val newText = attachLog.removePrefix(lastAttachLog).trim()
+                        if (lastAttachLog.isBlank()) lines += "frida-inject output:"
+                        newText.lines().filter { it.isNotBlank() }.forEach { lines += "  $it" }
+                        lastAttachLog = attachLog
+                    }
+                }
+
+                val stillRunning = findProcessId(packageName)
+                if (stillRunning != null) {
+                    if (attachLog.contains("[FRIDAGATE-SCRIPT-BOOT]")) {
+                        lines += "✅ Diagnóstico adjuntado; la aplicación continúa activa (PID $stillRunning)."
+                    } else {
+                        lines += "⚠️ La aplicación continúa activa (PID $stillRunning), pero no se confirmó el inicio del script."
+                        lines += "ℹ️ Revisa el mensaje de frida-inject mostrado arriba."
+                    }
+                } else {
+                    lines += "❌ La aplicación terminó después del intento de attach."
+                    val crashDiagnostics = collectTargetCrashDiagnostics(packageName)
+                    if (crashDiagnostics.isNotBlank()) {
+                        crashDiagnostics.lines().forEach { lines += "📱 $it" }
+                    }
+                }
+                return@withContext lines
+            }
+
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
             recordInjectedPackage(packageName)
