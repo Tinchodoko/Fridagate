@@ -135,4 +135,22 @@ val buildUnityDiagnostics by tasks.registering(Exec::class) {
     outputs.file(layout.projectDirectory.file("src/main/assets/scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js"))
 }
 
-tasks.named("preBuild") { dependsOn(buildUnityDiagnostics) }
+val runtimeDiagnosticsDir = rootProject.layout.projectDirectory.dir("tools/runtime-diagnostics")
+
+val buildRuntimeDiagnostics by tasks.registering(Exec::class) {
+    group = "frida"
+    description = "Bundles runtime diagnostics with frida-java-bridge"
+    workingDir = runtimeDiagnosticsDir.asFile
+    val cmd = "npm install --no-audit --no-fund && npm run build"
+    if (isWindows) commandLine("cmd", "/c", cmd) else commandLine("sh", "-c", cmd)
+    inputs.files(
+        runtimeDiagnosticsDir.file("index.ts"),
+        runtimeDiagnosticsDir.file("package.json")
+    )
+    outputs.file(layout.projectDirectory.file("src/main/assets/scripts/FridaGate_Runtime_Diagnostics.bundle.js"))
+}
+
+tasks.named("preBuild") {
+    dependsOn(buildUnityDiagnostics)
+    dependsOn(buildRuntimeDiagnostics)
+}
