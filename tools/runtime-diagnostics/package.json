@@ -8,6 +8,7 @@
   "devDependencies": {
     "@types/frida-gum": "17.0.0",
     "esbuild": "0.25.2",
-    "frida-java-bridge": "7.0.4"
+    "frida-java-bridge": "7.0.4",
+    "buffer": "6.0.3"
   }
 }
