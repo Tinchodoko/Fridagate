@@ -62,7 +62,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             latestBuild = release
             updateStatus = when {
                 release > currentBuild -> "FRIDAGATE 2.0 ESTÁ DESACTUALIZADA: HAY UNA BUILD MÁS NUEVA DISPONIBLE EN GITHUB."
-                release == currentBuild -> "FRIDAGATE ESTÁ ACTUALIZADA."
+                release == currentBuild -> "FRIDAGATE 2.0 ESTÁ ACTUALIZADA."
                 else -> "FRIDAGATE 2.0 USA UNA BUILD MÁS NUEVA QUE LA ÚLTIMA PUBLICACIÓN."
             }
         } catch (e: Exception) {
@@ -111,7 +111,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             
             // Description
             Text(
-                "FRIDAGATE 2.0 es una herramienta integral para analizar la seguridad de aplicaciones Android. Permite gestionar scripts de Frida, consultar registros y exportar resultados directamente desde el dispositivo.",
+                "FridaGate 2.0 integra la gestión del entorno de Frida, scripts JavaScript, diagnósticos de runtime, registros, una terminal y un navegador integrado para apoyar pruebas autorizadas y análisis de aplicaciones Android.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -130,7 +130,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             )
             
             Text(
-                "GRACIAS A JAVIER OLMEDO POR SU TRABAJO Y POR EL PROYECTO ORIGINAL 🙏",
+                "RECONOCIMIENTO A JAVIER OLMEDO POR EL TRABAJO DEL PROYECTO ORIGINAL 🙏",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.padding(bottom = 16.dp)
