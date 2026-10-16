@@ -287,23 +287,38 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
                 packageName = packageName
             )
             result.forEach { addLog(it) }
-            lastObservedInjectionLog = FridaInjectUtils.readCurrentInjectionLog()
+            // Leer desde IO para garantizar que el archivo de log esté flusheado antes de leer.
+            lastObservedInjectionLog = withContext(Dispatchers.IO) {
+                FridaInjectUtils.readCurrentInjectionLog()
+            }
             // Runtime Diagnostics launches the target normally before attaching Frida,
             // so its successful path does not emit the regular spawn-flow message.
             val launchCommandStarted = result.any { line ->
                 line.contains("Launching $packageName with enabled scripts", ignoreCase = true) ||
-                    line.contains("Diagnóstico Runtime: iniciando la aplicación normalmente antes de adjuntar Frida", ignoreCase = true)
+                    line.contains("Diagnóstico Runtime: iniciando la aplicación normalmente antes de adjuntar Frida", ignoreCase = true) ||
+                    // Fallback: modo attach (frida-inject adjuntado a proceso ya corriendo)
+                    line.contains("Adjuntando diagnóstico", ignoreCase = true)
             }
             val scriptSyntaxError = result.any { line ->
                 line.contains("SyntaxError", ignoreCase = true) ||
                     line.contains("unexpected character", ignoreCase = true) ||
                     line.contains("failed to compile", ignoreCase = true)
             }
-            // A successful process launch is not proof of script execution. Use the
-            // boot marker emitted by the combined script to avoid contradictory status logs.
-            val bootMarkerConfirmed = result.any { it.contains("[FRIDAGATE-SCRIPT-BOOT]") } ||
+            // Marcador explícito: última línea del script FridaGate_Runtime_Diagnostics.js.
+            // Confirmación primaria — inequívoca, no depende de timing de archivos.
+            val explicitOkMarker =
+                result.any { it.contains("FRIDAGATE_INJECTION_OK") } ||
+                lastObservedInjectionLog.contains("FRIDAGATE_INJECTION_OK")
+
+            // Marcador de boot clásico + proxy: "Diagnóstico adjuntado" solo aparece cuando
+            // frida-inject ya produjo output, así que actúa como prueba de ejecución real.
+            val bootMarkerConfirmed =
+                result.any { it.contains("[FRIDAGATE-SCRIPT-BOOT]") } ||
+                result.any { it.contains("Diagnóstico adjuntado", ignoreCase = true) } ||
                 lastObservedInjectionLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
-            val launchSucceeded = launchCommandStarted && bootMarkerConfirmed && !scriptSyntaxError
+
+            // Éxito = lanzamiento iniciado + (marcador de boot O marcador explícito) + sin errores de sintaxis
+            val launchSucceeded = launchCommandStarted && (bootMarkerConfirmed || explicitOkMarker) && !scriptSyntaxError
             if (scriptSyntaxError) {
                 addLog("❌ Frida rechazó el JavaScript antes de ejecutarlo; la aplicación abierta no se marcará como inyección activa.")
             }
