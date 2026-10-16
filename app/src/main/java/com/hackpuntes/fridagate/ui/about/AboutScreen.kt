@@ -66,7 +66,14 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 else -> "FRIDAGATE 2.0 USA UNA BUILD MÁS NUEVA QUE LA ÚLTIMA PUBLICACIÓN."
             }
         } catch (e: Exception) {
-            updateStatus = "NO SE PUDO CONSULTAR GITHUB: " + (e.message ?: "ERROR DE CONEXIÓN")
+            updateStatus = when {
+                e.message?.contains("HTTP 404", ignoreCase = true) == true ->
+                    "EL REPOSITORIO ES PRIVADO: LA APP NO PUEDE CONSULTAR LA API DE RELEASES SIN UN SERVICIO DE VERSIONES AUTENTICADO. ABRE GITHUB PARA VER LA ÚLTIMA PUBLICACIÓN."
+                e.message?.contains("HTTP 401", ignoreCase = true) == true ||
+                    e.message?.contains("HTTP 403", ignoreCase = true) == true ->
+                    "GITHUB DENEGÓ EL ACCESO A LAS VERSIONES. REVISA LOS PERMISOS DEL SERVICIO DE ACTUALIZACIONES."
+                else -> "NO SE PUDO CONSULTAR GITHUB: " + (e.message ?: "ERROR DE CONEXIÓN")
+            }
         } finally {
             isCheckingUpdate = false
         }
@@ -290,6 +297,17 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                         color = if (latestBuild != null && latestBuild!! > currentBuild)
                             MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = { onOpenUrl("https://github.com/Tinchodoko/Fridagate/releases/latest") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("VER ÚLTIMA PUBLICACIÓN / DESCARGAR APK")
+                    }
+                    Text(
+                        "Si GitHub solicita iniciar sesión, accede con una cuenta que tenga permiso para ver el repositorio privado. En la publicación, descarga el archivo app-debug.apk.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
