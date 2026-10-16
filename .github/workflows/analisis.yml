@@ -149,7 +149,7 @@ jobs:
         continue-on-error: true
 
       - name: Build report
-        run: python3 .github/scripts/build_report.py resultados reporte.md
+        run: python3 .github/Scripts/build_report.py resultados reporte.md
 
       - name: Show report in the run summary
         run: cat reporte.md >> "$GITHUB_STEP_SUMMARY"
