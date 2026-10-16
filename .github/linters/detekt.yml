@@ -1,0 +1,24 @@
+# Configuración de Detekt para Fridagate (Kotlin + Jetpack Compose).
+# Se aplica ENCIMA de la configuración por defecto de Detekt: solo se escriben
+# los cambios necesarios para que los Composables no generen falsos positivos.
+
+naming:
+  FunctionNaming:
+    # Los Composables se nombran con mayúscula inicial (convención de Compose).
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    active: true
+
+complexity:
+  LongMethod:
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
+  CyclomaticComplexMethod:
+    ignoreAnnotated: ['Composable']
+
+style:
+  MagicNumber:
+    ignoreAnnotated: ['Composable']
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
