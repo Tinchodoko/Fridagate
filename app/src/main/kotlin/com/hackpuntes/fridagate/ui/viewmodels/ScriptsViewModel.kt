@@ -288,8 +288,11 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
             )
             result.forEach { addLog(it) }
             lastObservedInjectionLog = FridaInjectUtils.readCurrentInjectionLog()
-            val launchCommandStarted = result.any {
-                it.contains("Launching $packageName with enabled scripts", ignoreCase = true)
+            // Runtime Diagnostics launches the target normally before attaching Frida,
+            // so its successful path does not emit the regular spawn-flow message.
+            val launchCommandStarted = result.any { line ->
+                line.contains("Launching $packageName with enabled scripts", ignoreCase = true) ||
+                    line.contains("Diagnóstico Runtime: iniciando la aplicación normalmente antes de adjuntar Frida", ignoreCase = true)
             }
             val scriptSyntaxError = result.any { line ->
                 line.contains("SyntaxError", ignoreCase = true) ||
