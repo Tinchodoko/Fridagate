@@ -68,7 +68,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
         } catch (e: Exception) {
             updateStatus = when {
                 e.message?.contains("HTTP 404", ignoreCase = true) == true ->
-                    "EL REPOSITORIO ES PRIVADO: LA APP NO PUEDE CONSULTAR LA API DE RELEASES SIN UN SERVICIO DE VERSIONES AUTENTICADO. ABRE GITHUB PARA VER LA ÚLTIMA PUBLICACIÓN."
+                    "GITHUB NO ENCONTRÓ UNA PUBLICACIÓN DISPONIBLE. REVISA LA SECCIÓN RELEASES DEL REPOSITORIO O INTÉNTALO DE NUEVO MÁS TARDE."
                 e.message?.contains("HTTP 401", ignoreCase = true) == true ||
                     e.message?.contains("HTTP 403", ignoreCase = true) == true ->
                     "GITHUB DENEGÓ EL ACCESO A LAS VERSIONES. REVISA LOS PERMISOS DEL SERVICIO DE ACTUALIZACIONES."
@@ -299,13 +299,21 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedButton(
+                        onClick = {
+                            onOpenUrl("https://github.com/Tinchodoko/Fridagate/releases/latest/download/app-debug.apk")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("DESCARGAR ÚLTIMA APK")
+                    }
+                    OutlinedButton(
                         onClick = { onOpenUrl("https://github.com/Tinchodoko/Fridagate/releases/latest") },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("VER ÚLTIMA PUBLICACIÓN / DESCARGAR APK")
+                        Text("VER PUBLICACIÓN EN GITHUB")
                     }
                     Text(
-                        "Si GitHub solicita iniciar sesión, accede con una cuenta que tenga permiso para ver el repositorio privado. En la publicación, descarga el archivo app-debug.apk.",
+                        "La comprobación compara la build instalada con el número de la última publicación. Si la descarga directa no comienza, abre la publicación en GitHub y descarga app-debug.apk.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
