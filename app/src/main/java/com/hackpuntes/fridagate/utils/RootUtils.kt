@@ -1,7 +1,5 @@
 package com.hackpuntes.fridagate.utils
 
-import java.util.concurrent.TimeUnit
-
 /**
  * Executes shell commands through the device's superuser manager.
  *
@@ -58,8 +56,19 @@ object RootUtils {
                 }
             }.apply { isDaemon = true; start() }
 
-            val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
-            if (!finished) process.destroyForcibly()
+            // minSdk 24: Process.waitFor(timeout) and destroyForcibly() need API 26,
+            // so poll exitValue() against a deadline instead.
+            val deadline = System.currentTimeMillis() + timeoutSeconds * 1000
+            var finished = false
+            while (!finished && System.currentTimeMillis() < deadline) {
+                try {
+                    process.exitValue()
+                    finished = true
+                } catch (_: IllegalThreadStateException) {
+                    Thread.sleep(50)
+                }
+            }
+            if (!finished) process.destroy()
 
             // If a background child kept the pipe open, don't wait for EOF forever.
             reader.join(1500)
