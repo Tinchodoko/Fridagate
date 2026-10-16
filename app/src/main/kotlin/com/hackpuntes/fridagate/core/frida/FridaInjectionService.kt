@@ -2,220 +2,175 @@ package com.hackpuntes.fridagate.core.frida
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.Socket
-import java.nio.charset.StandardCharsets
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constantes compartidas
+// ─────────────────────────────────────────────────────────────────────────────
+
+private const val FRIDA_INJECT_PATH  = "/data/local/tmp/frida-inject"
+private const val CONFIRM_MARKER     = "FRIDAGATE_INJECTION_OK"
+private const val CONFIRM_TIMEOUT_MS = 10_000L   // 10 s para ver el marcador
+private const val READ_POLL_MS       = 50L        // polling cuando no hay línea lista
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FridaInjectionService  (inyección via shell + root, frida-inject)
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Servicio para inyectar scripts Frida en procesos objetivo
- * Requiere: frida-server corriendo en el dispositivo
- * Default: localhost:27042
+ * Lanza frida-inject como root, lee su stdout en tiempo real y busca el
+ * marcador FRIDAGATE_INJECTION_OK para confirmar la inyección.
+ * El proceso se mantiene vivo después de la confirmación (frida-inject debe
+ * permanecer adjunto mientras la app objetivo corre).
  */
 class FridaInjectionService(
     private val context: Context,
-    private val fridaHost: String = "localhost",
-    private val fridaPort: Int = 27042,
     private val logCallback: (String) -> Unit = {}
 ) {
-    
-    private var socket: Socket? = null
-    private var isConnected = false
-    
-    // ==================== CONNECTION ====================
-    
-    suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
-        return@withContext try {
-            socket = Socket(fridaHost, fridaPort)
-            isConnected = true
-            logCallback("✅ Conectado a Frida en $fridaHost:$fridaPort")
-            true
-        } catch (e: Exception) {
-            isConnected = false
-            logCallback("❌ Error de conexión: ${e.message}")
-            false
-        }
+
+    /** Proceso activo de frida-inject. Null si no hay inyección en curso. */
+    private var activeProcess: Process? = null
+
+    // ── Inyección por PID ────────────────────────────────────────────────────
+
+    suspend fun injectByPid(
+        pid: Int,
+        scriptPath: String
+    ): Boolean = injectInternal(
+        target    = "-p $pid",
+        scriptPath = scriptPath
+    )
+
+    // ── Inyección por nombre de paquete ─────────────────────────────────────
+
+    suspend fun injectByPackage(
+        packageName: String,
+        scriptPath: String
+    ): Boolean = injectInternal(
+        target    = "-n $packageName",
+        scriptPath = scriptPath
+    )
+
+    // ── Detener inyección activa ─────────────────────────────────────────────
+
+    fun stopInjection() {
+        activeProcess?.destroy()
+        activeProcess = null
+        logCallback("⏹️ Proceso frida-inject detenido.")
     }
-    
-    suspend fun disconnect() = withContext(Dispatchers.IO) {
-        try {
-            socket?.close()
-            isConnected = false
-            logCallback("🔌 Desconectado de Frida")
-        } catch (e: Exception) {
-            logCallback("⚠️ Error al desconectar: ${e.message}")
-        }
-    }
-    
-    // ==================== INJECTION ====================
-    
-    suspend fun injectScript(
-        targetPid: Int,
-        scriptCode: String,
-        supportIL2CPP: Boolean = false
+
+    // ── Núcleo ───────────────────────────────────────────────────────────────
+
+    private suspend fun injectInternal(
+        target: String,
+        scriptPath: String
     ): Boolean = withContext(Dispatchers.IO) {
-        if (!isConnected && !connect()) {
+
+        // Destruir cualquier inyección previa
+        activeProcess?.destroy()
+        activeProcess = null
+
+        logCallback("📝 Iniciando frida-inject ($target)...")
+
+        val process = try {
+            // stderr redirigido a stdout para capturar todo en un solo stream
+            val cmd = "su -c \"$FRIDA_INJECT_PATH $target $scriptPath 2>&1\""
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd))
+        } catch (e: Exception) {
+            logCallback("❌ No se pudo lanzar frida-inject: ${e.message}")
             return@withContext false
         }
-        
-        return@withContext try {
-            logCallback("📤 Inyectando en PID: $targetPid")
-            
-            // Preparar código
-            val preparedCode = prepareScript(scriptCode, supportIL2CPP)
-            
-            // Enviar petición a Frida
-            val request = FridaRequest.inject(targetPid, preparedCode)
-            val response = sendFridaRequest(request)
-            
-            if (response != null && response.isSuccess) {
-                logCallback("✅ Script inyectado correctamente")
-                true
-            } else {
-                logCallback("❌ Frida rechazó la inyección: ${response?.error}")
-                false
-            }
-        } catch (e: Exception) {
-            logCallback("❌ Error en inyección: ${e.message}")
-            false
-        }
-    }
-    
-    // ==================== HELPERS ====================
-    
-    private fun prepareScript(code: String, supportIL2CPP: Boolean): String {
-        val prepared = if (supportIL2CPP) {
-            // Asegurar importación correcta de il2cpp-bridge
-            if (!code.contains("frida-il2cpp-bridge")) {
-                "import \"frida-il2cpp-bridge\";\n$code"
-            } else {
-                code
-            }
-        } else {
-            code
-        }
-        
-        // Envolver en try-catch
-        return """
-            try {
-                $prepared
-            } catch (error) {
-                console.log("Script error: " + error.message);
-                console.log(error.stack);
-            }
-        """.trimIndent()
-    }
-    
-    private suspend fun sendFridaRequest(request: String): FridaResponse? = withContext(Dispatchers.IO) {
-        return@withContext try {
-            if (socket == null || !isConnected) return@withContext null
-            
-            val output = socket!!.getOutputStream()
-            output.write((request + "\n").toByteArray(StandardCharsets.UTF_8))
-            output.flush()
-            
-            // Leer respuesta
-            val input = socket!!.getInputStream()
-            val reader = BufferedReader(InputStreamReader(input))
-            val response = reader.readLine()
-            
-            if (response != null) {
-                FridaResponse.parse(response)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            logCallback("❌ Error de comunicación: ${e.message}")
-            null
-        }
-    }
-}
 
-// ==================== FRIDA PROTOCOL ====================
+        activeProcess = process
 
-object FridaRequest {
-    fun inject(pid: Int, code: String): String {
-        return """
-            {
-                "type": "attach",
-                "pid": $pid,
-                "script": "${escapeJson(code)}"
-            }
-        """.trimIndent()
-    }
-    
-    private fun escapeJson(text: String): String {
-        return text
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
-    }
-}
+        // ── Leer stdout en tiempo real ───────────────────────────────────────
+        val reader   = process.inputStream.bufferedReader()
+        val deadline = System.currentTimeMillis() + CONFIRM_TIMEOUT_MS
+        var confirmed = false
 
-data class FridaResponse(
-    val isSuccess: Boolean,
-    val error: String? = null,
-    val data: String? = null
-) {
-    companion object {
-        fun parse(json: String): FridaResponse {
-            return try {
+        while (System.currentTimeMillis() < deadline) {
+
+            // Si el proceso ya murió, salir del loop
+            try { process.exitValue(); break } catch (_: IllegalThreadStateException) { /* vivo */ }
+
+            if (reader.ready()) {
+                val line = reader.readLine() ?: break
+                logCallback(line)
+
                 when {
-                    json.contains("\"ok\"") || json.contains("success") -> {
-                        FridaResponse(isSuccess = true)
+                    // Marcador principal: confirmación explícita
+                    line.contains(CONFIRM_MARKER) -> {
+                        confirmed = true
+                        break
                     }
-                    json.contains("error") -> {
-                        val errorMsg = json.substringAfter("\"error\":\"").substringBefore("\"")
-                        FridaResponse(isSuccess = false, error = errorMsg)
+                    // Fallback: si el diagnóstico terminó sin error, también es OK
+                    line.contains("RUNTIME DIAGNOSTICS FINISHED") ||
+                    line.contains("DIAGNÓSTICO FINALIZADO") -> {
+                        confirmed = true
+                        // No cortamos — seguimos leyendo para capturar el marcador
                     }
-                    else -> FridaResponse(isSuccess = true, data = json)
+                    // Errores conocidos de frida-inject → salir rápido
+                    line.contains("Failed to attach") ||
+                    line.contains("Unable to find process") -> {
+                        logCallback("❌ frida-inject reportó un error fatal.")
+                        process.destroy()
+                        activeProcess = null
+                        return@withContext false
+                    }
                 }
-            } catch (e: Exception) {
-                FridaResponse(isSuccess = true, data = json)
+            } else {
+                delay(READ_POLL_MS)
             }
+        }
+
+        return@withContext if (confirmed) {
+            logCallback("✅ Inyección confirmada.")
+            // El proceso sigue vivo — frida-inject debe permanecer adjunto
+            true
+        } else {
+            logCallback("⚠️ Tiempo de espera agotado sin confirmar inyección.")
+            // Mantenemos el proceso: puede estar corriendo aunque no vimos el marcador
+            false
         }
     }
 }
 
-// ==================== LEGACY: Shell-based Injection ====================
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilidades de shell reutilizables
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Alternativa para dispositivos sin Frida socket directo
- * Usa comandos shell (requiere root)
- */
-class FridaInjectionServiceShell(
-    private val context: Context,
-    private val logCallback: (String) -> Unit = {}
-) {
-    
-    suspend fun injectViaShell(
-        targetPid: Int,
-        scriptPath: String
-    ): Boolean = withContext(Dispatchers.Default) {
-        return@withContext try {
-            logCallback("📝 Inyectando vía shell...")
-            
-            // Este es un placeholder - la inyección real requiere frida-inject
-            // Comando típico: /data/local/tmp/frida-inject PID /data/local/tmp/script.js
-            
-            val command = "frida-inject $targetPid $scriptPath"
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            
-            val exitCode = process.waitFor()
-            if (exitCode == 0) {
-                logCallback("✅ Inyección exitosa")
-                true
-            } else {
-                val errorStream = process.errorStream.bufferedReader().readText()
-                logCallback("❌ Error: $errorStream")
-                false
-            }
-        } catch (e: Exception) {
-            logCallback("❌ Error: ${e.message}")
-            false
+object ShellUtils {
+
+    /**
+     * Ejecuta un comando como root y devuelve (exitCode, stdout+stderr combinados).
+     * Uso: val (code, out) = ShellUtils.runAsRoot("pm list packages")
+     */
+    suspend fun runAsRoot(command: String): Pair<Int, String> =
+        withContext(Dispatchers.IO) {
+            val process = Runtime.getRuntime()
+                .exec(arrayOf("su", "-c", command))
+            val output = process.inputStream.bufferedReader().readText() +
+                         process.errorStream.bufferedReader().readText()
+            val code = process.waitFor()
+            Pair(code, output.trim())
         }
-    }
+
+    /**
+     * Verifica si frida-inject está instalado en el dispositivo.
+     */
+    suspend fun isFridaInjectInstalled(): Boolean =
+        withContext(Dispatchers.IO) {
+            val (code, _) = runAsRoot("test -f $FRIDA_INJECT_PATH && echo ok")
+            code == 0
+        }
+
+    /**
+     * Devuelve el PID de un proceso por nombre de paquete, o null si no corre.
+     */
+    suspend fun getPidByPackage(packageName: String): Int? =
+        withContext(Dispatchers.IO) {
+            val (_, out) = runAsRoot("pidof $packageName")
+            out.trim().split("\\s+".toRegex()).firstOrNull()?.toIntOrNull()
+        }
 }
