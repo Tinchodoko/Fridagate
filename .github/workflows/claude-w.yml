@@ -1,0 +1,100 @@
+name: Claude Code - Write (Fix & Commit)
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  claude-w:
+    if: |
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      !github.event.issue.pull_request &&
+      (
+        contains(github.event.comment.body, '@claudeW') ||
+        contains(github.event.comment.body, '@sonnet-55W') ||
+        contains(github.event.comment.body, '@sonnet-45W') ||
+        contains(github.event.comment.body, '@haiku-55W') ||
+        contains(github.event.comment.body, '@haiku-45W') ||
+        contains(github.event.comment.body, '@nemotronW') ||
+        contains(github.event.comment.body, '@lagunaW') ||
+        contains(github.event.comment.body, '@northW') ||
+        contains(github.event.comment.body, '@inklingW') ||
+        contains(github.event.comment.body, '@gemmaW') ||
+        contains(github.event.comment.body, '@deepseekW') ||
+        contains(github.event.comment.body, '@qwenW') ||
+        contains(github.event.comment.body, '@mistralW') ||
+        contains(github.event.comment.body, '@autoW')
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select model from comment
+        id: model
+        shell: bash
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import re
+          import sys
+
+          body = os.environ.get("COMMENT_BODY", "")
+          match = re.search(
+              r"(?<!\S)@(claude|sonnet-55|sonnet-45|haiku-55|haiku-45|nemotron|laguna|north|inkling|gemma|deepseek|qwen|mistral|auto)W(?![\w-])",
+              body,
+              re.IGNORECASE,
+          )
+          if not match:
+              print("No supported model command found.", file=sys.stderr)
+              sys.exit(1)
+
+          command = match.group(1).lower()
+          models = {
+              "claude":     "anthropic/claude-sonnet-5.5",
+              "sonnet-55":  "anthropic/claude-sonnet-5.5",
+              "sonnet-45":  "anthropic/claude-sonnet-4.5",
+              "haiku-55":   "anthropic/claude-haiku-5.5",
+              "haiku-45":   "anthropic/claude-haiku-4.5",
+              "nemotron":   "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "laguna":     "poolside/laguna-s-2.1:free",
+              "north":      "cohere/north-mini-code:free",
+              "inkling":    "thinkingmachines/inkling:free",
+              "gemma":      "google/gemma-4-31b-it:free",
+              "deepseek":   "deepseek/deepseek-r1:free",
+              "qwen":       "qwen/qwen3-235b-a22b:free",
+              "mistral":    "mistral/mistral-small-3.2-24b-instruct:free",
+              "auto":       "openrouter/free",
+          }
+          print(f"command={command}")
+          print(f"model={models[command]}")
+          PY
+
+      - name: Confirm selected model
+        run: |
+          echo "Mode: WRITE"
+          echo "Selected command: @${{ steps.model.outputs.command }}W"
+          echo "Selected OpenRouter model: ${{ steps.model.outputs.model }}"
+
+      - name: Run Claude Code via OpenRouter (Write)
+        uses: anthropics/claude-code-action@v1
+        with:
+          show_full_output: true
+          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          trigger_phrase: "@${{ steps.model.outputs.command }}W"
+          model: ${{ steps.model.outputs.model }}
+        env:
+          ANTHROPIC_BASE_URL: "https://openrouter.ai/api/v1"
+          ANTHROPIC_MODEL: ${{ steps.model.outputs.model }}
