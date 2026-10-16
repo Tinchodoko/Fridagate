@@ -1,0 +1,177 @@
+name: Análisis de código
+
+# Corre Android Lint, Detekt y ktlint, y publica un reporte:
+#  - en cada push a main y cada lunes: actualiza un issue "Reporte de análisis automático"
+#  - en cada pull request: deja el resumen en la pestaña de la ejecución (Summary)
+# Ninguna de estas herramientas necesita claves ni servicios de pago.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: '0 9 * * 1'   # lunes 09:00 UTC (06:00 en Argentina)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analisis-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DETEKT_VERSION: 1.23.8
+  KTLINT_VERSION: 1.8.0
+
+jobs:
+  android-lint:
+    name: Android Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # Lint devuelve error si encuentra problemas graves; igual queremos el reporte.
+      - name: Run Android Lint
+        id: lint
+        continue-on-error: true
+        run: ./gradlew :app:lintDebug --no-daemon
+
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint
+          path: |
+            app/build/reports/lint-results*.xml
+            app/build/reports/lint-results*.html
+          if-no-files-found: warn
+          retention-days: 14
+
+  detekt:
+    name: Detekt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Download Detekt CLI
+        run: |
+          curl -fsSL -o detekt-cli.jar \
+            "https://github.com/detekt/detekt/releases/download/v${DETEKT_VERSION}/detekt-cli-${DETEKT_VERSION}-all.jar"
+
+      # Detekt devuelve un código distinto de 0 si encuentra problemas; igual queremos el reporte.
+      - name: Run Detekt
+        continue-on-error: true
+        run: |
+          mkdir -p reportes/detekt
+          java -jar detekt-cli.jar \
+            --input app/src \
+            --config .github/linters/detekt.yml \
+            --build-upon-default-config \
+            --report xml:reportes/detekt/detekt.xml \
+            --report md:reportes/detekt/detekt.md
+
+      - name: Upload Detekt results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt
+          path: reportes/detekt/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ktlint:
+    name: ktlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download ktlint
+        run: |
+          curl -fsSL -o ktlint \
+            "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
+          chmod +x ktlint
+
+      # ktlint devuelve un código distinto de 0 si encuentra problemas; igual queremos el reporte.
+      - name: Run ktlint
+        continue-on-error: true
+        run: |
+          mkdir -p reportes/ktlint
+          ./ktlint --editorconfig=.github/linters/.editorconfig \
+            "app/src/**/*.kt" "*.kts" "app/*.kts" \
+            --reporter=plain > reportes/ktlint/ktlint.txt
+
+      - name: Upload ktlint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktlint
+          path: reportes/ktlint/
+          if-no-files-found: warn
+          retention-days: 14
+
+  reporte:
+    name: Reporte
+    needs: [android-lint, detekt, ktlint]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download results
+        uses: actions/download-artifact@v4
+        with:
+          path: resultados
+        continue-on-error: true
+
+      - name: Build report
+        run: python3 .github/scripts/build_report.py resultados reporte.md
+
+      - name: Show report in the run summary
+        run: cat reporte.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Solo en push, lunes programado o ejecución manual (los PRs de forks no tienen permiso de escritura).
+      - name: Update the report issue
+        if: github.event_name != 'pull_request'
+        run: |
+          LABEL="analisis-automatico"
+          TITLE="Reporte de análisis automático"
+
+          if [ "$(gh repo view --json hasIssuesEnabled -q .hasIssuesEnabled)" != "true" ]; then
+            echo "::warning::Los Issues están desactivados en este repositorio. Activalos en Settings > General > Features > Issues."
+            exit 0
+          fi
+
+          gh label create "$LABEL" --color 0E8A16 \
+            --description "Creado por el workflow de análisis de código" --force
+
+          NUM=$(gh issue list --label "$LABEL" --state open --json number -q '.[0].number')
+          if [ -n "$NUM" ]; then
+            gh issue edit "$NUM" --body-file reporte.md
+          else
+            gh issue create --title "$TITLE" --label "$LABEL" --body-file reporte.md
+          fi
