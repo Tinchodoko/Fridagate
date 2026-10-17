@@ -29,29 +29,46 @@ jobs:
           java-version: '21'
 
       - name: Descargar ktlint
+        shell: bash
         run: |
-          curl -fsSL -o ktlint \
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            --output ktlint \
             "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
           chmod +x ktlint
           ./ktlint --version
 
-      - name: Aplicar formato
+      - name: Aplicar formato automático
+        shell: bash
         run: |
+          set -uo pipefail
+
+          # ktlint puede devolver código 1 aunque haya aplicado el formato,
+          # porque algunas infracciones (por ejemplo, imports con *) requieren
+          # cambios manuales. No bloquear por esos diagnósticos en este workflow.
+          set +e
           ./ktlint \
             --editorconfig=.github/linters/.editorconfig \
             --format \
-            "app/src/**/*.kt" "*.kts" "app/*.kts"
+            "**/*.kt" "**/*.kts"
+          ktlint_status=$?
+          set -e
+
+          if [ "$ktlint_status" -ne 0 ]; then
+            echo "::warning::ktlint encontró infracciones que no pudo corregir automáticamente. Se continuará para guardar el formato aplicado; revisa los diagnósticos de este paso."
+          fi
 
       - name: Guardar y subir cambios de formato
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Solo incluir archivos Kotlin que ktlint pueda haber modificado.
-          git add -- '*.kt' '*.kts'
+          git add -- ':(glob)**/*.kt' ':(glob)**/*.kts'
 
           if git diff --cached --quiet; then
-            echo "El código ya cumple el formato de ktlint; no hay cambios para subir."
+            echo "No hay cambios de formato para guardar."
             exit 0
           fi
 
