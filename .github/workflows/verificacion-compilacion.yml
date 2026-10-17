@@ -1,0 +1,49 @@
+name: Verificación de compilación Android
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verificacion-compilacion-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Compilar y ejecutar pruebas unitarias
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js para los agentes Frida
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Dar permisos al Gradle Wrapper
+        run: chmod +x ./gradlew
+
+      - name: Verificar compilación y pruebas unitarias
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+
+      - name: Publicar APK de verificación
+        uses: actions/upload-artifact@v4
+        with:
+          name: FridaGate-2.0-verificacion-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
