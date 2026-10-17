@@ -3,14 +3,14 @@ package com.hackpuntes.fridagate.ui.frida
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
+import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.FridaUtils.FridaRelease
 import com.hackpuntes.fridagate.utils.RootUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -197,8 +197,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    private fun isValidStableVersion(version: String): Boolean =
-        version.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))
+    private fun isValidStableVersion(version: String): Boolean = version.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))
 
     /** Updates the selected version when the user picks a release from the list. */
     fun setSelectedVersion(version: String) {
@@ -343,7 +342,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                 FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
                 val output = withContext(Dispatchers.IO) {
                     RootUtils.executeSuCommand(
-                    """
+                        """
                     echo "=== Matando procesos frida activos ==="
                     pkill -9 -x frida-server 2>/dev/null || true
                     pkill -9 -x frida-inject 2>/dev/null || true
@@ -365,7 +364,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                     ls -la /data/local/tmp/ | grep -i frida || echo "No quedan archivos con frida en el nombre"
                     ps -A | grep -iE '[f]rida-server|[f]rida-inject' || echo "No quedan procesos frida activos"
                     echo "=== Limpieza completa ==="
-                    """.trimIndent()
+                        """.trimIndent()
                     )
                 }
                 if (output.isBlank()) {
@@ -377,10 +376,11 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                 _isServerRunning.value = FridaUtils.isFridaServerRunning()
                 _installedVersion.value = FridaUtils.getInstalledFridaVersion() ?: "Not installed"
                 addLog(
-                    if (!_isServerInstalled.value && !FridaInjectUtils.isFridaInjectInstalled())
+                    if (!_isServerInstalled.value && !FridaInjectUtils.isFridaInjectInstalled()) {
                         "DESINSTALACIÓN COMPLETA: SERVER E INJECT YA NO ESTÁN INSTALADOS."
-                    else
+                    } else {
                         "ADVERTENCIA: QUEDAN COMPONENTES INSTALADOS; REVISA LA VERIFICACIÓN ANTERIOR."
+                    }
                 )
             } catch (e: Exception) {
                 addLog("ERROR DURANTE LA LIMPIEZA: ${e.message ?: "ERROR DESCONOCIDO"}")

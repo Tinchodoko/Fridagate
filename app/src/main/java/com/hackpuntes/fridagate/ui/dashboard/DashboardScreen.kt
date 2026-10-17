@@ -12,17 +12,13 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,12 +29,16 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
+import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -142,6 +142,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
     }
 
     /** Stops injected scripts and frida-server while preserving installed binaries. */
+
     /**
      * Instala y prepara en secuencia los componentes principales de FridaGate.
      * Requiere root y conexión a Internet. Usa la misma versión para server e inject.
@@ -216,7 +217,6 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 addLog("Frida-server está instalado y en ejecución.")
                 addLog("frida-inject está instalado con la misma versión.")
                 addLog("── INSTALACIÓN INTELIGENTE FINALIZADA ──")
-
             } catch (e: Exception) {
                 addLog("ERROR en instalación inteligente: ${e.message ?: "error desconocido"}")
             } finally {
@@ -236,7 +236,15 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 addLog("Deteniendo frida-server...")
                 val stopped = FridaUtils.stopFridaServer()
                 _isFridaRunning.value = !FridaUtils.isFridaServerRunning()
-                addLog(if (stopped && !_isFridaRunning.value) "✓ frida-server detenido" else "ADVERTENCIA: no se pudo confirmar que frida-server se detuviera")
+                addLog(
+                    if (stopped &&
+                        !_isFridaRunning.value
+                    ) {
+                        "✓ frida-server detenido"
+                    } else {
+                        "ADVERTENCIA: no se pudo confirmar que frida-server se detuviera"
+                    }
+                )
 
                 addLog("Detener todo finalizado. Los binarios de Frida se conservan instalados.")
             } catch (e: Exception) {
@@ -273,9 +281,7 @@ fun DashboardScreen() {
     val viewModel: DashboardViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return DashboardViewModel(context) as T
-            }
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = DashboardViewModel(context) as T
         }
     )
 
@@ -325,7 +331,6 @@ fun DashboardScreen() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
             // ── Status overview card ──────────────────────────────────────────
             PermissionControlsCard(
                 storageGranted = hasStoragePermission,
@@ -337,35 +342,63 @@ fun DashboardScreen() {
                 onRequestStorage = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         runCatching {
-                            context.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.parse("package:" + context.packageName)))
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:" + context.packageName)
+                                )
+                            )
                         }.onFailure {
                             context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
                         }
                     } else {
-                        requestLegacyStorage.launch(arrayOf(
-                            Manifest.permission.READ_EXTERNAL_STORAGE,
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        ))
+                        requestLegacyStorage.launch(
+                            arrayOf(
+                                Manifest.permission.READ_EXTERNAL_STORAGE,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            )
+                        )
                     }
                 },
                 onRequestNotifications = {
-                    if (Build.VERSION.SDK_INT >= 33) requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                            ).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        )
+                    }
                 },
                 onRequestOverlay = {
-                    runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))) }
+                    runCatching {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + context.packageName)
+                            )
+                        )
+                    }
                 },
                 onRequestRoot = { viewModel.refreshStatus() },
                 onRequestBackground = {
-                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + context.packageName)))
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + context.packageName)
+                        )
+                    )
                 },
                 onRequestBattery = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         runCatching {
-                            context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                Uri.parse("package:" + context.packageName)))
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                    Uri.parse("package:" + context.packageName)
+                                )
+                            )
                         }.onFailure {
                             context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                         }
@@ -395,7 +428,10 @@ fun DashboardScreen() {
                 onRefresh = { pendingConfirmation = "ACTUALIZAR ESTADO" },
                 isFloatingIconVisible = isFloatingIconVisible,
                 canShowFloatingIcon = hasOverlayPermission,
-                onToggleFloatingIcon = { pendingConfirmation = if (isFloatingIconVisible) "OCULTAR ICONO FLOTANTE" else "MOSTRAR ICONO FLOTANTE" }
+                onToggleFloatingIcon = {
+                    pendingConfirmation =
+                        if (isFloatingIconVisible) "OCULTAR ICONO FLOTANTE" else "MOSTRAR ICONO FLOTANTE"
+                }
             )
 
             // ── Log panel ─────────────────────────────────────────────────────
@@ -422,30 +458,53 @@ fun DashboardScreen() {
                 onDismissRequest = { pendingConfirmation = null },
                 title = { Text(action.uppercase()) },
                 text = { Text(description.uppercase()) },
-                confirmButton = { TextButton(onClick = {
-                    pendingConfirmation = null
-                    when (action) {
-                        "ACTIVAR TODO" -> viewModel.activateAll()
-                        "INSTALACIÓN INTELIGENTE" -> viewModel.smartInstallAll()
-                        "DETENER TODO" -> viewModel.deactivateAll()
-                        "ACTUALIZAR ESTADO" -> viewModel.refreshStatus()
-                        "MOSTRAR ICONO FLOTANTE", "OCULTAR ICONO FLOTANTE" -> {
-                            if (isFloatingIconVisible) {
-                                context.startService(Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java).apply {
-                                    this.action = com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
-                                })
-                                isFloatingIconVisible = false
-                            } else if (hasOverlayPermission) {
-                                ContextCompat.startForegroundService(context, Intent(context, com.hackpuntes.fridagate.FridaGateNotificationService::class.java))
-                                isFloatingIconVisible = true
-                            } else {
-                                runCatching {
-                                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)))
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingConfirmation = null
+                        when (action) {
+                            "ACTIVAR TODO" -> viewModel.activateAll()
+
+                            "INSTALACIÓN INTELIGENTE" -> viewModel.smartInstallAll()
+
+                            "DETENER TODO" -> viewModel.deactivateAll()
+
+                            "ACTUALIZAR ESTADO" -> viewModel.refreshStatus()
+
+                            "MOSTRAR ICONO FLOTANTE", "OCULTAR ICONO FLOTANTE" -> {
+                                if (isFloatingIconVisible) {
+                                    context.startService(
+                                        Intent(
+                                            context,
+                                            com.hackpuntes.fridagate.FridaGateNotificationService::class.java
+                                        ).apply {
+                                            this.action =
+                                                com.hackpuntes.fridagate.FridaGateNotificationService.ACTION_HIDE
+                                        }
+                                    )
+                                    isFloatingIconVisible = false
+                                } else if (hasOverlayPermission) {
+                                    ContextCompat.startForegroundService(
+                                        context,
+                                        Intent(
+                                            context,
+                                            com.hackpuntes.fridagate.FridaGateNotificationService::class.java
+                                        )
+                                    )
+                                    isFloatingIconVisible = true
+                                } else {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(
+                                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                Uri.parse("package:" + context.packageName)
+                                            )
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                }) { Text("SI") } },
+                    }) { Text("SI") }
+                },
                 dismissButton = { TextButton(onClick = { pendingConfirmation = null }) { Text("NO") } }
             )
         }
@@ -464,28 +523,42 @@ fun DashboardScreen() {
     }
 }
 
-private fun storagePermissionGranted(context: Context): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
-    else Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-        (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
-         ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+private fun storagePermissionGranted(context: Context): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    Environment.isExternalStorageManager()
+} else {
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+        (
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+            )
+}
 
 private fun floatingIconIsVisible(context: Context): Boolean =
     context.getSharedPreferences("fridagate_runtime", Context.MODE_PRIVATE)
         .getBoolean("floating_icon_visible", false)
 
-private fun notificationPermissionGranted(context: Context): Boolean =
-    (Build.VERSION.SDK_INT < 33 ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
-        (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).areNotificationsEnabled()
+private fun notificationPermissionGranted(context: Context): Boolean = (
+    Build.VERSION.SDK_INT < 33 ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
+    ) &&
+    (
+        context.getSystemService(
+            Context.NOTIFICATION_SERVICE
+        ) as android.app.NotificationManager
+        ).areNotificationsEnabled()
 
-private fun backgroundExecutionAllowed(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.P ||
-        !(context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).isBackgroundRestricted
+private fun backgroundExecutionAllowed(context: Context): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.P ||
+    !(context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).isBackgroundRestricted
 
-private fun batteryOptimizationIgnored(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-        (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(context.packageName)
+private fun batteryOptimizationIgnored(context: Context): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+    (
+        context.getSystemService(
+            Context.POWER_SERVICE
+        ) as PowerManager
+        ).isIgnoringBatteryOptimizations(context.packageName)
 
 @Composable
 private fun PermissionControlsCard(
@@ -502,31 +575,52 @@ private fun PermissionControlsCard(
     onRequestBackground: () -> Unit,
     onRequestBattery: () -> Unit
 ) {
-    val missingAny = !storageGranted || !notificationsGranted || !overlayGranted || !rootGranted || !backgroundGranted || !batteryExempt
+    val missingAny =
+        !storageGranted || !notificationsGranted || !overlayGranted || !rootGranted || !backgroundGranted ||
+            !batteryExempt
     if (!missingAny) return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Permisos y ejecución", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            Text("Las opciones desaparecen automáticamente cuando el sistema confirma el permiso.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (!storageGranted) OutlinedButton(onClick = onRequestStorage, modifier = Modifier.fillMaxWidth()) {
-                Text("PERMITIR ACCESO AL ALMACENAMIENTO")
+            Text(
+                "Permisos y ejecución",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                "Las opciones desaparecen automáticamente cuando el sistema confirma el permiso.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!storageGranted) {
+                OutlinedButton(onClick = onRequestStorage, modifier = Modifier.fillMaxWidth()) {
+                    Text("PERMITIR ACCESO AL ALMACENAMIENTO")
+                }
             }
-            if (!notificationsGranted) OutlinedButton(onClick = onRequestNotifications, modifier = Modifier.fillMaxWidth()) {
-                Text("PERMITIR NOTIFICACIONES")
+            if (!notificationsGranted) {
+                OutlinedButton(onClick = onRequestNotifications, modifier = Modifier.fillMaxWidth()) {
+                    Text("PERMITIR NOTIFICACIONES")
+                }
             }
-            if (!overlayGranted) OutlinedButton(onClick = onRequestOverlay, modifier = Modifier.fillMaxWidth()) {
-                Text("PERMITIR ICONO FLOTANTE (MOSTRAR SOBRE OTRAS APPS)")
+            if (!overlayGranted) {
+                OutlinedButton(onClick = onRequestOverlay, modifier = Modifier.fillMaxWidth()) {
+                    Text("PERMITIR ICONO FLOTANTE (MOSTRAR SOBRE OTRAS APPS)")
+                }
             }
-            if (!rootGranted) OutlinedButton(onClick = onRequestRoot, modifier = Modifier.fillMaxWidth()) {
-                Text("PERMITIR ACCESO ROOT")
+            if (!rootGranted) {
+                OutlinedButton(onClick = onRequestRoot, modifier = Modifier.fillMaxWidth()) {
+                    Text("PERMITIR ACCESO ROOT")
+                }
             }
-            if (!backgroundGranted) OutlinedButton(onClick = onRequestBackground, modifier = Modifier.fillMaxWidth()) {
-                Text("PERMITIR EJECUCIÓN EN SEGUNDO PLANO")
+            if (!backgroundGranted) {
+                OutlinedButton(onClick = onRequestBackground, modifier = Modifier.fillMaxWidth()) {
+                    Text("PERMITIR EJECUCIÓN EN SEGUNDO PLANO")
+                }
             }
-            if (!batteryExempt) OutlinedButton(onClick = onRequestBattery, modifier = Modifier.fillMaxWidth()) {
-                Text("DESACTIVAR OPTIMIZACIÓN DE BATERÍA")
+            if (!batteryExempt) {
+                OutlinedButton(onClick = onRequestBattery, modifier = Modifier.fillMaxWidth()) {
+                    Text("DESACTIVAR OPTIMIZACIÓN DE BATERÍA")
+                }
             }
         }
     }
@@ -562,15 +656,57 @@ private fun StatusOverviewCard(
             HorizontalDivider()
 
             // Each StatusIndicatorRow shows one component's status
-            StatusIndicatorRow(label = "Frida Installed", active = isFridaInstalled, activeText = "Sí", inactiveText = "No")
-            StatusIndicatorRow(label = "Frida Running", active = isFridaRunning, activeText = "En ejecución", inactiveText = "Detenido")
+            StatusIndicatorRow(
+                label = "Frida Installed",
+                active = isFridaInstalled,
+                activeText = "Sí",
+                inactiveText = "No"
+            )
+            StatusIndicatorRow(
+                label = "Frida Running",
+                active = isFridaRunning,
+                activeText = "En ejecución",
+                inactiveText = "Detenido"
+            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
-            StatusIndicatorRow(label = "Permiso de almacenamiento", active = hasStoragePermission, activeText = "Concedido", inactiveText = "Pendiente")
-            StatusIndicatorRow(label = "Permiso de notificaciones", active = hasNotificationPermission, activeText = "Concedido", inactiveText = "Pendiente")
-            StatusIndicatorRow(label = "Ventana flotante", active = hasOverlayPermission, activeText = "Concedido", inactiveText = "Pendiente")
-            StatusIndicatorRow(label = "Acceso root", active = isRootAvailable, activeText = "Concedido", inactiveText = "No disponible")
-            StatusIndicatorRow(label = "Restricciones en segundo plano", active = !hasBackgroundPermission, activeText = "Sí", inactiveText = "No", activeColor = Color(0xFFF44336), inactiveColor = Color(0xFF4CAF50))
-            StatusIndicatorRow(label = "Optimización de batería", active = isIgnoringBatteryOptimizations, activeText = "Desactivada", inactiveText = "Activa")
+            StatusIndicatorRow(
+                label = "Permiso de almacenamiento",
+                active = hasStoragePermission,
+                activeText = "Concedido",
+                inactiveText = "Pendiente"
+            )
+            StatusIndicatorRow(
+                label = "Permiso de notificaciones",
+                active = hasNotificationPermission,
+                activeText = "Concedido",
+                inactiveText = "Pendiente"
+            )
+            StatusIndicatorRow(
+                label = "Ventana flotante",
+                active = hasOverlayPermission,
+                activeText = "Concedido",
+                inactiveText = "Pendiente"
+            )
+            StatusIndicatorRow(
+                label = "Acceso root",
+                active = isRootAvailable,
+                activeText = "Concedido",
+                inactiveText = "No disponible"
+            )
+            StatusIndicatorRow(
+                label = "Restricciones en segundo plano",
+                active = !hasBackgroundPermission,
+                activeText = "Sí",
+                inactiveText = "No",
+                activeColor = Color(0xFFF44336),
+                inactiveColor = Color(0xFF4CAF50)
+            )
+            StatusIndicatorRow(
+                label = "Optimización de batería",
+                active = isIgnoringBatteryOptimizations,
+                activeText = "Desactivada",
+                inactiveText = "Activa"
+            )
         }
     }
 }
@@ -726,12 +862,7 @@ private fun OneTabActionsCard(
  * Log panel for the dashboard — same pattern as the other screens.
  */
 @Composable
-private fun DashboardLogPanel(
-    logs: List<String>,
-    context: Context,
-    onClear: () -> Unit,
-    onExport: () -> Unit
-) {
+private fun DashboardLogPanel(logs: List<String>, context: Context, onClear: () -> Unit, onExport: () -> Unit) {
     val listState = rememberLazyListState()
 
     LaunchedEffect(logs.size) {
@@ -748,9 +879,17 @@ private fun DashboardLogPanel(
                 Text("REGISTRO", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate 2.0 — Inicio", logs.joinToString("\n")))
-                        android.widget.Toast.makeText(context, "REGISTROS COPIADOS", android.widget.Toast.LENGTH_SHORT).show()
+                        val clipboard = context.getSystemService(
+                            Context.CLIPBOARD_SERVICE
+                        ) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(
+                            android.content.ClipData.newPlainText("FridaGate 2.0 — Inicio", logs.joinToString("\n"))
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            "REGISTROS COPIADOS",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }) { Text("COPIAR") }
                     TextButton(onClick = onExport) { Text("EXPORTAR") }
                     TextButton(onClick = onClear) { Text("LIMPIAR") }
@@ -767,7 +906,12 @@ private fun DashboardLogPanel(
                     .padding(8.dp)
             ) {
                 if (logs.isEmpty()) {
-                    Text("Todavía no hay registros...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text(
+                        "Todavía no hay registros...",
+                        color = Color(0xFF666666),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
                 } else {
                     LazyColumn(state = listState) {
                         items(logs) { line ->
@@ -787,16 +931,23 @@ private fun DashboardLogPanel(
     }
 }
 
-
 private fun exportLogFile(context: Context, prefix: String, logs: List<String>) {
     try {
         val directory = java.io.File("/sdcard/download")
         if (!directory.exists() && !directory.mkdirs()) throw java.io.IOException("No se pudo crear /sdcard/download")
         val stamp = java.text.SimpleDateFormat("MM-dd-HH-mm", java.util.Locale.US).format(java.util.Date())
-        val file = java.io.File(directory, "${prefix}_(${stamp}).txt")
+        val file = java.io.File(directory, "${prefix}_($stamp).txt")
         file.writeText(logs.joinToString("\n"))
-        android.widget.Toast.makeText(context, "LOG EXPORTADO: ${file.absolutePath}", android.widget.Toast.LENGTH_LONG).show()
+        android.widget.Toast.makeText(
+            context,
+            "LOG EXPORTADO: ${file.absolutePath}",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     } catch (e: Exception) {
-        android.widget.Toast.makeText(context, "ERROR AL EXPORTAR LOG: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+        android.widget.Toast.makeText(
+            context,
+            "ERROR AL EXPORTAR LOG: ${e.message}",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     }
 }

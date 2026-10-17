@@ -1,6 +1,7 @@
 package com.hackpuntes.fridagate.ui.frida
 
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,22 +18,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.ViewModelProvider
 import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
 import com.hackpuntes.fridagate.utils.FridaUtils
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * FridaScreen - The Frida tab UI built with Jetpack Compose.
@@ -107,7 +107,6 @@ fun FridaScreen() {
 
     // Outer Box allows us to overlay the loading indicator on top of everything
     Box(modifier = Modifier.fillMaxSize()) {
-
         // Main scrollable content
         Column(
             modifier = Modifier
@@ -116,7 +115,6 @@ fun FridaScreen() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
             // ── Section: Device Info ──────────────────────────────────────────
             // Shows the device model and CPU architecture
             DeviceInfoCard(isRootAvailable = isRootAvailable)
@@ -147,7 +145,9 @@ fun FridaScreen() {
                 injectVersion = injectVersion,
                 isInjectLoading = injectLoading,
                 selectedVersion = selectedVersion,
-                onDownloadInject = { version -> extrasViewModel.downloadFridaInject(version) { viewModel.logOperation(it) } },
+                onDownloadInject = { version ->
+                    extrasViewModel.downloadFridaInject(version) { viewModel.logOperation(it) }
+                },
                 isInstalled = isInstalled,
                 isRunning = isRunning,
                 isLoading = isLoading,
@@ -341,8 +341,11 @@ private fun VersionSelector(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("VERSIÓN PARA INSTALAR", style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary)
+            Text(
+                "VERSIÓN PARA INSTALAR",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -363,7 +366,11 @@ private fun VersionSelector(
                     versions.forEach { version ->
                         DropdownMenuItem(
                             text = { Text(version, fontWeight = FontWeight.Normal) },
-                            onClick = { onVersionSelected(version); customVersion = ""; expanded = false }
+                            onClick = {
+                                onVersionSelected(version)
+                                customVersion = ""
+                                expanded = false
+                            }
                         )
                     }
                 }
@@ -381,8 +388,11 @@ private fun VersionSelector(
                 singleLine = true,
                 enabled = enabled
             )
-            Text("Versiones disponibles: 17.23.3, 17.6.0 y 16.7.19",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Versiones disponibles: 17.23.3, 17.6.0 y 16.7.19",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -423,7 +433,11 @@ private fun ActionButtons(
             Spacer(modifier = Modifier.height(4.dp))
             Text("ENTORNO DE FRIDA", style = MaterialTheme.typography.titleMedium)
             StatusRow("frida-server", if (isRunning) "● En ejecución" else "● Detenido", isRunning)
-            StatusRow("frida-inject", if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado", isInjectInstalled)
+            StatusRow(
+                "frida-inject",
+                if (isInjectInstalled) "● v${injectVersion ?: "?"}" else "● No instalado",
+                isInjectInstalled
+            )
             Divider()
 
             // Install server independently from frida-inject.
@@ -470,7 +484,6 @@ private fun ActionButtons(
                         )
                     ) { Text("DETENER") }
                 }
-
             }
 
             // Uninstall remains available even if only frida-inject is installed or status is stale.
@@ -509,17 +522,19 @@ private fun ActionButtons(
             onDismissRequest = { pendingAction = null },
             title = { Text(action.uppercase()) },
             text = { Text(description) },
-            confirmButton = { TextButton(onClick = {
-                pendingAction = null
-                when (action) {
-                    "INSTALAR/ACTUALIZAR SERVER" -> onInstall()
-                    "INSTALAR/ACTUALIZAR INJECT" -> onDownloadInject(selectedVersion)
-                    "INICIAR" -> onStart()
-                    "DETENER" -> onStop()
-                    "ACTUALIZAR ESTADO" -> onRefresh()
-                    "DESINSTALAR" -> onUninstall()
-                }
-            }) { Text("SI") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingAction = null
+                    when (action) {
+                        "INSTALAR/ACTUALIZAR SERVER" -> onInstall()
+                        "INSTALAR/ACTUALIZAR INJECT" -> onDownloadInject(selectedVersion)
+                        "INICIAR" -> onStart()
+                        "DETENER" -> onStop()
+                        "ACTUALIZAR ESTADO" -> onRefresh()
+                        "DESINSTALAR" -> onUninstall()
+                    }
+                }) { Text("SI") }
+            },
             dismissButton = { TextButton(onClick = { pendingAction = null }) { Text("NO") } }
         )
     }
@@ -533,12 +548,7 @@ private fun ActionButtons(
  * for long lists.
  */
 @Composable
-private fun LogPanel(
-    logs: List<String>,
-    context: android.content.Context,
-    onClear: () -> Unit,
-    onExport: () -> Unit
-) {
+private fun LogPanel(logs: List<String>, context: android.content.Context, onClear: () -> Unit, onExport: () -> Unit) {
     // Used to programmatically scroll to the bottom when new logs arrive
     val listState = rememberLazyListState()
 
@@ -564,8 +574,12 @@ private fun LogPanel(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate 2.0 — Frida", logs.joinToString("\n")))
+                        val clipboard = context.getSystemService(
+                            android.content.Context.CLIPBOARD_SERVICE
+                        ) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(
+                            android.content.ClipData.newPlainText("FridaGate 2.0 — Frida", logs.joinToString("\n"))
+                        )
                         Toast.makeText(context, "REGISTROS COPIADOS", Toast.LENGTH_SHORT).show()
                     }) { Text("COPIAR") }
                     TextButton(onClick = onExport) { Text("EXPORTAR") }
@@ -619,11 +633,7 @@ private fun LogPanel(
  * @param onDismiss Called when the user cancels
  */
 @Composable
-private fun CustomFlagsDialog(
-    initialFlags: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
+private fun CustomFlagsDialog(initialFlags: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     // remember keeps this value across recompositions within this dialog's lifetime
     var flags by remember { mutableStateOf(initialFlags) }
 
@@ -644,9 +654,9 @@ private fun CustomFlagsDialog(
                 // Help text showing common flags
                 Text(
                     text = "PARÁMETROS HABITUALES:\n" +
-                            "-l ADDRESS  Listen on address\n" +
-                            "--token=TOKEN  Require auth token\n" +
-                            "-D  Daemonize",
+                        "-l ADDRESS  Listen on address\n" +
+                        "--token=TOKEN  Require auth token\n" +
+                        "-D  Daemonize",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -661,13 +671,12 @@ private fun CustomFlagsDialog(
     )
 }
 
-
 private fun exportFridaLog(context: android.content.Context, logs: List<String>) {
     try {
         val directory = File("/sdcard/download")
         if (!directory.exists() && !directory.mkdirs()) throw java.io.IOException("No se pudo crear /sdcard/download")
         val stamp = SimpleDateFormat("MM-dd-HH-mm", Locale.US).format(Date())
-        val file = File(directory, "frida_log_(${stamp}).txt")
+        val file = File(directory, "frida_log_($stamp).txt")
         file.writeText(logs.joinToString("\n"))
         Toast.makeText(context, "LOG EXPORTADO: ${file.absolutePath}", Toast.LENGTH_LONG).show()
     } catch (e: Exception) {

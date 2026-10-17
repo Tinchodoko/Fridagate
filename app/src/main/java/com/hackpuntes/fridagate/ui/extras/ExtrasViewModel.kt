@@ -66,7 +66,9 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     // Public functions
     // -------------------------------------------------------------------------
 
-    fun setTargetPackage(pkg: String) { _targetPackage.value = pkg }
+    fun setTargetPackage(pkg: String) {
+        _targetPackage.value = pkg
+    }
 
     /** Toggles a predefined script independently; both scripts may be disabled. */
     fun toggleScript(id: String) {
@@ -136,11 +138,19 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    fun refreshStatus() { _logs.value = emptyList(); checkEnvironment() }
+    fun refreshStatus() {
+        _logs.value = emptyList()
+        checkEnvironment()
+    }
 
     /** Refresh device-side Frida state without clearing the user's logs. */
-    fun refreshEnvironmentStatus() { checkEnvironment() }
-    fun clearLogs() { _logs.value = emptyList(); addLog("Logs cleared") }
+    fun refreshEnvironmentStatus() {
+        checkEnvironment()
+    }
+    fun clearLogs() {
+        _logs.value = emptyList()
+        addLog("Logs cleared")
+    }
 
     // -------------------------------------------------------------------------
     // Private helpers
@@ -156,7 +166,7 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
                 }
                 .map { pkg ->
                     AppInfo(
-                        name        = pkg.applicationInfo?.loadLabel(pm)?.toString() ?: pkg.packageName,
+                        name = pkg.applicationInfo?.loadLabel(pm)?.toString() ?: pkg.packageName,
                         packageName = pkg.packageName
                     )
                 }

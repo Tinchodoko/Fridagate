@@ -1,9 +1,9 @@
 package com.hackpuntes.fridagate.utils
 
 import android.content.Context
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /**
  * ScriptUtils - Manages Frida bypass scripts.
@@ -66,9 +66,8 @@ object ScriptUtils {
      * @param script  The script descriptor
      * @return The full JS source code as a String
      */
-    fun readScriptContent(context: Context, script: BypassScript): String {
-        return context.assets.open(script.assetPath).bufferedReader().readText()
-    }
+    fun readScriptContent(context: Context, script: BypassScript): String =
+        context.assets.open(script.assetPath).bufferedReader().readText()
 
     // -------------------------------------------------------------------------
     // Device deployment
@@ -80,10 +79,7 @@ object ScriptUtils {
      * @param tmpPath       Path in /data/local/tmp/ (for on-device frida CLI)
      * @param downloadsPath Path in /sdcard/Download/ (for `adb pull` to host)
      */
-    data class DeployResult(
-        val tmpPath: String,
-        val downloadsPath: String
-    )
+    data class DeployResult(val tmpPath: String, val downloadsPath: String)
 
     /**
      * Saves a script to both /data/local/tmp/ and /sdcard/Download/ on the device.
@@ -100,8 +96,8 @@ object ScriptUtils {
      * @param script  The script to deploy
      * @return DeployResult with both paths, or null if saving failed
      */
-    suspend fun saveScriptToDevice(context: Context, script: BypassScript): DeployResult? {
-        return withContext(Dispatchers.IO) {
+    suspend fun saveScriptToDevice(context: Context, script: BypassScript): DeployResult? =
+        withContext(Dispatchers.IO) {
             try {
                 val content = readScriptContent(context, script)
 
@@ -109,7 +105,7 @@ object ScriptUtils {
                 val tempFile = File(context.filesDir, script.fileName)
                 tempFile.writeText(content)
 
-                val tmpPath       = "$SCRIPT_DIR/${script.fileName}"
+                val tmpPath = "$SCRIPT_DIR/${script.fileName}"
                 val downloadsPath = "$DOWNLOADS_DIR/${script.fileName}"
 
                 // Copy to /data/local/tmp/
@@ -131,7 +127,6 @@ object ScriptUtils {
                 null
             }
         }
-    }
 
     // -------------------------------------------------------------------------
     // Command building
@@ -153,36 +148,32 @@ object ScriptUtils {
      * @param packageName Target app package (e.g. "com.target.app")
      * @return Multi-line string with adb pull commands + frida spawn + frida attach
      */
-    fun buildCombinedHostCommands(
-        deploys: List<Pair<BypassScript, DeployResult>>,
-        packageName: String
-    ): String = buildString {
-        appendLine("# 1. Pull scripts from device to your current directory")
-        deploys.forEach { (script, deploy) ->
-            appendLine("adb pull ${deploy.downloadsPath} ./")
+    fun buildCombinedHostCommands(deploys: List<Pair<BypassScript, DeployResult>>, packageName: String): String =
+        buildString {
+            appendLine("# 1. Pull scripts from device to your current directory")
+            deploys.forEach { (script, deploy) ->
+                appendLine("adb pull ${deploy.downloadsPath} ./")
+            }
+            appendLine()
+            appendLine("# 2a. Spawn — frida launches the app with all scripts loaded")
+            append("frida -U -f $packageName")
+            deploys.forEach { (script, _) -> append(" -l ./${script.fileName}") }
+            appendLine(" --no-pause")
+            appendLine()
+            append("# 2b. Attach — if the app is already running")
+            append("frida -U $packageName")
+            deploys.forEach { (script, _) -> append(" -l ./${script.fileName}") }
         }
-        appendLine()
-        appendLine("# 2a. Spawn — frida launches the app with all scripts loaded")
-        append("frida -U -f $packageName")
-        deploys.forEach { (script, _) -> append(" -l ./${script.fileName}") }
-        appendLine(" --no-pause")
-        appendLine()
-        append("# 2b. Attach — if the app is already running")
-        append("frida -U $packageName")
-        deploys.forEach { (script, _) -> append(" -l ./${script.fileName}") }
-    }
 
     /**
      * Returns just the frida spawn command (for copying to clipboard).
      */
-    fun buildFridaSpawnCommand(
-        deploys: List<Pair<BypassScript, DeployResult>>,
-        packageName: String
-    ): String = buildString {
-        append("frida -U -f $packageName")
-        deploys.forEach { (script, _) -> append(" -l ./${script.fileName}") }
-        append(" --no-pause")
-    }
+    fun buildFridaSpawnCommand(deploys: List<Pair<BypassScript, DeployResult>>, packageName: String): String =
+        buildString {
+            append("frida -U -f $packageName")
+            deploys.forEach { (script, _) -> append(" -l ./${script.fileName}") }
+            append(" --no-pause")
+        }
 
     // -------------------------------------------------------------------------
     // On-device execution (optional — frida CLI must be present on device)
@@ -194,20 +185,18 @@ object ScriptUtils {
      *
      * @return The full path to the binary if found, null otherwise
      */
-    suspend fun findFridaCli(): String? {
-        return withContext(Dispatchers.IO) {
-            val candidates = listOf(
-                "/data/local/tmp/frida",
-                "/usr/bin/frida",
-                "/usr/local/bin/frida",
-                "/system/xbin/frida",
-                "/system/bin/frida"
-            )
-            candidates.firstOrNull { path ->
-                val result = RootUtils.executeSuCommand("ls $path")
-                result.contains(path.substringAfterLast("/")) &&
-                        !result.contains("No such file")
-            }
+    suspend fun findFridaCli(): String? = withContext(Dispatchers.IO) {
+        val candidates = listOf(
+            "/data/local/tmp/frida",
+            "/usr/bin/frida",
+            "/usr/local/bin/frida",
+            "/system/xbin/frida",
+            "/system/bin/frida"
+        )
+        candidates.firstOrNull { path ->
+            val result = RootUtils.executeSuCommand("ls $path")
+            result.contains(path.substringAfterLast("/")) &&
+                !result.contains("No such file")
         }
     }
 
@@ -220,12 +209,8 @@ object ScriptUtils {
      * @param packageName  Target package to instrument
      * @return Command output, or an error message
      */
-    suspend fun injectOnDevice(
-        fridaCliPath: String,
-        scriptPath: String,
-        packageName: String
-    ): String {
-        return withContext(Dispatchers.IO) {
+    suspend fun injectOnDevice(fridaCliPath: String, scriptPath: String, packageName: String): String =
+        withContext(Dispatchers.IO) {
             try {
                 val cmd = "$fridaCliPath -U -f $packageName -l $scriptPath --no-pause"
                 val output = RootUtils.executeSuCommand(cmd)
@@ -234,5 +219,4 @@ object ScriptUtils {
                 "ERROR: ${e.message}"
             }
         }
-    }
 }

@@ -1,13 +1,13 @@
 package com.hackpuntes.fridagate.utils
 
 import android.content.Context
-import java.util.Locale
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.util.Locale
 import java.util.zip.ZipFile
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
-import kotlin.coroutines.coroutineContext
 
 /**
  * Detector estático de tecnologías a partir de los nombres de archivos del APK
@@ -39,38 +39,122 @@ object FrameworkDetector {
     // Firmas inspiradas en detectores públicos de APK. Los indicadores se pueden ampliar
     // sin incorporar un motor externo pesado a la aplicación Android.
     private val signatures = listOf(
-        Signature("Flutter", "F", "flutter",
-            listOf("libflutter.so", "assets/flutter_assets/", "io.flutter", "io/flutter", "flutter_assets/kernel_blob.bin")),
-        Signature("React Native", "RN", "react",
-            listOf("libreactnativejni.so", "assets/index.android.bundle", "com.facebook.react", "com/facebook/react", "libhermes.so", "libjscexecutor.so")),
-        Signature("Cordova / JavaScript", "JS", "javascript",
-            listOf("assets/www/cordova.js", "assets/www/cordova_plugins.js", "org.apache.cordova", "org/apache/cordova")),
-        Signature("Capacitor / JavaScript", "JS", "javascript",
-            listOf("assets/capacitor.config.json", "assets/public/capacitor.js", "com.getcapacitor", "com/getcapacitor")),
-        Signature("Ionic", "I", "javascript",
-            listOf("ionic.bundle.js", "assets/www/build/", "@ionic")),
-        Signature("Unreal Engine", "UE", "unreal",
-            listOf("libue4.so", "libunreal.so", "libue5.so", "ue4game/", "ue5game/", "globalshadercache")),
-        Signature("Godot", "G", "godot",
-            listOf("libgodot_android.so", "libgodot.so", "org.godotengine", "org/godotengine", "godotengine")),
-        Signature("Cocos2d-x", "C2", "cocos",
-            listOf("libcocos2dcpp.so", "libcocos2djs.so", "org.cocos2dx", "org/cocos2dx")),
-        Signature("libGDX", "GX", "libgdx",
-            listOf("com/badlogic/gdx/", "com.badlogic.gdx", "com/badlogic/gdx", "libgdx.so")),
-        Signature("Xamarin / .NET MAUI", ".N", "dotnet",
-            listOf("libmonodroid.so", "libxamarin-app.so", "assemblies/", "libmonosgen-2.0.so", "microsoft.maui", "microsoft/maui")),
-        Signature("NativeScript", "NS", "nativescript",
-            listOf("org.nativescript", "org/nativescript", "libnativescript.so", "tns_modules/")),
-        Signature("Qt for Android", "Qt", "qt",
-            listOf("libqt6core.so", "libqt5core.so", "assets/qt/", "org.qtproject", "org/qtproject")),
-        Signature("Kivy / Python", "Py", "python",
-            listOf("libpython3.", "python-for-android", "org.kivy", "org/kivy")),
-        Signature("Solar2D", "S2", "solar2d",
-            listOf("libcorona.so", "com.ansca.corona", "com/ansca/corona", "resource.car")),
-        Signature("Defold", "D", "defold",
-            listOf("libdlib.so", "dmengine", "game.project")),
-        Signature("Adobe AIR", "AIR", "air",
-            listOf("com.adobe.air", "com/adobe/air", "application.xml", "libstagefright_android.so"))
+        Signature(
+            "Flutter",
+            "F",
+            "flutter",
+            listOf(
+                "libflutter.so",
+                "assets/flutter_assets/",
+                "io.flutter",
+                "io/flutter",
+                "flutter_assets/kernel_blob.bin"
+            )
+        ),
+        Signature(
+            "React Native",
+            "RN",
+            "react",
+            listOf(
+                "libreactnativejni.so",
+                "assets/index.android.bundle",
+                "com.facebook.react",
+                "com/facebook/react",
+                "libhermes.so",
+                "libjscexecutor.so"
+            )
+        ),
+        Signature(
+            "Cordova / JavaScript",
+            "JS",
+            "javascript",
+            listOf("assets/www/cordova.js", "assets/www/cordova_plugins.js", "org.apache.cordova", "org/apache/cordova")
+        ),
+        Signature(
+            "Capacitor / JavaScript",
+            "JS",
+            "javascript",
+            listOf("assets/capacitor.config.json", "assets/public/capacitor.js", "com.getcapacitor", "com/getcapacitor")
+        ),
+        Signature(
+            "Ionic",
+            "I",
+            "javascript",
+            listOf("ionic.bundle.js", "assets/www/build/", "@ionic")
+        ),
+        Signature(
+            "Unreal Engine",
+            "UE",
+            "unreal",
+            listOf("libue4.so", "libunreal.so", "libue5.so", "ue4game/", "ue5game/", "globalshadercache")
+        ),
+        Signature(
+            "Godot",
+            "G",
+            "godot",
+            listOf("libgodot_android.so", "libgodot.so", "org.godotengine", "org/godotengine", "godotengine")
+        ),
+        Signature(
+            "Cocos2d-x",
+            "C2",
+            "cocos",
+            listOf("libcocos2dcpp.so", "libcocos2djs.so", "org.cocos2dx", "org/cocos2dx")
+        ),
+        Signature(
+            "libGDX",
+            "GX",
+            "libgdx",
+            listOf("com/badlogic/gdx/", "com.badlogic.gdx", "com/badlogic/gdx", "libgdx.so")
+        ),
+        Signature(
+            "Xamarin / .NET MAUI",
+            ".N",
+            "dotnet",
+            listOf(
+                "libmonodroid.so",
+                "libxamarin-app.so",
+                "assemblies/",
+                "libmonosgen-2.0.so",
+                "microsoft.maui",
+                "microsoft/maui"
+            )
+        ),
+        Signature(
+            "NativeScript",
+            "NS",
+            "nativescript",
+            listOf("org.nativescript", "org/nativescript", "libnativescript.so", "tns_modules/")
+        ),
+        Signature(
+            "Qt for Android",
+            "Qt",
+            "qt",
+            listOf("libqt6core.so", "libqt5core.so", "assets/qt/", "org.qtproject", "org/qtproject")
+        ),
+        Signature(
+            "Kivy / Python",
+            "Py",
+            "python",
+            listOf("libpython3.", "python-for-android", "org.kivy", "org/kivy")
+        ),
+        Signature(
+            "Solar2D",
+            "S2",
+            "solar2d",
+            listOf("libcorona.so", "com.ansca.corona", "com/ansca/corona", "resource.car")
+        ),
+        Signature(
+            "Defold",
+            "D",
+            "defold",
+            listOf("libdlib.so", "dmengine", "game.project")
+        ),
+        Signature(
+            "Adobe AIR",
+            "AIR",
+            "air",
+            listOf("com.adobe.air", "com/adobe/air", "application.xml", "libstagefright_android.so")
+        )
     )
 
     private suspend fun readDexTail(input: InputStream, declaredSize: Long, maxBytes: Int): ByteArray {
@@ -172,7 +256,10 @@ object FrameworkDetector {
 
         val dex = dexStrings.toString()
         val all = buildString {
-            entries.forEach { append(it); append('\n') }
+            entries.forEach {
+                append(it)
+                append('\n')
+            }
             append(dex)
         }.lowercase(Locale.ROOT)
 
@@ -195,8 +282,9 @@ object FrameworkDetector {
         data class Match(val signature: Signature, val score: Int, val evidence: List<String>)
         val matches = signatures.mapNotNull { signature ->
             val evidence = signature.markers.filter { has(it) }
-            if (evidence.isEmpty()) null
-            else {
+            if (evidence.isEmpty()) {
+                null
+            } else {
                 // Una señal distintiva da 55 puntos; las adicionales elevan la confianza.
                 val score = (55 + (evidence.size - 1) * 15).coerceAtMost(100)
                 Match(signature, score, evidence)
@@ -217,8 +305,11 @@ object FrameworkDetector {
                 evidence.add("Posibles indicios adicionales: ${runnerUp.signature.name}")
             }
             return FrameworkInfo(
-                best.signature.name, best.signature.badge, best.signature.category,
-                confidence, evidence
+                best.signature.name,
+                best.signature.badge,
+                best.signature.category,
+                confidence,
+                evidence
             )
         }
 
@@ -259,13 +350,20 @@ object FrameworkDetector {
 
         if (composeEvidence.isNotEmpty()) {
             return FrameworkInfo(
-                "Android nativo (Jetpack Compose probable)", "JC", "native", "media",
+                "Android nativo (Jetpack Compose probable)",
+                "JC",
+                "native",
+                "media",
                 (composeEvidence + kotlinEvidence).distinct()
             )
         }
         if (kotlinEvidence.isNotEmpty()) {
             return FrameworkInfo(
-                "Android nativo (Kotlin probable)", "K", "native", "baja", kotlinEvidence
+                "Android nativo (Kotlin probable)",
+                "K",
+                "native",
+                "baja",
+                kotlinEvidence
             )
         }
 
@@ -285,24 +383,37 @@ object FrameworkDetector {
 
         if (javaEvidence.isNotEmpty()) {
             return FrameworkInfo(
-                "Android nativo (Java probable)", "J", "native", "baja", javaEvidence
+                "Android nativo (Java probable)",
+                "J",
+                "native",
+                "baja",
+                javaEvidence
             )
         }
         if (hasDex && nativeLibraries.isNotEmpty()) {
             return FrameworkInfo(
-                "Android (Java/Kotlin y código nativo posible)", "NDK", "native", "baja",
+                "Android (Java/Kotlin y código nativo posible)",
+                "NDK",
+                "native",
+                "baja",
                 listOf("classes.dex", "bibliotecas nativas .so")
             )
         }
         if (hasDex) {
             return FrameworkInfo(
-                "Android nativo probable (framework no identificado)", "A", "native", "baja",
+                "Android nativo probable (framework no identificado)",
+                "A",
+                "native",
+                "baja",
                 listOf("classes.dex", "sin firmas conocidas de framework")
             )
         }
 
         return FrameworkInfo(
-            "No identificado (sin firmas conocidas)", "?", "unknown", "baja",
+            "No identificado (sin firmas conocidas)",
+            "?",
+            "unknown",
+            "baja",
             listOf("No se encontraron indicadores suficientes")
         )
     }

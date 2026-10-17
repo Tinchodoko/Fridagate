@@ -5,7 +5,7 @@ import android.os.Environment
 import java.io.File
 
 object FilePickerHelper {
-    
+
     fun getScriptsDirectory(context: Context): File {
         val dir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
@@ -16,26 +16,20 @@ object FilePickerHelper {
         }
         return dir
     }
-    
-    fun getJsFiles(context: Context): List<File> {
-        return try {
-            getScriptsDirectory(context)
-                .listFiles { file -> file.extension == "js" }
-                ?.sortedByDescending { it.lastModified() } ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
+
+    fun getJsFiles(context: Context): List<File> = try {
+        getScriptsDirectory(context)
+            .listFiles { file -> file.extension == "js" }
+            ?.sortedByDescending { it.lastModified() } ?: emptyList()
+    } catch (e: Exception) {
+        emptyList()
     }
-    
-    fun readJsFile(file: File): String? {
-        return try {
-            file.readText()
-        } catch (e: Exception) {
-            null
-        }
+
+    fun readJsFile(file: File): String? = try {
+        file.readText()
+    } catch (e: Exception) {
+        null
     }
-    
-    fun getScriptPath(context: Context, fileName: String): File {
-        return File(getScriptsDirectory(context), fileName)
-    }
+
+    fun getScriptPath(context: Context, fileName: String): File = File(getScriptsDirectory(context), fileName)
 }

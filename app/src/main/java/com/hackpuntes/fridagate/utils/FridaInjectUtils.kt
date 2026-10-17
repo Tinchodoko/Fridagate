@@ -1,9 +1,9 @@
 package com.hackpuntes.fridagate.utils
 
 import android.content.Context
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /**
  * FridaInjectUtils - Manages the frida-inject binary and on-device script injection.
@@ -34,7 +34,9 @@ object FridaInjectUtils {
         try {
             RootUtils.executeSuCommand("test -x $INJECT_BINARY_PATH && echo FRIDA_INJECT_EXECUTABLE")
                 .contains("FRIDA_INJECT_EXECUTABLE")
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun getInstalledVersion(): String? = withContext(Dispatchers.IO) {
@@ -46,36 +48,41 @@ object FridaInjectUtils {
             }
             val metadataVersion = RootUtils.executeSuCommand("cat $INJECT_VERSION_FILE 2>/dev/null").trim()
             metadataVersion.takeIf { Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(it) }
-        } catch (e: Exception) { null }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     // -------------------------------------------------------------------------
     // Download and installation
     // -------------------------------------------------------------------------
 
-    suspend fun downloadAndInstall(context: Context, version: String): Boolean =
-        withContext(Dispatchers.IO) {
+    suspend fun downloadAndInstall(context: Context, version: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val arch = FridaUtils.getDeviceArchitecture()
+            val url = "https://github.com/frida/frida/releases/download/$version/" +
+                "frida-inject-$version-android-$arch.xz"
+
+            // Reuse FridaUtils download — it decompresses .xz and saves as filesDir/frida-server
+            val downloaded = FridaUtils.downloadFridaServerFromUrl(context, url)
+                ?: return@withContext false
+
+            val injectFile = File(context.filesDir, "frida-inject")
+            downloaded.renameTo(injectFile)
+            injectFile.setExecutable(true)
+
+            RootUtils.executeSuCommand("cp ${injectFile.absolutePath} $INJECT_BINARY_PATH")
+            RootUtils.executeSuCommand("chmod 755 $INJECT_BINARY_PATH")
+            RootUtils.executeSuCommand("echo '$version' > $INJECT_VERSION_FILE")
+
             try {
-                val arch = FridaUtils.getDeviceArchitecture()
-                val url  = "https://github.com/frida/frida/releases/download/$version/" +
-                           "frida-inject-$version-android-$arch.xz"
-
-                // Reuse FridaUtils download — it decompresses .xz and saves as filesDir/frida-server
-                val downloaded = FridaUtils.downloadFridaServerFromUrl(context, url)
-                    ?: return@withContext false
-
-                val injectFile = File(context.filesDir, "frida-inject")
-                downloaded.renameTo(injectFile)
-                injectFile.setExecutable(true)
-
-                RootUtils.executeSuCommand("cp ${injectFile.absolutePath} $INJECT_BINARY_PATH")
-                RootUtils.executeSuCommand("chmod 755 $INJECT_BINARY_PATH")
-                RootUtils.executeSuCommand("echo '$version' > $INJECT_VERSION_FILE")
-
-                try { injectFile.delete() } catch (_: Exception) {}
-                isFridaInjectInstalled()
-            } catch (e: Exception) { false }
+                injectFile.delete()
+            } catch (_: Exception) {}
+            isFridaInjectInstalled()
+        } catch (e: Exception) {
+            false
         }
+    }
 
     suspend fun readCurrentInjectionLog(): String = withContext(Dispatchers.IO) {
         try {
@@ -205,16 +212,17 @@ object FridaInjectUtils {
             val bootConfirmed = injectLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
             if (pid != null) {
                 if (bootConfirmed) {
-                    lines += "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
+                    lines +=
+                        "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
                     lines += "ℹ️ Esto confirma el inicio del script, no el éxito de todas sus operaciones posteriores."
                 } else {
-                    lines += "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
+                    lines +=
+                        "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
                 lines += attachByName(packageName, scriptPath)
             }
-
         } catch (e: Exception) {
             lines += "ERROR: ${e.message}"
         }
@@ -249,7 +257,9 @@ object FridaInjectUtils {
             Thread.sleep(350)
             val remainingTargetPid = RootUtils.executeSuCommand("pidof $packageName").trim()
             if (remainingTargetPid.isNotBlank()) {
-                RootUtils.executeSuCommand("kill -9 $remainingTargetPid 2>/dev/null || true; am force-stop $packageName")
+                RootUtils.executeSuCommand(
+                    "kill -9 $remainingTargetPid 2>/dev/null || true; am force-stop $packageName"
+                )
                 Thread.sleep(250)
             }
             lines += "✓ Aplicación cerrada antes de iniciar frida-inject: $packageName"
@@ -272,21 +282,23 @@ object FridaInjectUtils {
                     val normalizedScriptName = script.name.lowercase().replace(Regex("[^a-z0-9]"), "")
                     val isUnityDiagnostics =
                         normalizedScriptName == "fridagateunityil2cppdiagnostics" ||
-                        normalizedScriptName == "fridagateunityil2cppbundle"
+                            normalizedScriptName == "fridagateunityil2cppbundle"
                     val isRuntimeDiagnostics =
                         normalizedScriptName == "fridagateruntimediagnostics" ||
-                        normalizedScriptName == "fridagateruntimediagnosticss"
+                            normalizedScriptName == "fridagateruntimediagnosticss"
                     val bundledDiagnostics = when {
                         isUnityDiagnostics -> runCatching {
                             context.assets.open("scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js")
                                 .bufferedReader()
                                 .use { it.readText() }
                         }.getOrNull()
+
                         isRuntimeDiagnostics -> runCatching {
                             context.assets.open("scripts/FridaGate_Runtime_Diagnostics.bundle.js")
                                 .bufferedReader()
                                 .use { it.readText() }
                         }.getOrNull()
+
                         else -> null
                     }
                     // One boot marker per selected script lets the injector confirm startup.
@@ -294,7 +306,8 @@ object FridaInjectUtils {
                     appendLine(bundledDiagnostics ?: script.code)
                     appendLine()
                     if ((isUnityDiagnostics || isRuntimeDiagnostics) && bundledDiagnostics == null) {
-                        lines += "⚠️ No se encontró el bundle de diagnóstico esperado; se usó el código guardado del script."
+                        lines +=
+                            "⚠️ No se encontró el bundle de diagnóstico esperado; se usó el código guardado del script."
                     } else if (bundledDiagnostics != null && isUnityDiagnostics) {
                         lines += "✓ Bundle Unity IL2CPP cargado con bridges Java/IL2CPP."
                     } else if (bundledDiagnostics != null && isRuntimeDiagnostics) {
@@ -311,15 +324,18 @@ object FridaInjectUtils {
             localFile.delete()
             if (!copyResult.contains("SCRIPT_STAGE_OK") ||
                 copyResult.contains("Permission denied", ignoreCase = true) ||
-                copyResult.contains("No such file", ignoreCase = true)) {
+                copyResult.contains("No such file", ignoreCase = true)
+            ) {
                 return@withContext listOf("ERROR: Could not stage scripts at $devicePath: $copyResult")
             }
 
             val installedInjectVersion = getInstalledVersion() ?: "desconocida"
             val installedServerVersion = FridaUtils.getInstalledFridaVersion() ?: "desconocida"
-            lines += "ℹ️ Versiones detectadas: frida-server=$installedServerVersion; frida-inject=$installedInjectVersion"
+            lines +=
+                "ℹ️ Versiones detectadas: frida-server=$installedServerVersion; frida-inject=$installedInjectVersion"
             if (installedServerVersion != installedInjectVersion) {
-                lines += "⚠️ Las versiones de frida-server y frida-inject no coinciden; actualiza ambos a la misma versión antes de seguir."
+                lines +=
+                    "⚠️ Las versiones de frida-server y frida-inject no coinciden; actualiza ambos a la misma versión antes de seguir."
             }
 
             lines += "Enabled scripts: ${bypassScripts.size + customScripts.size}"
@@ -327,7 +343,8 @@ object FridaInjectUtils {
             customScripts.forEach { lines += "✓ ${it.name}" }
             lines += "Combined script staged at $devicePath"
             if (Regex("(?m)^\\s*import\\s+").containsMatchIn(source)) {
-                lines += "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
+                lines +=
+                    "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
             }
 
             // Runtime Diagnostics includes frida-java-bridge. Starting the app with that
@@ -337,13 +354,13 @@ object FridaInjectUtils {
             // has remained available. Other script combinations retain the existing spawn flow.
             val runtimeDiagnosticsOnly =
                 bypassScripts.isEmpty() &&
-                customScripts.size == 1 &&
-                customScripts.any { script ->
-                    val normalized = script.name.lowercase().replace(Regex("[^a-z0-9]"), "")
-                    normalized == "fridagateruntimediagnostics" ||
-                    normalized == "fridagateruntimediagnosticsjs" ||
-                    normalized == "fridagateruntimediagnosticss"
-                }
+                    customScripts.size == 1 &&
+                    customScripts.any { script ->
+                        val normalized = script.name.lowercase().replace(Regex("[^a-z0-9]"), "")
+                        normalized == "fridagateruntimediagnostics" ||
+                            normalized == "fridagateruntimediagnosticsjs" ||
+                            normalized == "fridagateruntimediagnosticss"
+                    }
 
             if (runtimeDiagnosticsOnly) {
                 lines += "ℹ️ Diagnóstico Runtime: iniciando la aplicación normalmente antes de adjuntar Frida."
@@ -396,7 +413,8 @@ object FridaInjectUtils {
                     if (attachLog.contains("[FRIDAGATE-SCRIPT-BOOT]")) {
                         lines += "✅ Diagnóstico adjuntado; la aplicación continúa activa (PID $stillRunning)."
                     } else {
-                        lines += "⚠️ La aplicación continúa activa (PID $stillRunning), pero no se confirmó el inicio del script."
+                        lines +=
+                            "⚠️ La aplicación continúa activa (PID $stillRunning), pero no se confirmó el inicio del script."
                         lines += "ℹ️ Revisa el mensaje de frida-inject mostrado arriba."
                     }
                 } else {
@@ -445,7 +463,7 @@ object FridaInjectUtils {
             if (injectLog.isBlank()) {
                 val injectorState = RootUtils.executeSuCommand(
                     "if [ -f /data/local/tmp/fridagate_inject.pid ]; then p=\$(cat /data/local/tmp/fridagate_inject.pid); " +
-                    "if kill -0 \$p 2>/dev/null; then echo INJECTOR_ALIVE_PID=\$p; else echo INJECTOR_NOT_RUNNING; fi; fi"
+                        "if kill -0 \$p 2>/dev/null; then echo INJECTOR_ALIVE_PID=\$p; else echo INJECTOR_NOT_RUNNING; fi; fi"
                 ).trim()
                 val serverState = if (FridaUtils.isFridaServerRunning()) "frida-server sigue activo" else "frida-server NO está activo"
                 lines += "⚠️ No se recibió salida de frida-inject tras 12 s. Estado: $injectorState; $serverState."
@@ -459,10 +477,13 @@ object FridaInjectUtils {
             val pid = findProcessId(packageName)
             if (pid != null) {
                 if (scriptBootConfirmed) {
-                    lines += "✅ Confirmación de ejecución: $observedScriptBoots/$expectedScriptBoots scripts alcanzaron su marcador inicial dentro de Frida."
-                    lines += "ℹ️ Esto confirma que el agente ejecutó el inicio de cada script; no garantiza que todas sus operaciones posteriores hayan terminado sin errores."
+                    lines +=
+                        "✅ Confirmación de ejecución: $observedScriptBoots/$expectedScriptBoots scripts alcanzaron su marcador inicial dentro de Frida."
+                    lines +=
+                        "ℹ️ Esto confirma que el agente ejecutó el inicio de cada script; no garantiza que todas sus operaciones posteriores hayan terminado sin errores."
                 } else {
-                    lines += "⚠️ Proceso $packageName activo (PID $pid), pero la ejecución completa no está confirmada: marcadores $observedScriptBoots/$expectedScriptBoots."
+                    lines +=
+                        "⚠️ Proceso $packageName activo (PID $pid), pero la ejecución completa no está confirmada: marcadores $observedScriptBoots/$expectedScriptBoots."
                     lines += "ℹ️ Revisa la salida de frida-inject para detectar errores de sintaxis, carga o ejecución."
                 }
             } else if (observedScriptBoots > 0) {
@@ -470,14 +491,16 @@ object FridaInjectUtils {
                 // the app with the agent. Do not launch the app a second time via monkey:
                 // the process may have crashed/exited during script initialization.
                 lines += "⚠️ El script alcanzó su marcador inicial, pero el proceso $packageName ya no está activo."
-                lines += "ℹ️ Se omite el relanzamiento automático para evitar abrir la aplicación por segunda vez. Revisa la salida de frida-inject."
+                lines +=
+                    "ℹ️ Se omite el relanzamiento automático para evitar abrir la aplicación por segunda vez. Revisa la salida de frida-inject."
                 lines += "🔎 Recopilando errores recientes de Android para identificar por qué terminó el proceso..."
                 val crashDiagnostics = collectTargetCrashDiagnostics(packageName)
                 if (crashDiagnostics.isNotBlank()) {
                     crashDiagnostics.lines().forEach { lines += "📱 $it" }
                 } else {
                     lines += "ℹ️ Logcat no mostró una excepción/crash reconocible en el buffer reciente."
-                    lines += "ℹ️ Si vuelve a ocurrir, comparte este registro completo y el resultado de logcat del sistema."
+                    lines +=
+                        "ℹ️ Si vuelve a ocurrir, comparte este registro completo y el resultado de logcat del sistema."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
@@ -515,7 +538,8 @@ object FridaInjectUtils {
             )
             localFile.delete()
             if (copyResult.contains("Permission denied", ignoreCase = true) ||
-                copyResult.contains("No such file", ignoreCase = true)) {
+                copyResult.contains("No such file", ignoreCase = true)
+            ) {
                 return@withContext listOf("ERROR: Could not stage custom script: $copyResult")
             }
 
@@ -545,10 +569,12 @@ object FridaInjectUtils {
             val bootConfirmed = injectLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
             if (pid != null) {
                 if (bootConfirmed) {
-                    lines += "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
+                    lines +=
+                        "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
                     lines += "ℹ️ Esto confirma el inicio del script, no el éxito de todas sus operaciones posteriores."
                 } else {
-                    lines += "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
+                    lines +=
+                        "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
@@ -590,7 +616,9 @@ object FridaInjectUtils {
 
             val pid = RootUtils.executeSuCommand("cat /data/local/tmp/fridagate_inject.pid 2>/dev/null").trim()
             if (pid.matches(Regex("\\d+"))) {
-                RootUtils.executeSuCommand("kill -TERM $pid 2>/dev/null || true; sleep 1; kill -KILL $pid 2>/dev/null || true")
+                RootUtils.executeSuCommand(
+                    "kill -TERM $pid 2>/dev/null || true; sleep 1; kill -KILL $pid 2>/dev/null || true"
+                )
                 lines += "✓ Proceso frida-inject detenido (PID $pid)."
             }
             RootUtils.executeSuCommand(
@@ -627,19 +655,22 @@ object FridaInjectUtils {
                 var output = RootUtils.executeSuCommand("am task remove $taskId 2>&1")
                 if (output.contains("Unknown command", ignoreCase = true) ||
                     output.contains("Error", ignoreCase = true) ||
-                    output.contains("Exception", ignoreCase = true)) {
+                    output.contains("Exception", ignoreCase = true)
+                ) {
                     output = RootUtils.executeSuCommand("cmd activity task remove $taskId 2>&1")
                 }
                 if (!output.contains("Unknown command", ignoreCase = true) &&
                     !output.contains("Error", ignoreCase = true) &&
                     !output.contains("Exception", ignoreCase = true) &&
-                    !output.contains("not found", ignoreCase = true)) {
+                    !output.contains("not found", ignoreCase = true)
+                ) {
                     removed = true
                     lines += "✓ Se solicitó quitar la tarea $taskId de Aplicaciones recientes."
                 }
             }
             if (!removed) {
-                lines += "ℹ️ No se pudo confirmar la eliminación de Recientes en esta versión de Android; la aplicación sí recibió el cierre forzado."
+                lines +=
+                    "ℹ️ No se pudo confirmar la eliminación de Recientes en esta versión de Android; la aplicación sí recibió el cierre forzado."
             }
             RootUtils.executeSuCommand("rm -f /data/local/tmp/fridagate_enabled_scripts.js")
             lines += "✓ Finalizado. Los registros de FridaGate se conservaron."
@@ -648,7 +679,6 @@ object FridaInjectUtils {
         }
         lines
     }
-
 
     private suspend fun recordInjectedPackage(packageName: String) {
         if (packageName.matches(Regex("[A-Za-z0-9._]+"))) {
@@ -673,13 +703,13 @@ object FridaInjectUtils {
             // Also kill target processes left by older versions that did not record their package.
             RootUtils.executeSuCommand(
                 "for maps in /proc/[0-9]*/maps; do " +
-                "if grep -qi frida-agent \"\$maps\" 2>/dev/null || grep -qi frida-gadget \"\$maps\" 2>/dev/null; then " +
-                "pid=\$(echo \"\$maps\" | cut -d/ -f3); kill -9 \"\$pid\" 2>/dev/null || true; fi; done"
+                    "if grep -qi frida-agent \"\$maps\" 2>/dev/null || grep -qi frida-gadget \"\$maps\" 2>/dev/null; then " +
+                    "pid=\$(echo \"\$maps\" | cut -d/ -f3); kill -9 \"\$pid\" 2>/dev/null || true; fi; done"
             )
             RootUtils.executeSuCommand(
                 "rm -f /data/local/tmp/fridagate_inject.pid $INJECTED_PACKAGES_FILE " +
-                "/data/local/tmp/fridagate_enabled_scripts.js /data/local/tmp/fridagate_combined.js " +
-                "/data/local/tmp/fridagate_custom.js $INJECT_LOG"
+                    "/data/local/tmp/fridagate_enabled_scripts.js /data/local/tmp/fridagate_combined.js " +
+                    "/data/local/tmp/fridagate_custom.js $INJECT_LOG"
             )
             lines += "✓ Procesos de inyección y scripts temporales de FridaGate limpiados."
             if (packages.isEmpty()) lines += "ℹ️ No había aplicaciones registradas; no se cerraron aplicaciones ajenas."
@@ -693,9 +723,13 @@ object FridaInjectUtils {
     suspend fun uninstallFridaInject(): Boolean = withContext(Dispatchers.IO) {
         try {
             stopAllInjections()
-            RootUtils.executeSuCommand("rm -f $INJECT_BINARY_PATH $INJECT_VERSION_FILE $INJECT_LOG /data/local/tmp/fridagate_inject.pid $INJECTED_PACKAGES_FILE")
+            RootUtils.executeSuCommand(
+                "rm -f $INJECT_BINARY_PATH $INJECT_VERSION_FILE $INJECT_LOG /data/local/tmp/fridagate_inject.pid $INJECTED_PACKAGES_FILE"
+            )
             !isFridaInjectInstalled()
-        } catch (_: Exception) { false }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** Stops a custom-script frida-inject process without touching the predefined bypass injection. */
@@ -733,8 +767,15 @@ object FridaInjectUtils {
                 val pid = findProcessId(packageName)
 
                 buildString {
-                    if (pid != null) append("⚠️ Found target process $packageName (PID $pid), but PID presence does NOT confirm successful injection or script execution.")
-                    else append("Could not find process — is frida-server running?")
+                    if (pid !=
+                        null
+                    ) {
+                        append(
+                            "⚠️ Found target process $packageName (PID $pid), but PID presence does NOT confirm successful injection or script execution."
+                        )
+                    } else {
+                        append("Could not find process — is frida-server running?")
+                    }
                     if (log.isNotEmpty()) append(" | frida-inject: $log")
                 }
             } catch (e: Exception) {
@@ -747,17 +788,15 @@ object FridaInjectUtils {
      * Captures Android crash/termination messages after an injected target disappears.
      * The package name is validated before reaching this helper.
      */
-    private suspend fun collectTargetCrashDiagnostics(packageName: String): String {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pattern = "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|" +
-                    "tombstoned|crash_dump|am_crash|am_anr|has died|Killing .*${packageName}|${packageName}"
-                RootUtils.executeSuCommand(
-                    "logcat -d -t 800 2>/dev/null | grep -E -i -B 4 -A 18 '$pattern' | tail -n 100"
-                ).trim()
-            } catch (_: Exception) {
-                ""
-            }
+    private suspend fun collectTargetCrashDiagnostics(packageName: String): String = withContext(Dispatchers.IO) {
+        try {
+            val pattern = "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|" +
+                "tombstoned|crash_dump|am_crash|am_anr|has died|Killing .*$packageName|$packageName"
+            RootUtils.executeSuCommand(
+                "logcat -d -t 800 2>/dev/null | grep -E -i -B 4 -A 18 '$pattern' | tail -n 100"
+            ).trim()
+        } catch (_: Exception) {
+            ""
         }
     }
 

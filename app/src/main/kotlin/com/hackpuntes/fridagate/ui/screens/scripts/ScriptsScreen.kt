@@ -2,26 +2,23 @@
 
 package com.hackpuntes.fridagate.ui.screens.scripts
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.core.content.ContextCompat
-import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.provider.Settings
 import android.provider.OpenableColumns
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.abs
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,38 +32,38 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hackpuntes.fridagate.data.models.FridaScript
-import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
-import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
-import com.hackpuntes.fridagate.utils.ScriptUtils
-import com.hackpuntes.fridagate.utils.RootUtils
-import com.hackpuntes.fridagate.utils.FrameworkDetector
-import com.hackpuntes.fridagate.utils.FrameworkTestScript
-import com.hackpuntes.fridagate.utils.FrameworkInfo
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import androidx.lifecycle.ViewModelProvider
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hackpuntes.fridagate.data.models.FridaScript
+import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
+import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
+import com.hackpuntes.fridagate.utils.FrameworkDetector
+import com.hackpuntes.fridagate.utils.FrameworkInfo
+import com.hackpuntes.fridagate.utils.FrameworkTestScript
+import com.hackpuntes.fridagate.utils.RootUtils
+import com.hackpuntes.fridagate.utils.ScriptUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
-fun ScriptsScreen(
-    viewModel: ScriptsViewModel,
-    onBack: () -> Unit
-) {
+fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
     val scripts by viewModel.scripts.collectAsState()
     val selectedScript by viewModel.selectedScript.collectAsState()
     val editorCode by viewModel.editorCode.collectAsState()
@@ -205,12 +202,12 @@ fun ScriptsScreen(
             }
         }
     }
-    
+
     var showConfirmDelete by remember { mutableStateOf(false) }
     var scriptToDelete by remember { mutableStateOf<FridaScript?>(null) }
     var showConfirmExport by remember { mutableStateOf(false) }
     var scriptToExport by remember { mutableStateOf<FridaScript?>(null) }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -231,178 +228,193 @@ fun ScriptsScreen(
     ) {
         // The target selector belongs to the script-list tab. Editor and Logs use the full content area.
         if (selectedTab == 0) {
-        Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Column(modifier = Modifier.padding(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
-                    Box {
-                        TextButton(onClick = { if (isRootAvailable) appFilterMenuExpanded = true }, enabled = isRootAvailable) {
-                            Text(appFilter)
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Filtrar aplicaciones")
-                        }
-                        DropdownMenu(
-                            expanded = appFilterMenuExpanded,
-                            onDismissRequest = { appFilterMenuExpanded = false }
-                        ) {
-                            listOf("Usuario", "Sistema", "Usuario + Sistema").forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option) },
-                                    leadingIcon = {
-                                        if (appFilter == option) Icon(Icons.Default.Check, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        appFilter = option
-                                        viewModel.addLog("Filtro de aplicaciones seleccionado: $option")
-                                        appFilterMenuExpanded = false
-                                    }
-                                )
+            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("📱 Aplicación de destino", style = MaterialTheme.typography.titleSmall)
+                        Box {
+                            TextButton(onClick = {
+                                if (isRootAvailable) appFilterMenuExpanded = true
+                            }, enabled = isRootAvailable) {
+                                Text(appFilter)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Filtrar aplicaciones")
+                            }
+                            DropdownMenu(
+                                expanded = appFilterMenuExpanded,
+                                onDismissRequest = { appFilterMenuExpanded = false }
+                            ) {
+                                listOf("Usuario", "Sistema", "Usuario + Sistema").forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        leadingIcon = {
+                                            if (appFilter ==
+                                                option
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = null)
+                                            }
+                                        },
+                                        onClick = {
+                                            appFilter = option
+                                            viewModel.addLog("Filtro de aplicaciones seleccionado: $option")
+                                            appFilterMenuExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
-                }
-                val selectedApp = allInstalledApps.firstOrNull { it.second == targetPackage }
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    if (targetPackage.isBlank()) {
-                        OutlinedButton(
-                            onClick = { if (isRootAvailable) targetMenuExpanded = true },
-                            enabled = isRootAvailable,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            Text("Seleccionar una app", modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Abrir selector de aplicaciones")
-                        }
-                    } else {
-                        Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            Text(
-                                selectedApp?.first ?: targetPackage,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2
-                            )
-                            Row(
+                    val selectedApp = allInstalledApps.firstOrNull { it.second == targetPackage }
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        if (targetPackage.isBlank()) {
+                            OutlinedButton(
+                                onClick = { if (isRootAvailable) targetMenuExpanded = true },
+                                enabled = isRootAvailable,
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
                             ) {
+                                Text("Seleccionar una app", modifier = Modifier.weight(1f))
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Abrir selector de aplicaciones")
+                            }
+                        } else {
+                            Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                                 Text(
-                                    targetPackage,
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodySmall,
+                                    selectedApp?.first ?: targetPackage,
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 2
                                 )
-                                AppPackageIcon(targetPackage)
-                                IconButton(
-                                    onClick = {
-                                        val removedPackage = targetPackage
-                                        extrasViewModel.setTargetPackage("")
-                                        viewModel.addLog("Aplicación de destino retirada: $removedPackage. Análisis detenido.")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        targetPackage,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2
+                                    )
+                                    AppPackageIcon(targetPackage)
+                                    IconButton(
+                                        onClick = {
+                                            val removedPackage = targetPackage
+                                            extrasViewModel.setTargetPackage("")
+                                            viewModel.addLog(
+                                                "Aplicación de destino retirada: $removedPackage. Análisis detenido."
+                                            )
+                                        },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Quitar aplicación seleccionada y detener análisis",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { if (isRootAvailable) targetMenuExpanded = true },
+                                        enabled = isRootAvailable,
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ArrowDropDown,
+                                            contentDescription = "Cambiar aplicación de destino"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = targetMenuExpanded,
+                            onDismissRequest = { targetMenuExpanded = false },
+                            modifier = Modifier.heightIn(max = 320.dp)
+                        ) {
+                            installedApps.forEach { (label, packageName, _) ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(label, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                                            Text(
+                                                packageName,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1
+                                            )
+                                        }
                                     },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Quitar aplicación seleccionada y detener análisis",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { if (isRootAvailable) targetMenuExpanded = true },
-                                    enabled = isRootAvailable,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.ArrowDropDown,
-                                        contentDescription = "Cambiar aplicación de destino"
-                                    )
-                                }
+                                    leadingIcon = { AppPackageIcon(packageName) },
+                                    onClick = {
+                                        extrasViewModel.setTargetPackage(packageName)
+                                        viewModel.addLog("Aplicación de destino seleccionada: $packageName")
+                                        targetMenuExpanded = false
+                                    }
+                                )
+                            }
+                            if (installedApps.isEmpty()) {
+                                DropdownMenuItem(text = { Text("NO SE ENCONTRARON APLICACIONES") }, onClick = {})
                             }
                         }
                     }
 
-                    DropdownMenu(
-                        expanded = targetMenuExpanded,
-                        onDismissRequest = { targetMenuExpanded = false },
-                        modifier = Modifier.heightIn(max = 320.dp)
-                    ) {
-                        installedApps.forEach { (label, packageName, _) ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(label, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                    if (targetPackage.isNotBlank()) {
+                        val framework = detectedFrameworks[targetPackage]
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                val isGameEngine = framework?.category?.let {
+                                    it in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold")
+                                } == true
+                                Text(
+                                    if (isGameEngine) "MOTOR DE JUEGO" else "FRAMEWORK / MOTOR DE JUEGO",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                if (framework == null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            packageName,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1
+                                            "Analizando únicamente esta aplicación…",
+                                            style = MaterialTheme.typography.bodyMedium
                                         )
                                     }
-                                },
-                                leadingIcon = { AppPackageIcon(packageName) },
-                                onClick = {
-                                    extrasViewModel.setTargetPackage(packageName)
-                                    viewModel.addLog("Aplicación de destino seleccionada: $packageName")
-                                    targetMenuExpanded = false
-                                }
-                            )
-                        }
-                        if (installedApps.isEmpty()) {
-                            DropdownMenuItem(text = { Text("NO SE ENCONTRARON APLICACIONES") }, onClick = {})
-                        }
-                    }
-                }
-
-                if (targetPackage.isNotBlank()) {
-                    val framework = detectedFrameworks[targetPackage]
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                        )
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                            val isGameEngine = framework?.category?.let {
-                                it in setOf("unity", "unreal", "godot", "cocos", "libgdx", "solar2d", "defold")
-                            } == true
-                            Text(
-                                if (isGameEngine) "MOTOR DE JUEGO" else "FRAMEWORK / MOTOR DE JUEGO",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            if (framework == null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Analizando únicamente esta aplicación…", style = MaterialTheme.typography.bodyMedium)
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    FrameworkBadge(framework)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(framework.name, style = MaterialTheme.typography.titleMedium)
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                val confidence = when (framework.confidence.lowercase(Locale.ROOT)) {
-                                    "alta" -> "Alta"
-                                    "media" -> "Media"
-                                    else -> "Baja"
-                                }
-                                Text("Confianza: $confidence", style = MaterialTheme.typography.bodyMedium)
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text("Indicadores encontrados:", style = MaterialTheme.typography.labelMedium)
-                                if (framework.evidence.isEmpty()) {
-                                    Text("• No se encontraron indicadores concluyentes", style = MaterialTheme.typography.bodySmall)
                                 } else {
-                                    framework.evidence.forEach { indicator ->
-                                        Text("✓ $indicator", style = MaterialTheme.typography.bodySmall)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        FrameworkBadge(framework)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(framework.name, style = MaterialTheme.typography.titleMedium)
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    val confidence = when (framework.confidence.lowercase(Locale.ROOT)) {
+                                        "alta" -> "Alta"
+                                        "media" -> "Media"
+                                        else -> "Baja"
+                                    }
+                                    Text("Confianza: $confidence", style = MaterialTheme.typography.bodyMedium)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("Indicadores encontrados:", style = MaterialTheme.typography.labelMedium)
+                                    if (framework.evidence.isEmpty()) {
+                                        Text(
+                                            "• No se encontraron indicadores concluyentes",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    } else {
+                                        framework.evidence.forEach { indicator ->
+                                            Text("✓ $indicator", style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
                                 }
                             }
@@ -410,7 +422,6 @@ fun ScriptsScreen(
                     }
                 }
             }
-        }
         }
 
         // Header
@@ -428,7 +439,7 @@ fun ScriptsScreen(
             },
             actions = {}
         )
-        
+
         // Tabs
         TabRow(
             selectedTabIndex = selectedTab,
@@ -453,7 +464,7 @@ fun ScriptsScreen(
                 icon = { Icon(Icons.Default.Info, null) }
             )
         }
-        
+
         // Contenido
         Box(
             modifier = Modifier
@@ -467,7 +478,9 @@ fun ScriptsScreen(
                     selectedTargetApp = targetPackage,
                     onImportScript = {
                         viewModel.addLog("Seleccionando archivo JavaScript para importar")
-                        importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*"))
+                        importJsLauncher.launch(
+                            arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*")
+                        )
                     },
                     onExportScript = { script ->
                         scriptToExport = script
@@ -509,6 +522,7 @@ fun ScriptsScreen(
                         showConfirmDelete = true
                     }
                 )
+
                 1 -> EditorTab(
                     selectedScript = selectedScript,
                     editorCode = editorCode,
@@ -518,6 +532,7 @@ fun ScriptsScreen(
                         viewModel.clearMessage()
                     }
                 )
+
                 2 -> LogsTab(
                     logs = (logs + bypassLogs).takeLast(500),
                     context = context,
@@ -542,7 +557,7 @@ fun ScriptsScreen(
             }
         }
     }
-    
+
     if (showConfirmExport && scriptToExport != null) {
         val exportName = scriptToExport!!.name.let {
             if (it.endsWith(".js", ignoreCase = true)) it else "$it.js"
@@ -602,7 +617,13 @@ private fun FrameworkBadge(info: FrameworkInfo) {
     }
     Surface(
         color = color,
-        contentColor = if (info.category == "native") MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
+        contentColor = if (info.category ==
+            "native"
+        ) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.onPrimary
+        },
         shape = androidx.compose.foundation.shape.CircleShape,
         modifier = Modifier.size(29.dp)
     ) {
@@ -641,7 +662,6 @@ private fun AppPackageIcon(packageName: String) {
     }
 }
 
-
 @Composable
 fun ScriptListTab(
     scripts: List<FridaScript>,
@@ -666,7 +686,7 @@ fun ScriptListTab(
     onSelectScript: (FridaScript) -> Unit,
     onNewScript: () -> Unit,
     onDeleteScript: (FridaScript) -> Unit
- ) {
+) {
     val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize()
@@ -683,7 +703,7 @@ fun ScriptListTab(
                 Text("NUEVO SCRIPT")
             }
         }
-        
+
         // IMPORT BUTTON
         item {
             Button(
@@ -699,12 +719,12 @@ fun ScriptListTab(
                 Text("📂 IMPORTAR ARCHIVO .JS")
             }
         }
-        
+
         // DIVIDER
         item {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
         }
-        
+
         // PREDEFINED SCRIPTS SECTION
         item {
             Text(
@@ -832,7 +852,9 @@ fun ScriptListTab(
                                 description = "Prueba de banner y primer toque",
                                 enabledForLaunch = true
                             )
-                        } else null
+                        } else {
+                            null
+                        }
                         onLaunchWithBypass(testScript)
                     }
                 },
@@ -842,7 +864,10 @@ fun ScriptListTab(
                         true
                     } else {
                         fridaInjectReady &&
-                        (enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch } || (frameworkTestEnabled && frameworkInfo != null))
+                            (
+                                enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch } ||
+                                    (frameworkTestEnabled && frameworkInfo != null)
+                                )
                     },
                 colors = if (activeTargetPackage == selectedTargetApp) {
                     ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -872,7 +897,7 @@ fun ScriptListTab(
         item {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
         }
-        
+
         // USER SCRIPTS SECTION
         item {
             Text(
@@ -881,7 +906,7 @@ fun ScriptListTab(
                 modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             )
         }
-        
+
         // Scripts List
         if (scripts.isEmpty()) {
             item {
@@ -929,8 +954,11 @@ fun ScriptListItem(
             .padding(8.dp)
             .clickable(onClick = onSelect)
             .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surface
+                if (isSelected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surface
+                }
             )
     ) {
         Row(
@@ -946,13 +974,13 @@ fun ScriptListItem(
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1
                 )
-                
+
                 Text(
                     text = "Líneas: ${script.code.lines().size}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )
-                
+
                 if (script.supportsIL2CPP) {
                     Text(
                         text = "✓ SOPORTA IL2CPP",
@@ -960,7 +988,7 @@ fun ScriptListItem(
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
-                
+
                 Text(
                     text = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(
                         Date(script.updatedAt)
@@ -969,7 +997,7 @@ fun ScriptListItem(
                     color = MaterialTheme.colorScheme.outline
                 )
             }
-            
+
             Switch(
                 checked = isEnabledForLaunch,
                 onCheckedChange = onToggleEnabled,
@@ -1008,11 +1036,11 @@ fun EditorTab(
     onSave: (String) -> Unit
 ) {
     var scriptName by remember { mutableStateOf(selectedScript?.name ?: "") }
-    
+
     LaunchedEffect(selectedScript) {
         scriptName = selectedScript?.name ?: ""
     }
-    
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Script name input
         TextField(
@@ -1024,7 +1052,7 @@ fun EditorTab(
                 .padding(8.dp),
             singleLine = true
         )
-        
+
         // Code editor
         TextField(
             value = editorCode,
@@ -1040,7 +1068,7 @@ fun EditorTab(
             placeholder = { Text("ESCRIBE TU CÓDIGO FRIDA AQUÍ...") },
             singleLine = false
         )
-        
+
         // Save button
         Button(
             onClick = { onSave(scriptName) },
@@ -1057,12 +1085,7 @@ fun EditorTab(
 // ==================== LOGS TAB ====================
 
 @Composable
-fun LogsTab(
-    logs: List<String>,
-    context: android.content.Context,
-    onClearLogs: () -> Unit,
-    onExportLogs: () -> Unit
-) {
+fun LogsTab(logs: List<String>, context: android.content.Context, onClearLogs: () -> Unit, onExportLogs: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         // Logs display
         Surface(
@@ -1106,7 +1129,7 @@ fun LogsTab(
                 }
             }
         }
-        
+
         // Solo acciones propias del registro: limpiar y exportar.
         Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Row(
@@ -1117,9 +1140,17 @@ fun LogsTab(
             ) {
                 Button(
                     onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("FridaGate 2.0 — Scripts", logs.joinToString("\n")))
-                        android.widget.Toast.makeText(context, "REGISTROS COPIADOS", android.widget.Toast.LENGTH_SHORT).show()
+                        val clipboard = context.getSystemService(
+                            android.content.Context.CLIPBOARD_SERVICE
+                        ) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(
+                            android.content.ClipData.newPlainText("FridaGate 2.0 — Scripts", logs.joinToString("\n"))
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            "REGISTROS COPIADOS",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     },
                     modifier = Modifier.weight(1f)
                 ) {

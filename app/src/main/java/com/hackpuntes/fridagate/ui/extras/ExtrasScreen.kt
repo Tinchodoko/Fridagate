@@ -10,12 +10,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,10 +41,10 @@ fun ExtrasScreen() {
         }
     )
 
-    val isLoading              by viewModel.isLoading.collectAsState()
-    val isFridaRunning         by viewModel.isFridaRunning.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isFridaRunning by viewModel.isFridaRunning.collectAsState()
     val isFridaInjectInstalled by viewModel.isFridaInjectInstalled.collectAsState()
-    val fridaInjectVersion     by viewModel.fridaInjectVersion.collectAsState()
+    val fridaInjectVersion by viewModel.fridaInjectVersion.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -54,15 +54,12 @@ fun ExtrasScreen() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
             Text(
                 text = "NO HAY HERRAMIENTAS ADICIONALES DISPONIBLES POR AHORA.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 24.dp)
             )
-
-
         }
 
         if (isLoading) {
@@ -90,25 +87,37 @@ private fun TargetPackageCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Aplicación de destino", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "Aplicación de destino",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
 
             ExposedDropdownMenuBox(
                 expanded = expanded && enabled,
                 onExpandedChange = { if (enabled) expanded = !expanded }
             ) {
                 OutlinedTextField(
-                    value         = if (selected.isEmpty()) "" else if (displayName != selected) "$displayName\n$selected" else selected,
+                    value = if (selected.isEmpty()) {
+                        ""
+                    } else if (displayName !=
+                        selected
+                    ) {
+                        "$displayName\n$selected"
+                    } else {
+                        selected
+                    },
                     onValueChange = {},
-                    readOnly      = true,
-                    label         = { Text("SELECCIONAR APLICACIÓN") },
-                    placeholder   = { Text("NINGUNA APLICACIÓN SELECCIONADA") },
-                    trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier      = Modifier
+                    readOnly = true,
+                    label = { Text("SELECCIONAR APLICACIÓN") },
+                    placeholder = { Text("NINGUNA APLICACIÓN SELECCIONADA") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled)
                         .fillMaxWidth(),
-                    enabled       = enabled,
-                    maxLines      = 2,
-                    textStyle     = MaterialTheme.typography.bodyMedium
+                    enabled = enabled,
+                    maxLines = 2,
+                    textStyle = MaterialTheme.typography.bodyMedium
                 )
                 ExposedDropdownMenu(
                     expanded = expanded && enabled,
@@ -125,8 +134,16 @@ private fun TargetPackageCard(
                             DropdownMenuItem(
                                 text = {
                                     Column {
-                                        Text(app.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                        Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            app.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            app.packageName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 },
                                 onClick = {
@@ -161,11 +178,11 @@ private fun ScriptsCard(
             scripts.forEachIndexed { index, script ->
                 if (index > 0) HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                 ScriptRow(
-                    script    = script,
-                    enabled   = enabledScripts.contains(script.id),
+                    script = script,
+                    enabled = enabledScripts.contains(script.id),
                     isLoading = isLoading,
-                    context   = context,
-                    onToggle  = { onToggle(script.id) }
+                    context = context,
+                    onToggle = { onToggle(script.id) }
                 )
             }
         }
@@ -194,7 +211,11 @@ private fun ScriptRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(script.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text(script.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    script.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Switch(checked = enabled, onCheckedChange = { onToggle() }, enabled = !isLoading)
@@ -204,7 +225,8 @@ private fun ScriptRow(
         TextButton(onClick = { showSource = !showSource }, contentPadding = PaddingValues(0.dp)) {
             Icon(
                 imageVector = if (showSource) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null, modifier = Modifier.size(16.dp)
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(if (showSource) "Ocultar script" else "Ver script", style = MaterialTheme.typography.labelSmall)
@@ -220,7 +242,13 @@ private fun ScriptRow(
             ) {
                 LazyColumn {
                     items(source.lines()) { line ->
-                        Text(line, color = Color(0xFFFFD700), fontFamily = FontFamily.Monospace, fontSize = 10.sp, lineHeight = 15.sp)
+                        Text(
+                            line,
+                            color = Color(0xFFFFD700),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            lineHeight = 15.sp
+                        )
                     }
                 }
             }
@@ -259,11 +287,22 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, onRefresh: () -> U
                     .padding(8.dp)
             ) {
                 if (logs.isEmpty()) {
-                    Text("Todavía no hay registros...", color = Color(0xFF666666), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text(
+                        "Todavía no hay registros...",
+                        color = Color(0xFF666666),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
                 } else {
                     LazyColumn(state = listState) {
                         items(logs) { line ->
-                            Text(line, color = Color(0xFF00FF00), fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp)
+                            Text(
+                                line,
+                                color = Color(0xFF00FF00),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
+                            )
                         }
                     }
                 }

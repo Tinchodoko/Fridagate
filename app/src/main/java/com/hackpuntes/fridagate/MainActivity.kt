@@ -1,13 +1,11 @@
 package com.hackpuntes.fridagate
 
-import android.os.Bundle
 import android.net.Uri
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.abs
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -16,31 +14,33 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.hackpuntes.fridagate.ui.about.AboutScreen
 import com.hackpuntes.fridagate.ui.about.InAppBrowserScreen
 import com.hackpuntes.fridagate.ui.dashboard.DashboardScreen
 import com.hackpuntes.fridagate.ui.extras.ExtrasScreen
 import com.hackpuntes.fridagate.ui.frida.FridaScreen
+import com.hackpuntes.fridagate.ui.screens.scripts.ScriptsScreen
 import com.hackpuntes.fridagate.ui.terminal.TerminalScreen
 import com.hackpuntes.fridagate.ui.theme.FridagateTheme
-import com.hackpuntes.fridagate.ui.screens.scripts.ScriptsScreen
 import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModel
 import com.hackpuntes.fridagate.ui.viewmodels.ScriptsViewModelFactory
+import kotlin.math.abs
 
 /**
  * MainActivity - Activity principal que aloja FridaGate 2.0.
@@ -78,8 +78,8 @@ class MainActivity : ComponentActivity() {
             var isDarkTheme by remember { mutableStateOf(true) }
             FridagateTheme(darkTheme = isDarkTheme) {
                 FridagateApp(
-                    isDarkTheme    = isDarkTheme,
-                    onToggleTheme  = { isDarkTheme = !isDarkTheme }
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = { isDarkTheme = !isDarkTheme }
                 )
             }
         }
@@ -97,12 +97,12 @@ class MainActivity : ComponentActivity() {
  */
 object Routes {
     const val DASHBOARD = "dashboard"
-    const val FRIDA     = "frida"
-    const val TERMINAL  = "terminal"
-    const val EXTRAS    = "extras"
-    const val ABOUT     = "about"
-    const val SCRIPTS   = "scripts"
-    const val BROWSER   = "browser"
+    const val FRIDA = "frida"
+    const val TERMINAL = "terminal"
+    const val EXTRAS = "extras"
+    const val ABOUT = "about"
+    const val SCRIPTS = "scripts"
+    const val BROWSER = "browser"
 }
 
 /**
@@ -148,10 +148,10 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
     // Main navigation tabs, including the previously disconnected Script Manager.
     val navItems = listOf(
         BottomNavItem(Routes.DASHBOARD, "INICIO", Icons.Default.Home),
-        BottomNavItem(Routes.FRIDA,     "FRIDA",     Icons.Default.Star),
-        BottomNavItem(Routes.SCRIPTS,   "SCRIPTS",   Icons.Default.Code),
-        BottomNavItem(Routes.TERMINAL,  "TERMINAL",  Icons.Default.Terminal),
-        BottomNavItem(Routes.ABOUT,     "INFO", Icons.Default.Info)
+        BottomNavItem(Routes.FRIDA, "FRIDA", Icons.Default.Star),
+        BottomNavItem(Routes.SCRIPTS, "SCRIPTS", Icons.Default.Code),
+        BottomNavItem(Routes.TERMINAL, "TERMINAL", Icons.Default.Terminal),
+        BottomNavItem(Routes.ABOUT, "INFO", Icons.Default.Info)
     )
 
     Scaffold(
@@ -202,8 +202,8 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true // Save the state of the tab we're leaving
                                 }
-                                launchSingleTop = true  // Don't create a new instance if already on this tab
-                                restoreState = true     // Restore the saved state when returning to a tab
+                                launchSingleTop = true // Don't create a new instance if already on this tab
+                                restoreState = true // Restore the saved state when returning to a tab
                             }
                         },
                         icon = { Icon(item.icon, contentDescription = item.label) },
@@ -251,9 +251,9 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
         ) {
             // Each composable {} block maps a route string to a screen composable
             composable(Routes.DASHBOARD) { DashboardScreen() }
-            composable(Routes.FRIDA)     { FridaScreen() }
-            composable(Routes.TERMINAL)  { TerminalScreen() }
-            composable(Routes.EXTRAS)    { ExtrasScreen() }
+            composable(Routes.FRIDA) { FridaScreen() }
+            composable(Routes.TERMINAL) { TerminalScreen() }
+            composable(Routes.EXTRAS) { ExtrasScreen() }
             composable(Routes.ABOUT) {
                 AboutScreen(
                     onBack = {
@@ -268,10 +268,12 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
             }
             composable(
                 route = "${Routes.BROWSER}?url={url}",
-                arguments = listOf(navArgument("url") {
-                    type = NavType.StringType
-                    defaultValue = "https://github.com/Tinchodoko/Fridagate"
-                })
+                arguments = listOf(
+                    navArgument("url") {
+                        type = NavType.StringType
+                        defaultValue = "https://github.com/Tinchodoko/Fridagate"
+                    }
+                )
             ) { entry ->
                 InAppBrowserScreen(
                     url = entry.arguments?.getString("url")
@@ -279,7 +281,7 @@ fun FridagateApp(isDarkTheme: Boolean = true, onToggleTheme: () -> Unit = {}) {
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Routes.SCRIPTS)   {
+            composable(Routes.SCRIPTS) {
                 ScriptsScreen(
                     viewModel = scriptsViewModel,
                     onBack = {

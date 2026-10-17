@@ -18,9 +18,9 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
-import java.util.Locale
 import androidx.core.app.NotificationCompat
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,7 +48,11 @@ class FridaGateNotificationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Servicio de icono flotante", NotificationManager.IMPORTANCE_MIN).apply {
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "Servicio de icono flotante",
+                    NotificationManager.IMPORTANCE_MIN
+                ).apply {
                     description = "Mantiene disponible el icono flotante de FridaGate 2.0"
                     setShowBadge(false)
                 }
@@ -65,10 +69,12 @@ class FridaGateNotificationService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+
             ACTION_RETURN_TO_APP -> {
                 openFridaGate()
                 return START_NOT_STICKY
             }
+
             ACTION_STOP_TARGET -> {
                 val target = intent.getStringExtra(EXTRA_PACKAGE_NAME).orEmpty()
                     .ifBlank { activeTargetPackage }
@@ -94,7 +100,9 @@ class FridaGateNotificationService : Service() {
         }
         val contentIntent = launchIntent?.let {
             PendingIntent.getActivity(
-                this, 1001, it,
+                this,
+                1001,
+                it,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         }
@@ -155,10 +163,13 @@ class FridaGateNotificationService : Service() {
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 contentDescription = "FridaGate 2.0"
             }
-            panel.addView(iconHeader, LinearLayout.LayoutParams((44 * density).toInt(), (44 * density).toInt()).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                bottomMargin = (4 * density).toInt()
-            })
+            panel.addView(
+                iconHeader,
+                LinearLayout.LayoutParams((44 * density).toInt(), (44 * density).toInt()).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    bottomMargin = (4 * density).toInt()
+                }
+            )
 
             val returnButton = Button(this).apply {
                 text = returnButtonLabel()
@@ -179,7 +190,10 @@ class FridaGateNotificationService : Service() {
                 }
             }
             returnButtonView = returnButton
-            panel.addView(returnButton, LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
+            panel.addView(
+                returnButton,
+                LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
+            )
 
             val stopButton = Button(this).apply {
                 text = "DETENER APLICACIÓN"
@@ -187,7 +201,10 @@ class FridaGateNotificationService : Service() {
                 isEnabled = activeTargetPackage.isNotBlank()
                 setOnClickListener { stopTargetAndReturn(currentTargetPackage()) }
             }
-            panel.addView(stopButton, LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
+            panel.addView(
+                stopButton,
+                LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
+            )
             stopButtonView = stopButton
 
             val byline = android.widget.TextView(this).apply {
@@ -197,7 +214,10 @@ class FridaGateNotificationService : Service() {
                 gravity = Gravity.CENTER
                 setPadding(0, (6 * density).toInt(), 0, (4 * density).toInt())
             }
-            panel.addView(byline, LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT))
+            panel.addView(
+                byline,
+                LinearLayout.LayoutParams((220 * density).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
+            )
             root.addView(panel)
             bubbleView = bubble
             panelView = panel
@@ -205,7 +225,13 @@ class FridaGateNotificationService : Service() {
             val params = WindowManager.LayoutParams(
                 (244 * density).toInt(),
                 WindowManager.LayoutParams.WRAP_CONTENT,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
+                if (Build.VERSION.SDK_INT >=
+                    Build.VERSION_CODES.O
+                ) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
             ).apply {
@@ -229,6 +255,7 @@ class FridaGateNotificationService : Service() {
                         moved = false
                         true
                     }
+
                     MotionEvent.ACTION_MOVE -> {
                         val dx = event.rawX - startX
                         val dy = event.rawY - startY
@@ -238,6 +265,7 @@ class FridaGateNotificationService : Service() {
                         runCatching { windowManager?.updateViewLayout(root, params) }
                         true
                     }
+
                     MotionEvent.ACTION_UP -> {
                         if (!moved) {
                             updateTargetControls()
@@ -246,6 +274,7 @@ class FridaGateNotificationService : Service() {
                         }
                         true
                     }
+
                     else -> true
                 }
             }
@@ -332,7 +361,9 @@ class FridaGateNotificationService : Service() {
     }
 
     private fun removeFloatingPanel() {
-        try { floatingView?.let { windowManager?.removeView(it) } } catch (_: Exception) {}
+        try {
+            floatingView?.let { windowManager?.removeView(it) }
+        } catch (_: Exception) {}
         floatingView = null
         bubbleView = null
         panelView = null

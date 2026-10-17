@@ -5,17 +5,17 @@ import android.os.Build
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonReader
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.tukaani.xz.XZInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.tukaani.xz.XZInputStream
 
 /**
  * FridaUtils - All logic related to the Frida server binary.
@@ -57,8 +57,8 @@ object FridaUtils {
      * This is our internal model — cleaned up from the raw GitHub response.
      */
     data class FridaRelease(
-        val version: String,       // e.g. "16.7.0"
-        val releaseDate: String,   // e.g. "2024-01-15"
+        val version: String, // e.g. "16.7.0"
+        val releaseDate: String, // e.g. "2024-01-15"
         val assets: List<FridaAsset>
     )
 
@@ -67,10 +67,10 @@ object FridaUtils {
      * Each release has multiple assets for different architectures (arm, arm64, x86, x86_64).
      */
     data class FridaAsset(
-        val name: String,          // e.g. "frida-server-16.7.0-android-arm64.xz"
-        val downloadUrl: String,   // Direct download URL
-        val architecture: String,  // e.g. "arm64"
-        val size: Long             // File size in bytes
+        val name: String, // e.g. "frida-server-16.7.0-android-arm64.xz"
+        val downloadUrl: String, // Direct download URL
+        val architecture: String, // e.g. "arm64"
+        val size: Long // File size in bytes
     )
 
     /**
@@ -78,7 +78,7 @@ object FridaUtils {
      * @SerializedName maps the JSON field name (snake_case) to our Kotlin property (camelCase).
      */
     data class GithubRelease(
-        @SerializedName("tag_name") val tagName: String,         // e.g. "16.7.0"
+        @SerializedName("tag_name") val tagName: String, // e.g. "16.7.0"
         @SerializedName("published_at") val publishedAt: String, // e.g. "2024-01-15T10:00:00Z"
         @SerializedName("assets") val assets: List<GithubAsset>
     )
@@ -113,7 +113,7 @@ object FridaUtils {
                 // Build the HTTP client with timeouts to avoid hanging forever
                 val client = OkHttpClient.Builder()
                     .connectTimeout(30, TimeUnit.SECONDS) // Time to establish connection
-                    .readTimeout(30, TimeUnit.SECONDS)    // Time to receive data
+                    .readTimeout(30, TimeUnit.SECONDS) // Time to receive data
                     .build()
 
                 // Build the HTTP GET request
@@ -147,8 +147,8 @@ object FridaUtils {
                                 val name = asset.name
                                 // Keep only files like: frida-server-16.7.0-android-arm64.xz
                                 if (name.startsWith("frida-server-") &&
-                                    (name.endsWith(".xz") || name.endsWith(".zip"))) {
-
+                                    (name.endsWith(".xz") || name.endsWith(".zip"))
+                                ) {
                                     // Extract the architecture from the filename using regex
                                     // Pattern: "android-(arm|arm64|x86|x86_64)"
                                     val archPattern = "android-(arm64|arm|x86_64|x86)(?=[.-])".toRegex()
@@ -425,15 +425,13 @@ object FridaUtils {
      * @param version The version string to save
      * @return true if the file was written successfully
      */
-    suspend fun saveInstalledVersion(version: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                // "echo 'text' > file" writes text to a file, overwriting existing content
-                RootUtils.executeSuCommand("echo '$version' > $FRIDA_VERSION_FILE")
-                true
-            } catch (e: Exception) {
-                false
-            }
+    suspend fun saveInstalledVersion(version: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // "echo 'text' > file" writes text to a file, overwriting existing content
+            RootUtils.executeSuCommand("echo '$version' > $FRIDA_VERSION_FILE")
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -563,14 +561,12 @@ object FridaUtils {
      *
      * @return true if the binary exists at FRIDA_BINARY_PATH
      */
-    suspend fun isFridaServerInstalled(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                RootUtils.executeSuCommand("test -x $FRIDA_BINARY_PATH && echo FRIDA_SERVER_EXECUTABLE")
-                    .contains("FRIDA_SERVER_EXECUTABLE")
-            } catch (e: Exception) {
-                false
-            }
+    suspend fun isFridaServerInstalled(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            RootUtils.executeSuCommand("test -x $FRIDA_BINARY_PATH && echo FRIDA_SERVER_EXECUTABLE")
+                .contains("FRIDA_SERVER_EXECUTABLE")
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -673,13 +669,11 @@ object FridaUtils {
      *
      * @return Architecture string: "arm64", "arm", "x86_64", or "x86"
      */
-    fun getDeviceArchitecture(): String {
-        return when (Build.SUPPORTED_ABIS[0]) {
-            "arm64-v8a"   -> "arm64"
-            "armeabi-v7a" -> "arm"
-            "x86_64"      -> "x86_64"
-            "x86"         -> "x86"
-            else          -> "arm" // Default fallback for unknown architectures
-        }
+    fun getDeviceArchitecture(): String = when (Build.SUPPORTED_ABIS[0]) {
+        "arm64-v8a" -> "arm64"
+        "armeabi-v7a" -> "arm"
+        "x86_64" -> "x86_64"
+        "x86" -> "x86"
+        else -> "arm" // Default fallback for unknown architectures
     }
 }

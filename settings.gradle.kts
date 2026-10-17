@@ -24,4 +24,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "FridaGate 2.0"
 include(":app")
- 

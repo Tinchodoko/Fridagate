@@ -20,25 +20,25 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val TerminalBg = Color(0xFF080B09)
 private val TerminalPanel = Color(0xFF101712)
@@ -138,10 +138,19 @@ fun TerminalScreen() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Icon(Icons.Default.Terminal, contentDescription = null, tint = TerminalGreen)
                     Text("TERMINAL", color = TerminalGreen, fontSize = 17.sp, fontFamily = FontFamily.Monospace)
-                    if (busy) CircularProgressIndicator(modifier = Modifier.size(15.dp), strokeWidth = 2.dp, color = TerminalGreen)
+                    if (busy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(15.dp),
+                            strokeWidth = 2.dp,
+                            color = TerminalGreen
+                        )
+                    }
                 }
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
@@ -157,15 +166,27 @@ fun TerminalScreen() {
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(if (rootEnabled) "Desactivar ejecución root" else "Activar ejecución root (su)") },
-                            onClick = { rootEnabled = !rootEnabled; menuExpanded = false }
+                            text = {
+                                Text(if (rootEnabled) "Desactivar ejecución root" else "Activar ejecución root (su)")
+                            },
+                            onClick = {
+                                rootEnabled = !rootEnabled
+                                menuExpanded = false
+                            }
                         )
-                        DropdownMenuItem(text = { Text("Limpiar terminal") }, onClick = { menuExpanded = false; showClearConfirm = true })
+                        DropdownMenuItem(text = { Text("Limpiar terminal") }, onClick = {
+                            menuExpanded = false
+                            showClearConfirm =
+                                true
+                        })
                         DropdownMenuItem(text = { Text("Mostrar directorio actual") }, onClick = {
-                            appendOutput(currentDirectory); menuExpanded = false
+                            appendOutput(currentDirectory)
+                            menuExpanded = false
                         })
                         DropdownMenuItem(text = { Text("Ayuda rápida") }, onClick = {
-                            appendOutput("Comandos: pwd, ls, cat, getprop, pm, am, cd, clear. Root: su (opcional desde menú).")
+                            appendOutput(
+                                "Comandos: pwd, ls, cat, getprop, pm, am, cd, clear. Root: su (opcional desde menú)."
+                            )
                             menuExpanded = false
                         })
                     }
@@ -173,16 +194,25 @@ fun TerminalScreen() {
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().background(TerminalPanel, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().background(
+                    TerminalPanel,
+                    RoundedCornerShape(8.dp)
+                ).padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(currentDirectory, color = TerminalMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text(if (rootEnabled) "ROOT ACTIVADO" else "USUARIO APP", color = if (rootEnabled) Color(0xFFFFC857) else TerminalGreen, fontSize = 10.sp)
+                Text(
+                    if (rootEnabled) "ROOT ACTIVADO" else "USUARIO APP",
+                    color = if (rootEnabled) Color(0xFFFFC857) else TerminalGreen,
+                    fontSize = 10.sp
+                )
             }
 
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth().background(TerminalBg, RoundedCornerShape(8.dp)).padding(10.dp),
+                modifier = Modifier.weight(
+                    1f
+                ).fillMaxWidth().background(TerminalBg, RoundedCornerShape(8.dp)).padding(10.dp),
                 state = listState
             ) {
                 items(lines) { line ->
@@ -202,7 +232,10 @@ fun TerminalScreen() {
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().background(TerminalPanel, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth().background(
+                    TerminalPanel,
+                    RoundedCornerShape(8.dp)
+                ).padding(horizontal = 10.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("$ ", color = TerminalGreen, fontFamily = FontFamily.Monospace)
@@ -218,7 +251,14 @@ fun TerminalScreen() {
                     keyboardActions = KeyboardActions(onSend = { scope.launch { executeCommand(command) } }),
                     decorationBox = { inner ->
                         Box {
-                            if (command.isEmpty()) Text("Escribe un comando…", color = TerminalMuted, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                            if (command.isEmpty()) {
+                                Text(
+                                    "Escribe un comando…",
+                                    color = TerminalMuted,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                             inner()
                         }
                     }
@@ -234,17 +274,44 @@ fun TerminalScreen() {
                         onClick = {
                             when (key) {
                                 "↑" -> if (history.isNotEmpty()) {
-                                    historyIndex = (if (historyIndex < 0) history.lastIndex else (historyIndex - 1).coerceAtLeast(0))
+                                    historyIndex =
+                                        (
+                                            if (historyIndex <
+                                                0
+                                            ) {
+                                                history.lastIndex
+                                            } else {
+                                                (historyIndex - 1).coerceAtLeast(0)
+                                            }
+                                            )
                                     command = history[historyIndex]
                                 }
+
                                 "↓" -> if (historyIndex >= 0) {
                                     historyIndex++
-                                    if (historyIndex >= history.size) { historyIndex = -1; command = "" } else command = history[historyIndex]
+                                    if (historyIndex >=
+                                        history.size
+                                    ) {
+                                        historyIndex = -1
+                                        command = ""
+                                    } else {
+                                        command =
+                                            history[historyIndex]
+                                    }
                                 }
+
                                 "TAB" -> command += "    "
+
                                 "ESC" -> command = ""
-                                "CTRL" -> appendOutput("CTRL: los procesos se ejecutan por comando; las señales interactivas aún no están disponibles.")
-                                "ALT" -> appendOutput("ALT: modificador reservado para una futura entrada de terminal interactiva.")
+
+                                "CTRL" -> appendOutput(
+                                    "CTRL: los procesos se ejecutan por comando; las señales interactivas aún no están disponibles."
+                                )
+
+                                "ALT" -> appendOutput(
+                                    "ALT: modificador reservado para una futura entrada de terminal interactiva."
+                                )
+
                                 "←", "→" -> { /* El cursor se controla con el teclado del sistema. */ }
                             }
                         },
@@ -254,7 +321,18 @@ fun TerminalScreen() {
                         modifier = Modifier.weight(1f)
                     ) {
                         Box(modifier = Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                            Text(key, color = TerminalText, fontSize = if (key.length > 1) 9.sp else 13.sp, fontFamily = FontFamily.Monospace)
+                            Text(
+                                key,
+                                color = TerminalText,
+                                fontSize = if (key.length >
+                                    1
+                                ) {
+                                    9.sp
+                                } else {
+                                    13.sp
+                                },
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }
@@ -276,7 +354,10 @@ fun TerminalScreen() {
             title = { Text("Limpiar terminal") },
             text = { Text("¿Quieres borrar la salida visible?") },
             confirmButton = {
-                TextButton(onClick = { lines.clear(); showClearConfirm = false }) { Text("LIMPIAR") }
+                TextButton(onClick = {
+                    lines.clear()
+                    showClearConfirm = false
+                }) { Text("LIMPIAR") }
             },
             dismissButton = { TextButton(onClick = { showClearConfirm = false }) { Text("CANCELAR") } }
         )
@@ -304,7 +385,11 @@ private fun exportTerminal(context: Context, lines: List<String>) {
         } else {
             @Suppress("DEPRECATION")
             val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (!downloads.exists() && !downloads.mkdirs()) throw IllegalStateException("No se pudo acceder a Descargas")
+            if (!downloads.exists() &&
+                !downloads.mkdirs()
+            ) {
+                throw IllegalStateException("No se pudo acceder a Descargas")
+            }
             File(downloads, "terminal.txt").writeText(content)
         }
         Toast.makeText(context, "Terminal exportada en Download/terminal.txt", Toast.LENGTH_LONG).show()

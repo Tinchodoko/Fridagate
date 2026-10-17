@@ -1,14 +1,5 @@
 package com.hackpuntes.fridagate.ui.about
 
-import com.hackpuntes.fridagate.BuildConfig
-import java.io.IOException
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,10 +7,11 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +25,13 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hackpuntes.fridagate.BuildConfig
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,16 +68,18 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             updateStatus = when {
                 e.message?.contains("HTTP 404", ignoreCase = true) == true ->
                     "GITHUB NO ENCONTRÓ UNA PUBLICACIÓN DISPONIBLE. REVISA LA SECCIÓN RELEASES DEL REPOSITORIO O INTÉNTALO DE NUEVO MÁS TARDE."
+
                 e.message?.contains("HTTP 401", ignoreCase = true) == true ||
                     e.message?.contains("HTTP 403", ignoreCase = true) == true ->
                     "GITHUB DENEGÓ EL ACCESO A LAS VERSIONES. REVISA LOS PERMISOS DEL SERVICIO DE ACTUALIZACIONES."
+
                 else -> "NO SE PUDO CONSULTAR GITHUB: " + (e.message ?: "ERROR DE CONEXIÓN")
             }
         } finally {
             isCheckingUpdate = false
         }
     }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -93,7 +94,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 }
             }
         )
-        
+
         // Content
         Column(
             modifier = Modifier
@@ -108,66 +109,98 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Text(
                 "HERRAMIENTA ANDROID PARA PRUEBAS AUTORIZADAS, INSTRUMENTACIÓN Y DIAGNÓSTICO",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
             // Description
             Text(
                 "FridaGate 2.0 integra la gestión del entorno de Frida, scripts JavaScript, diagnósticos de runtime, registros, una terminal y un navegador integrado para apoyar pruebas autorizadas y análisis de aplicaciones Android.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
-            
+
             // Author Section
             Text(
                 "AUTOR",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
-            
+
             Text(
                 "TINCHODOKO 😈",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
-            
+
             Text(
                 "RECONOCIMIENTO A JAVIER OLMEDO POR EL TRABAJO DEL PROYECTO ORIGINAL 🙏",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
             // Features
             Text(
                 "FUNCIONES",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
-            
+
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text("✅ FRIDA: INSTALACIÓN, ACTUALIZACIÓN, EJECUCIÓN Y DESINSTALACIÓN DE SERVER E INJECT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR Y ELIMINAR SCRIPTS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN Y EJECUCIÓN DE SCRIPTS HABILITADOS", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ REGISTROS: ACTIVIDAD EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ DIAGNÓSTICO DE RUNTIME: AGENTES JAVA Y UNITY/IL2CPP INCLUIDOS EN LA BUILD", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ ICONO FLOTANTE: ACCESO RÁPIDO PARA ALTERNAR ENTRE FRIDAGATE 2.0 Y LA APLICACIÓN OBJETIVO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR LA PÁGINA EN EL NAVEGADOR EXTERNO", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN DE SALIDA A TXT", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    "✅ FRIDA: INSTALACIÓN, ACTUALIZACIÓN, EJECUCIÓN Y DESINSTALACIÓN DE SERVER E INJECT",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR Y ELIMINAR SCRIPTS",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN Y EJECUCIÓN DE SCRIPTS HABILITADOS",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ REGISTROS: ACTIVIDAD EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ DIAGNÓSTICO DE RUNTIME: AGENTES JAVA Y UNITY/IL2CPP INCLUIDOS EN LA BUILD",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ ICONO FLOTANTE: ACCESO RÁPIDO PARA ALTERNAR ENTRE FRIDAGATE 2.0 Y LA APLICACIÓN OBJETIVO",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR LA PÁGINA EN EL NAVEGADOR EXTERNO",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN DE SALIDA A TXT",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
             }
-            
+
             // Links Section
             Text(
                 "ENLACES",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
-            
+
             // Github Repository
             ClickableText(
                 text = AnnotatedString("📍 CÓDIGO FUENTE: FRIDAGATE 2.0"),
@@ -180,7 +213,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 ),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
-            
+
             // Owner Repository
             ClickableText(
                 text = AnnotatedString("📍 CRÉDITO DEL PROYECTO ORIGINAL: JAVIER OLMEDO"),
@@ -193,7 +226,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 ),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
-            
+
             // Frida Documentation
             ClickableText(
                 text = AnnotatedString("📍 SITIO OFICIAL DE FRIDA"),
@@ -206,7 +239,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 ),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
-            
+
             // GitHub Actions builds
             ClickableText(
                 text = AnnotatedString("📍 VER BUILDS EN GITHUB"),
@@ -294,9 +327,11 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                     Text(
                         updateStatus,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (latestBuild != null && latestBuild!! > currentBuild)
+                        color = if (latestBuild != null && latestBuild!! > currentBuild) {
                             MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                     OutlinedButton(
                         onClick = {
@@ -322,7 +357,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
 
             // Version
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             Text(
                 "FRIDAGATE 2.0 (${BuildConfig.BUILD_NUMBER})",
                 style = MaterialTheme.typography.labelMedium,
@@ -333,7 +368,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                 textAlign = androidx.compose.ui.text.style.TextAlign.End
             )
         }
-        
+
         // Footer
         Box(
             modifier = Modifier

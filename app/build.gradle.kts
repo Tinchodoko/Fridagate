@@ -64,10 +64,10 @@ dependencies {
     // BOM = Bill of Materials: manages all Compose library versions automatically
     // so we don't have to specify a version number for each Compose library
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)             // Core UI components
-    implementation(libs.androidx.compose.ui.graphics)    // Drawing/graphics support
+    implementation(libs.androidx.compose.ui) // Core UI components
+    implementation(libs.androidx.compose.ui.graphics) // Drawing/graphics support
     implementation(libs.androidx.compose.ui.tooling.preview) // Preview in Android Studio
-    implementation(libs.androidx.compose.material3)      // Material Design 3 components
+    implementation(libs.androidx.compose.material3) // Material Design 3 components
 
     // Material Icons Extended: includes ALL Material icons (Refresh, KeyboardArrowDown, etc.)
     // This already contains material-icons-core, so we only need this one dependency
@@ -113,7 +113,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
-
 
 // --- Frida agent bundle ---
 // Builds tools/unity-diagnostics (esbuild) into app/src/main/assets/scripts/ before every build,
