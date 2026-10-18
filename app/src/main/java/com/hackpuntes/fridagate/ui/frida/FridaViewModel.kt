@@ -167,7 +167,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    private fun isValidStableVersion(version: String): Boolean = version.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))
+    private fun isValidStableVersion(version: String): Boolean = FridaUtils.isValidVersionFormat(version)
 
     fun setSelectedVersion(version: String) {
         if (_availableReleases.value.any { it.version == version }) {
