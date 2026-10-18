@@ -177,6 +177,14 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 addLog("VERSIÓN SELECCIONADA: $version ($architecture)")
                 addLog("MODO: " + if (config == FridaStealthConfig.DEFAULT) "ORIGINAL" else "STEALTH")
                 addLog("DIRECTORIO: ${config.installDir} | SERVER: ${config.serverAlias} | INJECT: ${config.injectAlias} | PUERTO: ${config.port}")
+                addLog("Verificando que GitHub publique server e inject para la misma versión...")
+                val serverAssetAvailable = FridaUtils.isFridaAssetAvailable(version, architecture, "server")
+                val injectAssetAvailable = FridaUtils.isFridaAssetAvailable(version, architecture, "inject")
+                if (!serverAssetAvailable || !injectAssetAvailable) {
+                    addLog("ERROR: NO SE INSTALÓ NINGÚN BINARIO. La versión $version no ofrece ambos archivos Android para $architecture o GitHub no respondió.")
+                    addLog("Elige otra versión o verifica la conexión; server e inject deben tener la misma versión.")
+                    return@launch
+                }
 
                 if (!FridaUtils.isFridaServerInstalled() ||
                     FridaUtils.getInstalledFridaVersion() != version
