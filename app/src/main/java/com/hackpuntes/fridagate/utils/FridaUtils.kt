@@ -146,6 +146,34 @@ object FridaUtils {
         }
     }
 
+    /**
+     * Comprueba que GitHub publique el binario solicitado antes de iniciar una instalación.
+     * Se usa para validar server e inject de la misma versión y evitar actualizaciones parciales.
+     */
+    suspend fun isFridaAssetAvailable(version: String, architecture: String, component: String): Boolean {
+        if (!isValidVersionFormat(version) || architecture !in setOf("arm", "arm64", "x86", "x86_64")) {
+            return false
+        }
+        if (component !in setOf("server", "inject")) return false
+        return withContext(Dispatchers.IO) {
+            try {
+                val assetName = "frida-$component-$version-android-$architecture.xz"
+                val url = "https://github.com/frida/frida/releases/download/$version/$assetName"
+                val request = Request.Builder().url(url).head().build()
+                OkHttpClient.Builder()
+                    .followRedirects(true)
+                    .connectTimeout(20, TimeUnit.SECONDS)
+                    .readTimeout(20, TimeUnit.SECONDS)
+                    .build()
+                    .newCall(request)
+                    .execute()
+                    .use { response -> response.isSuccessful }
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
     suspend fun getFridaServerUrl(version: String, architecture: String): String? {
         return withContext(Dispatchers.IO) {
             try {
