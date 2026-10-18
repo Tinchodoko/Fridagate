@@ -4,6 +4,9 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import android.os.Build
+import android.content.Intent
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -35,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.hackpuntes.fridagate.BuildConfig
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -162,46 +166,19 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             )
 
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text(
-                    "✅ FRIDA: INSTALACIÓN, ACTUALIZACIÓN, EJECUCIÓN Y DESINSTALACIÓN DE SERVER E INJECT",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR Y ELIMINAR SCRIPTS",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN Y EJECUCIÓN DE SCRIPTS HABILITADOS",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ REGISTROS: ACTIVIDAD EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ DIAGNÓSTICO DE RUNTIME: AGENTES JAVA Y UNITY/IL2CPP INCLUIDOS EN LA BUILD",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ ICONO FLOTANTE: ACCESO RÁPIDO PARA ALTERNAR ENTRE FRIDAGATE 2.0 Y LA APLICACIÓN OBJETIVO",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR LA PÁGINA EN EL NAVEGADOR EXTERNO",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Text(
-                    "✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN DE SALIDA A TXT",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
+                Text("✅ INSTALACIÓN INTELIGENTE: ASISTENTE INDEPENDIENTE PARA ELEGIR VERSIÓN, MODO ORIGINAL O STEALTH Y CONFIGURAR SERVER E INJECT EN UNA SOLA OPERACIÓN.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ FRIDA SERVER E INJECT: INSTALACIÓN, ACTUALIZACIÓN, INICIO, DETENCIÓN Y DESINSTALACIÓN COMPLETA.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ VERSIONES: SELECCIÓN DE VERSIONES PUBLICADAS Y ENTRADA MANUAL; SERVER E INJECT USAN SIEMPRE LA MISMA VERSIÓN.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ CAMUFLAJE STEALTH: DIRECTORIO, NOMBRES DE PROCESO Y PUERTO PERSONALIZABLES; CONFIGURACIÓN BLOQUEADA MIENTRAS FRIDA ESTÁ INSTALADO.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ LIMPIEZA COMPLETA: DETENCIÓN DE PROCESOS Y ELIMINACIÓN DE BINARIOS, METADATOS Y ARCHIVOS TEMPORALES CON REGISTRO DE RESULTADOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR, ELIMINAR Y EJECUTAR SCRIPTS HABILITADOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN OBJETIVO Y EJECUCIÓN DE SCRIPTS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ REGISTROS: ACTIVIDAD EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ DIAGNÓSTICO DE RUNTIME: AGENTES JAVA Y UNITY/IL2CPP INCLUIDOS EN LA BUILD.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ ICONO FLOTANTE PARA ACCESO RÁPIDO ENTRE FRIDAGATE Y LA APLICACIÓN OBJETIVO.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR PÁGINAS EN EL NAVEGADOR EXTERNO.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN TXT.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ ACTUALIZACIONES DESDE LA APP: CONSULTA DE BUILDS Y DESCARGA DE LA ÚLTIMA APK CON APERTURA DEL INSTALADOR DE ANDROID.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
             }
 
             // Links Section
@@ -349,6 +326,22 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                                 downloadScope.launch {
                                     isDownloadingLatestApk = true
                                     try {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                                            !context.packageManager.canRequestPackageInstalls()
+                                        ) {
+                                            context.startActivity(
+                                                Intent(
+                                                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                                    Uri.parse("package:" + context.packageName)
+                                                )
+                                            )
+                                            Toast.makeText(
+                                                context,
+                                                "Habilita permitir instalaciones desde esta app y vuelve a pulsar actualizar.",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                            return@launch
+                                        }
                                         val (buildNumber, downloadUrl) = withContext(Dispatchers.IO) {
                                             val request = Request.Builder()
                                                 .url("https://api.github.com/repos/Tinchodoko/Fridagate/releases/latest")
@@ -394,12 +387,42 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                                             )
                                             .setAllowedOverMetered(true)
                                             .setAllowedOverRoaming(true)
-                                        downloadManager.enqueue(downloadRequest)
+                                        val downloadId = downloadManager.enqueue(downloadRequest)
                                         Toast.makeText(
                                             context,
-                                            "Descarga iniciada: Download/$fileName",
-                                            Toast.LENGTH_LONG
+                                            "Descargando la última versión de FridaGate 2.0...",
+                                            Toast.LENGTH_SHORT
                                         ).show()
+                                        var downloadFinished = false
+                                        while (!downloadFinished) {
+                                            delay(800)
+                                            downloadManager.query(DownloadManager.Query().setFilterById(downloadId)).use { cursor ->
+                                                if (!cursor.moveToFirst()) {
+                                                    throw IOException("No se pudo consultar la descarga de la APK")
+                                                }
+                                                when (cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
+                                                    DownloadManager.STATUS_SUCCESSFUL -> {
+                                                        val apkUri = downloadManager.getUriForDownloadedFile(downloadId)
+                                                            ?: throw IOException("Android no devolvió la ubicación de la APK descargada")
+                                                        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                                            setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                        }
+                                                        context.startActivity(installIntent)
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Descarga completada. Confirma la actualización en el instalador de Android.",
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+                                                        downloadFinished = true
+                                                    }
+                                                    DownloadManager.STATUS_FAILED -> {
+                                                        val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                                                        throw IOException("Falló la descarga de la APK (código $reason)")
+                                                    }
+                                                }
+                                            }
+                                        }
                                     } catch (e: Exception) {
                                         Toast.makeText(
                                             context,
@@ -415,16 +438,10 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                         enabled = !isDownloadingLatestApk,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (isDownloadingLatestApk) "PREPARANDO DESCARGA..." else "DESCARGAR ÚLTIMA APK")
-                    }
-                    OutlinedButton(
-                        onClick = { onOpenUrl("https://github.com/Tinchodoko/Fridagate/releases/latest") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("VER PUBLICACIÓN EN GITHUB")
+                        Text(if (isDownloadingLatestApk) "DESCARGANDO APK..." else "ACTUALIZAR A LA ÚLTIMA VERSIÓN")
                     }
                     Text(
-                        "La APK se descarga directamente en la carpeta Download con el número de build en el nombre. La instalación debe confirmarse manualmente en Android.",
+                        "La app descarga la APK más reciente y abre el instalador de Android. Por seguridad, Android puede pedir permiso para instalar apps desde FridaGate y siempre exige confirmar la instalación.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
