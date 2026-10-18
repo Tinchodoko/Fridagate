@@ -1,0 +1,53 @@
+name: Recuperación segura de firma FridaGate 2.0
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  recover-signing-key:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restaurar únicamente la caché original
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: fridagate-debug-keystore-v1
+
+      - name: Verificar que existe la clave recuperada
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY="$HOME/.android/debug.keystore"
+          if [ ! -s "$KEY" ]; then
+            echo "::error::La caché original fridagate-debug-keystore-v1 no está disponible. No se generó una clave nueva."
+            exit 1
+          fi
+          echo "La caché contiene un keystore."
+          keytool -list -v -keystore "$KEY" -storepass android -alias androiddebugkey             | grep -E 'Alias name:|Creation date:|SHA256:|SHA256withRSA'
+
+      - name: Cifrar el keystore antes de publicarlo como artefacto
+        shell: bash
+        env:
+          RECOVERY_PASSWORD: ${{ secrets.KEYSTORE_RECOVERY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RECOVERY_PASSWORD:-}" ]; then
+            echo "::error::Falta el secreto del repositorio KEYSTORE_RECOVERY_PASSWORD. Añádelo en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          mkdir -p recovery
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000             -in "$HOME/.android/debug.keystore"             -out recovery/FridaGate-debug-keystore.enc             -pass env:RECOVERY_PASSWORD
+          sha256sum recovery/FridaGate-debug-keystore.enc | tee recovery/SHA256SUMS.txt
+          echo "Se generó un archivo cifrado; la clave privada no se subió en texto claro."
+
+      - name: Publicar únicamente el archivo cifrado
+        uses: actions/upload-artifact@v4
+        with:
+          name: FridaGate-keystore-cifrado
+          path: recovery/
+          if-no-files-found: error
+          retention-days: 1
