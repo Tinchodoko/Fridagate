@@ -140,8 +140,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
             _isLoading.value = true
             addLog("BUSCANDO VERSIÓN RECOMENDADA Y ÚLTIMA VERSIÓN ESTABLE DE FRIDA...")
             val fetched = FridaUtils.getAvailableFridaReleases()
-            val requestedVersions = listOf("17.23.3", "17.6.0", "16.7.19")
-            _availableReleases.value = requestedVersions.map { version ->
+            val featuredVersions = listOf("17.23.3", "17.6.0", "16.7.19")
+            val featuredFallbacks = featuredVersions.map { version ->
                 fetched.find { it.version == version } ?: FridaRelease(
                     version = version,
                     releaseDate = "",
@@ -155,7 +155,14 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                     }
                 )
             }
-            addLog("VERSIONES DISPONIBLES: " + requestedVersions.joinToString(", "))
+            _availableReleases.value = (fetched + featuredFallbacks)
+                .distinctBy { it.version }
+                .sortedWith(
+                    compareByDescending<FridaRelease> { it.version.substringBefore('.').toIntOrNull() ?: 0 }
+                        .thenByDescending { it.version.substringAfter('.', "").substringBefore('.').toIntOrNull() ?: 0 }
+                        .thenByDescending { it.version.substringAfterLast('.').toIntOrNull() ?: 0 }
+                )
+            addLog("VERSIONES CON BINARIOS ANDROID ENCONTRADAS: ${fetched.size}. Las versiones manuales se validan al descargarlas.")
             _isLoading.value = false
         }
     }
