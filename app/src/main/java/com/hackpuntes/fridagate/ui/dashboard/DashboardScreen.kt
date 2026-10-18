@@ -422,6 +422,8 @@ fun DashboardScreen() {
             OneTabActionsCard(
                 isLoading = isLoading,
                 isRootAvailable = isRootAvailable,
+                isFridaInstalled = isFridaInstalled,
+                isFridaRunning = isFridaRunning,
                 onActivateAll = { pendingConfirmation = "ACTIVAR TODO" },
                 onSmartInstall = { pendingConfirmation = "INSTALACIÓN INTELIGENTE" },
                 onDeactivateAll = { pendingConfirmation = "DETENER TODO" },
@@ -768,6 +770,8 @@ private fun StatusIndicatorRow(
 private fun OneTabActionsCard(
     isLoading: Boolean,
     isRootAvailable: Boolean,
+    isFridaInstalled: Boolean,
+    isFridaRunning: Boolean,
     onActivateAll: () -> Unit,
     onSmartInstall: () -> Unit,
     onDeactivateAll: () -> Unit,
@@ -800,7 +804,7 @@ private fun OneTabActionsCard(
             Button(
                 onClick = onActivateAll,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && isRootAvailable,
+                enabled = !isLoading && isRootAvailable && isFridaInstalled,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
                 Text(
@@ -828,7 +832,7 @@ private fun OneTabActionsCard(
             Button(
                 onClick = onDeactivateAll,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && isRootAvailable,
+                enabled = !isLoading && isRootAvailable && isFridaRunning,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
             ) {
                 Text(
