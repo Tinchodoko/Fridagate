@@ -1,5 +1,14 @@
 package com.hackpuntes.fridagate.ui.about
 
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +46,9 @@ import org.json.JSONObject
 @Composable
 fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val downloadScope = rememberCoroutineScope()
+    var isDownloadingLatestApk by remember { mutableStateOf(false) }
     val currentBuild = BuildConfig.BUILD_NUMBER.toIntOrNull() ?: 0
     var latestBuild by remember { mutableStateOf<Int?>(null) }
     var updateStatus by remember { mutableStateOf("COMPROBANDO ACTUALIZACIONES...") }
@@ -335,11 +347,77 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                     )
                     OutlinedButton(
                         onClick = {
-                            onOpenUrl("https://github.com/Tinchodoko/Fridagate/releases/latest/download/app-debug.apk")
+                            if (!isDownloadingLatestApk) {
+                                downloadScope.launch {
+                                    isDownloadingLatestApk = true
+                                    try {
+                                        val (buildNumber, downloadUrl) = withContext(Dispatchers.IO) {
+                                            val request = Request.Builder()
+                                                .url("https://api.github.com/repos/Tinchodoko/Fridagate/releases/latest")
+                                                .header("Accept", "application/vnd.github+json")
+                                                .build()
+                                            OkHttpClient().newCall(request).execute().use { response ->
+                                                if (!response.isSuccessful) {
+                                                    throw IOException("GitHub respondió HTTP " + response.code)
+                                                }
+                                                val json = JSONObject(
+                                                    response.body?.string()
+                                                        ?: throw IOException("Respuesta vacía de GitHub")
+                                                )
+                                                val tag = json.optString("tag_name")
+                                                val build = Regex("(\\d+)").find(tag)?.groupValues?.get(1)
+                                                    ?: throw IOException("La publicación no contiene un número de build válido")
+                                                val assets = json.optJSONArray("assets")
+                                                    ?: throw IOException("La publicación no contiene archivos descargables")
+                                                var apkUrl: String? = null
+                                                for (index in 0 until assets.length()) {
+                                                    val asset = assets.optJSONObject(index) ?: continue
+                                                    if (asset.optString("name") == "app-debug.apk") {
+                                                        apkUrl = asset.optString("browser_download_url").takeIf { it.isNotBlank() }
+                                                        break
+                                                    }
+                                                }
+                                                build to (apkUrl
+                                                    ?: throw IOException("La última publicación no contiene app-debug.apk"))
+                                            }
+                                        }
+                                        val fileName = "FridaGate2.0-Build-$buildNumber.apk"
+                                        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                        val downloadRequest = DownloadManager.Request(Uri.parse(downloadUrl))
+                                            .setTitle(fileName)
+                                            .setDescription("Descargando la última APK de FridaGate 2.0")
+                                            .setMimeType("application/vnd.android.package-archive")
+                                            .setNotificationVisibility(
+                                                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                                            )
+                                            .setDestinationInExternalPublicDir(
+                                                Environment.DIRECTORY_DOWNLOADS,
+                                                fileName
+                                            )
+                                            .setAllowedOverMetered(true)
+                                            .setAllowedOverRoaming(true)
+                                        downloadManager.enqueue(downloadRequest)
+                                        Toast.makeText(
+                                            context,
+                                            "Descarga iniciada: Download/$fileName",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            "No se pudo iniciar la descarga: " + (e.message ?: "error desconocido"),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } finally {
+                                        isDownloadingLatestApk = false
+                                    }
+                                }
+                            }
                         },
+                        enabled = !isDownloadingLatestApk,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("DESCARGAR ÚLTIMA APK")
+                        Text(if (isDownloadingLatestApk) "PREPARANDO DESCARGA..." else "DESCARGAR ÚLTIMA APK")
                     }
                     OutlinedButton(
                         onClick = { onOpenUrl("https://github.com/Tinchodoko/Fridagate/releases/latest") },
@@ -348,7 +426,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                         Text("VER PUBLICACIÓN EN GITHUB")
                     }
                     Text(
-                        "La comprobación compara la build instalada con el número de la última publicación. Si la descarga directa no comienza, abre la publicación en GitHub y descarga app-debug.apk.",
+                        "La APK se descarga directamente en la carpeta Download con el número de build en el nombre. La instalación debe confirmarse manualmente en Android.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
