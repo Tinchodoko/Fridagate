@@ -46,7 +46,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     private val _availableReleases = MutableStateFlow<List<FridaRelease>>(emptyList())
     val availableReleases: StateFlow<List<FridaRelease>> = _availableReleases.asStateFlow()
 
-    private val _selectedVersion = MutableStateFlow("")
+    private val _selectedVersion = MutableStateFlow(versionPreferences.getString("selected_frida_version", "").orEmpty())
     val selectedVersion: StateFlow<String> = _selectedVersion.asStateFlow()
 
     private val _isRootAvailable = MutableStateFlow(false)
