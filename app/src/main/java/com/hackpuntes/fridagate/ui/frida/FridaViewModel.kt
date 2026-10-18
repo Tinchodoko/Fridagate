@@ -287,39 +287,85 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     fun uninstallServer(onFinished: (() -> Unit)? = null) {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("=== INICIANDO DESINSTALACIÓN Y LIMPIEZA COMPLETA DE FRIDA ===")
+            addLog("=== DESINSTALACIÓN COMPLETA: FRIDA ORIGINAL + STEALTH ===")
             try {
-                addLog("Deteniendo primero las aplicaciones y las inyecciones registradas...")
+                addLog("Deteniendo inyecciones y aplicaciones registradas...")
                 FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
 
-                // CAMBIO: usa los alias y rutas de la config activa, no strings hardcodeados
                 val sc = _stealthConfig.value
+                val defaultConfig = FridaStealthConfig.DEFAULT
+                val stealthPreset = FridaStealthConfig.STEALTH
+                fun shellQuote(value: String): String =
+                    "'" + value.replace("'", "'\\''") + "'"
+
+                val binaryPaths = linkedSetOf(
+                    sc.serverBinaryPath, sc.serverVersionFile,
+                    sc.injectBinaryPath, sc.injectVersionFile,
+                    defaultConfig.serverBinaryPath, defaultConfig.serverVersionFile,
+                    defaultConfig.injectBinaryPath, defaultConfig.injectVersionFile,
+                    stealthPreset.serverBinaryPath, stealthPreset.serverVersionFile,
+                    stealthPreset.injectBinaryPath, stealthPreset.injectVersionFile
+                )
+                val aliases = linkedSetOf(
+                    sc.serverAlias, sc.injectAlias,
+                    defaultConfig.serverAlias, defaultConfig.injectAlias,
+                    stealthPreset.serverAlias, stealthPreset.injectAlias
+                )
+                val tempFiles = listOf(
+                    "/data/local/tmp/fridagate_inject.log",
+                    "/data/local/tmp/fridagate_inject.pid",
+                    "/data/local/tmp/fridagate_injected_packages.txt",
+                    "/data/local/tmp/fridagate_enabled_scripts.js",
+                    "/data/local/tmp/fridagate_combined.js",
+                    "/data/local/tmp/fridagate_custom.js",
+                    "/data/local/tmp/fridagate_custom.log"
+                )
+                val quotedPaths = (binaryPaths + tempFiles).joinToString(" ") { shellQuote(it) }
+                val quotedAliases = aliases.joinToString(" ") { shellQuote(it) }
+
                 val output = withContext(Dispatchers.IO) {
                     RootUtils.executeSuCommand(
                         """
-                    echo "=== Matando procesos frida activos ==="
-                    pkill -9 -x ${sc.serverAlias} 2>/dev/null || true
-                    pkill -9 -x ${sc.injectAlias} 2>/dev/null || true
+                        echo "=== Deteniendo procesos Frida Original y Stealth ==="
+                        for name in $quotedAliases; do
+                            pkill -9 -x "$name" 2>/dev/null || true
+                        done
+                        for binary in $quotedPaths; do
+                            pids=\$(ps -A 2>/dev/null | grep -F "$binary" | grep -v grep | awk '{print \$2}')
+                            if [ -n "\$pids" ]; then
+                                echo "DETENIENDO proceso asociado a: \$binary (PID \$pids)"
+                                kill -9 \$pids 2>/dev/null || true
+                            fi
+                        done
 
-                    echo "=== Borrando binarios y versiones en ${sc.installDir} ==="
-                    rm -f ${sc.serverBinaryPath}
-                    rm -f ${sc.serverVersionFile}
-                    rm -f ${sc.injectBinaryPath}
-                    rm -f ${sc.injectVersionFile}
-                    rm -f /data/local/tmp/fridagate_inject.log
-                    rm -f /data/local/tmp/fridagate_inject.pid
-                    rm -f /data/local/tmp/fridagate_injected_packages.txt
-                    rm -f /data/local/tmp/fridagate_enabled_scripts.js
-                    rm -f /data/local/tmp/fridagate_combined.js
-                    rm -f /data/local/tmp/fridagate_custom.js
-                    rm -f /data/local/tmp/fridagate_custom.log
+                        echo "=== Eliminando binarios, versiones y archivos temporales ==="
+                        for path in $quotedPaths; do
+                            if [ -e "\$path" ]; then
+                                rm -fv "\$path" 2>&1
+                            else
+                                echo "NO EXISTE: \$path"
+                            fi
+                        done
 
-                    echo "=== Verificando que no quede nada ==="
-                    ls -la ${sc.installDir}/ 2>/dev/null | grep -i "${sc.serverAlias}\|${sc.injectAlias}" || echo "No quedan archivos en ${sc.installDir}"
-                    ps -A | grep -iE "[${sc.serverAlias[0]}]${sc.serverAlias.drop(
-                            1
-                        )}" 2>/dev/null || echo "No quedan procesos activos"
-                    echo "=== Limpieza completa ==="
+                        echo "=== Verificación de procesos restantes ==="
+                        for name in $quotedAliases; do
+                            pids=\$(pidof "$name" 2>/dev/null)
+                            if [ -n "\$pids" ]; then
+                                echo "ADVERTENCIA: proceso todavía activo: \$name (PID \$pids)"
+                            else
+                                echo "OK: sin proceso \$name"
+                            fi
+                        done
+                        echo "=== Verificación de archivos ==="
+                        remaining=0
+                        for path in $quotedPaths; do
+                            if [ -e "\$path" ]; then
+                                echo "ADVERTENCIA: sigue existiendo: \$path"
+                                remaining=1
+                            fi
+                        done
+                        [ "\$remaining" -eq 0 ] && echo "OK: todos los archivos de Frida y FridaGate indicados fueron eliminados"
+                        echo "=== Limpieza finalizada ==="
                         """.trimIndent()
                     )
                 }
@@ -328,14 +374,18 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                 } else {
                     output.lineSequence().filter { it.isNotBlank() }.forEach { addLog(it) }
                 }
+
                 _isServerInstalled.value = FridaUtils.isFridaServerInstalled()
                 _isServerRunning.value = FridaUtils.isFridaServerRunning()
+                _isServerPortListening.value = FridaUtils.isFridaServerPortListening()
                 _installedVersion.value = FridaUtils.getInstalledFridaVersion() ?: "Not installed"
                 addLog(
-                    if (!_isServerInstalled.value && !FridaInjectUtils.isFridaInjectInstalled()) {
-                        "DESINSTALACIÓN COMPLETA: SERVER E INJECT YA NO ESTÁN INSTALADOS."
+                    if (!_isServerInstalled.value && !FridaInjectUtils.isFridaInjectInstalled() &&
+                        !_isServerRunning.value
+                    ) {
+                        "DESINSTALACIÓN COMPLETA CONFIRMADA: SERVER, INJECT Y PROCESO YA NO ESTÁN ACTIVOS."
                     } else {
-                        "ADVERTENCIA: QUEDAN COMPONENTES INSTALADOS; REVISA LA VERIFICACIÓN ANTERIOR."
+                        "ADVERTENCIA: quedan componentes o procesos; revisa las líneas de verificación anteriores."
                     }
                 )
             } catch (e: Exception) {
@@ -358,6 +408,9 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
      * @return null si todo OK, o el mensaje de error de validación.
      */
     fun updateStealthConfig(newConfig: FridaStealthConfig): String? {
+        if (FridaUtils.isFridaServerInstalled()) {
+            return "La configuración Stealth está bloqueada porque Frida ya está instalado. Desinstalá Frida antes de modificarla."
+        }
         val error = newConfig.validate()
         if (error != null) return error
 
