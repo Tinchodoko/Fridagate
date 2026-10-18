@@ -4,6 +4,7 @@
 
     <!-- INTERNET: required to download Frida binaries and scripts from GitHub -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- QUERY_ALL_PACKAGES: required on Android 11+ to list installed apps in the target dropdown -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
