@@ -67,20 +67,14 @@ fun StealthSettingsCard(
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                }
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (expanded) "Colapsar" else "Expandir"
-                    )
                 }
             }
 
             // ── Formulario ────────────────────────────────────────────────────
-            AnimatedVisibility(visible = expanded) {
+            AnimatedVisibility(visible = true) {
                 Column(
                     Modifier.padding(top = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
