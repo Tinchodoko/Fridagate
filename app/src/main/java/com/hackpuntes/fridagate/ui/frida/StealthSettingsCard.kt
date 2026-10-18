@@ -21,9 +21,10 @@ import com.hackpuntes.fridagate.utils.FridaStealthConfig
 fun StealthSettingsCard(
     currentConfig: FridaStealthConfig,
     onSave: (FridaStealthConfig) -> String?,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    isFridaInstalled: Boolean
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(true) }
 
     var installDir by remember(currentConfig) { mutableStateOf(currentConfig.installDir) }
     var serverAlias by remember(currentConfig) { mutableStateOf(currentConfig.serverAlias) }
@@ -98,7 +99,8 @@ fun StealthSettingsCard(
                             Text("No usar /sdcard/ — tiene noexec. Recomendado: /data/local/tmp/.sys")
                         },
                         isError = installDir.startsWith("/sdcard"),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !isFridaInstalled
                     )
 
                     OutlinedTextField(
@@ -114,7 +116,8 @@ fun StealthSettingsCard(
                         supportingText = {
                             Text("Reemplaza 'frida-server' en la lista de procesos")
                         },
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !isFridaInstalled
                     )
 
                     OutlinedTextField(
@@ -130,7 +133,8 @@ fun StealthSettingsCard(
                         supportingText = {
                             Text("Reemplaza 'frida-inject'. Debe ser distinto al del server.")
                         },
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !isFridaInstalled
                     )
 
                     OutlinedTextField(
@@ -147,7 +151,8 @@ fun StealthSettingsCard(
                             Text("Puerto conocido de Frida: 27042. Usá cualquier otro entre 1024-65535.")
                         },
                         isError = portText.toIntOrNull()?.let { it !in 1024..65535 } ?: true,
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !isFridaInstalled
                     )
 
                     // Presets rápidos
@@ -160,6 +165,7 @@ fun StealthSettingsCard(
                             style = MaterialTheme.typography.labelMedium
                         )
                         AssistChip(
+                            enabled = !isFridaInstalled,
                             onClick = {
                                 installDir = FridaStealthConfig.DEFAULT.installDir
                                 serverAlias = FridaStealthConfig.DEFAULT.serverAlias
@@ -169,6 +175,7 @@ fun StealthSettingsCard(
                             label = { Text("Original") }
                         )
                         AssistChip(
+                            enabled = !isFridaInstalled,
                             onClick = {
                                 installDir = FridaStealthConfig.STEALTH.installDir
                                 serverAlias = FridaStealthConfig.STEALTH.serverAlias
@@ -194,12 +201,13 @@ fun StealthSettingsCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedButton(
+                            enabled = !isFridaInstalled,
                             onClick = { showResetDialog = true },
                             modifier = Modifier.weight(1f)
                         ) { Text("Resetear") }
 
                         Button(
-                            enabled = isDirty,
+                            enabled = isDirty && !isFridaInstalled,
                             onClick = {
                                 val port = portText.toIntOrNull()
                                 if (port == null) {
@@ -217,7 +225,6 @@ fun StealthSettingsCard(
                                     errorMsg = error
                                 } else {
                                     errorMsg = null
-                                    expanded = false
                                 }
                             },
                             modifier = Modifier.weight(1f)
@@ -225,8 +232,11 @@ fun StealthSettingsCard(
                     }
 
                     Text(
-                        "ℹ️ Si el servidor está corriendo, se detendrá antes de aplicar el cambio. " +
-                            "Los binarios ya instalados NO se mueven — reinstalá en la nueva ruta.",
+                        if (isFridaInstalled) {
+                            "🔒 Configuración bloqueada: Frida ya está instalado. Desinstalá Frida para volver a editar Stealth."
+                        } else {
+                            "ℹ️ Guardá la configuración antes de instalar Frida. Una vez instalado, los campos quedarán bloqueados."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
                             Color.White
@@ -240,7 +250,7 @@ fun StealthSettingsCard(
     }
 
     // Diálogo confirmación reset
-    if (showResetDialog) {
+    if (showResetDialog && !isFridaInstalled) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("¿Resetear configuración?") },
