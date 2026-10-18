@@ -32,7 +32,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("fridagatePermanent") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            // Do not let each GitHub runner generate a different debug certificate.
+            // Always sign APKs with the permanent keystore restored by build.yml.
+            signingConfig = signingConfigs.getByName("fridagatePermanent")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(
