@@ -132,6 +132,27 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew assembleDebug
 
+    # Verify the APK itself, not only the keystore restored earlier.
+    - name: Verify APK is signed with the permanent certificate
+      run: |
+        set -euo pipefail
+        APK="app/build/outputs/apk/debug/app-debug.apk"
+        SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+        APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+        if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+          echo "::error::Could not locate Android apksigner to verify the built APK."
+          exit 1
+        fi
+        CERT_INFO="$("$APKSIGNER" verify --print-certs "$APK")"
+        printf '%s\\n' "$CERT_INFO"
+        ACTUAL_CERT="$(printf '%s\\n' "$CERT_INFO" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}' | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+        EXPECTED_CERT="BB9BF1F01A7B73272BE5B775EBADBAE6B00878029A5AC18D48C6B2E64B1A4D60"
+        if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
+          echo "::error::The APK is not signed with the permanent FridaGate certificate."
+          exit 1
+        fi
+        echo "Verified: APK certificate matches the permanent FridaGate signing key."
+
     - name: Verify Unity diagnostics bundle is packaged in APK
       run: |
         APK="app/build/outputs/apk/debug/app-debug.apk"
