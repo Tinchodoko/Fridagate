@@ -140,7 +140,7 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
             _isLoading.value = true
             addLog("BUSCANDO VERSIÓN RECOMENDADA Y ÚLTIMA VERSIÓN ESTABLE DE FRIDA...")
             val fetched = FridaUtils.getAvailableFridaReleases()
-            val featuredVersions = listOf("17.23.3", "17.6.0", "16.7.19")
+            val featuredVersions = listOf("17.24.0", "17.6.0", "16.7.19")
             val featuredFallbacks = featuredVersions.map { version ->
                 fetched.find { it.version == version } ?: FridaRelease(
                     version = version,
