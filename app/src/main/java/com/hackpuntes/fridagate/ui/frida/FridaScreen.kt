@@ -360,7 +360,7 @@ private fun VersionSelector(
                 enabled = enabled
             )
             Text(
-                "Versiones disponibles: desde 16.0.0 hasta la última versión publicada. La versión debe existir en GitHub y disponer de binarios Android para tu arquitectura; server e inject se instalan siempre con la misma versión.",
+                "Versiones disponibles: desde las primeras publicaciones hasta la última versión de Frida. Puedes introducir cualquier versión manualmente; se verificará que existan server e inject para tu arquitectura y se usará la misma versión en ambos.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
