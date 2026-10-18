@@ -18,139 +18,106 @@ import okhttp3.Request
 import org.tukaani.xz.XZInputStream
 
 /**
- * FridaUtils - All logic related to the Frida server binary.
+ * FridaUtils - Toda la lógica relacionada con el binario frida-server.
  *
- * Frida is a dynamic instrumentation toolkit used in security research.
- * It requires a "frida-server" binary running on the Android device as root.
- * This binary is downloaded from GitHub Releases and installed to /data/local/tmp/.
+ * CAMBIO RESPECTO A LA VERSIÓN ORIGINAL:
+ *  Las rutas y el puerto ya NO son constantes hardcodeadas. Son configurables
+ *  a través de FridaStealthConfig, que se establece con configure().
  *
- * Responsibilities:
- *  - Fetch available Frida releases from the GitHub API
- *  - Download the correct binary for the device architecture (.xz or .zip)
- *  - Decompress and install the binary to /data/local/tmp/frida-server
- *  - Start / stop the frida-server process via root commands
- *  - Check if frida-server is installed or running
+ *  Uso:
+ *    FridaUtils.configure(miConfig)   // llamar desde el ViewModel al iniciar
+ *    FridaUtils.startFridaServer()    // usa automáticamente la config activa
  *
- * All network and file operations run on Dispatchers.IO (background thread)
- * using suspend functions so they never block the UI thread.
+ *  Si configure() nunca se llama, se usa FridaStealthConfig.DEFAULT
+ *  que mantiene exactamente el comportamiento original (mismas rutas y puerto).
  */
 object FridaUtils {
 
-    // Path where the frida-server binary will be installed on the device
-    // /data/local/tmp/ is writable by root on all Android versions
-    const val FRIDA_BINARY_PATH = "/data/local/tmp/frida-server"
+    // ── Configuración activa ──────────────────────────────────────────────────
 
-    // Path where we store the installed version number as a plain text file
-    // This lets us display which version is installed without running frida-server
-    private const val FRIDA_VERSION_FILE = "/data/local/tmp/frida-version.txt"
-
-    // GitHub API endpoint that returns all Frida releases as JSON
-    private const val FRIDA_GITHUB_API = "https://api.github.com/repos/frida/frida/releases"
-
-    // -------------------------------------------------------------------------
-    // Data classes — these represent the structure of the JSON we receive
-    // from the GitHub API. Gson maps JSON fields to these Kotlin properties.
-    // -------------------------------------------------------------------------
+    @Volatile
+    private var activeConfig: FridaStealthConfig = FridaStealthConfig.DEFAULT
 
     /**
-     * Represents one Frida release (e.g., version 16.7.0 released on 2024-01-15).
-     * This is our internal model — cleaned up from the raw GitHub response.
+     * Establece la configuración de camuflaje.
+     * Llamar desde FridaViewModel antes de cualquier operación.
      */
+    fun configure(config: FridaStealthConfig) {
+        activeConfig = config
+    }
+
+    /** Devuelve la configuración activa (para que el ViewModel pueda leerla). */
+    fun getActiveConfig(): FridaStealthConfig = activeConfig
+
+    // ── Propiedades de ruta (dinámicas, dependen de la config activa) ─────────
+
+    private val FRIDA_BINARY_PATH: String get() = activeConfig.serverBinaryPath
+    private val FRIDA_VERSION_FILE: String get() = activeConfig.serverVersionFile
+
+    // ── Constante de API (no cambia) ──────────────────────────────────────────
+
+    private const val FRIDA_GITHUB_API = "https://api.github.com/repos/frida/frida/releases"
+
+    // ── Data classes (sin cambios respecto al original) ───────────────────────
+
     data class FridaRelease(
-        val version: String, // e.g. "16.7.0"
-        val releaseDate: String, // e.g. "2024-01-15"
+        val version: String,
+        val releaseDate: String,
         val assets: List<FridaAsset>
     )
 
-    /**
-     * Represents one downloadable file within a release.
-     * Each release has multiple assets for different architectures (arm, arm64, x86, x86_64).
-     */
     data class FridaAsset(
-        val name: String, // e.g. "frida-server-16.7.0-android-arm64.xz"
-        val downloadUrl: String, // Direct download URL
-        val architecture: String, // e.g. "arm64"
-        val size: Long // File size in bytes
+        val name: String,
+        val downloadUrl: String,
+        val architecture: String,
+        val size: Long
     )
 
-    /**
-     * Raw GitHub API response for one release.
-     * @SerializedName maps the JSON field name (snake_case) to our Kotlin property (camelCase).
-     */
     data class GithubRelease(
-        @SerializedName("tag_name") val tagName: String, // e.g. "16.7.0"
-        @SerializedName("published_at") val publishedAt: String, // e.g. "2024-01-15T10:00:00Z"
+        @SerializedName("tag_name") val tagName: String,
+        @SerializedName("published_at") val publishedAt: String,
         @SerializedName("assets") val assets: List<GithubAsset>
     )
 
-    /**
-     * Raw GitHub API response for one asset (downloadable file).
-     */
     data class GithubAsset(
         @SerializedName("name") val name: String,
         @SerializedName("browser_download_url") val browserDownloadUrl: String,
         @SerializedName("size") val size: Long
     )
 
-    // -------------------------------------------------------------------------
-    // Network functions
-    // -------------------------------------------------------------------------
+    // ── Network (sin cambios respecto al original) ────────────────────────────
 
-    /**
-     * Fetches all available Frida releases from the GitHub API.
-     *
-     * Uses JsonReader for streaming JSON parsing — this is memory-efficient
-     * because it processes one release at a time instead of loading the entire
-     * JSON response into memory (releases list can be very large).
-     *
-     * @return List of FridaRelease objects, or empty list if the request fails
-     */
     suspend fun getAvailableFridaReleases(): List<FridaRelease> {
-        // withContext(Dispatchers.IO) moves execution to a background thread
-        // Any network or file I/O MUST run here, never on the main/UI thread
         return withContext(Dispatchers.IO) {
             try {
-                // Build the HTTP client with timeouts to avoid hanging forever
                 val client = OkHttpClient.Builder()
-                    .connectTimeout(30, TimeUnit.SECONDS) // Time to establish connection
-                    .readTimeout(30, TimeUnit.SECONDS) // Time to receive data
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
                     .build()
 
-                // Build the HTTP GET request
                 val request = Request.Builder()
                     .url(FRIDA_GITHUB_API)
-                    // GitHub recommends this header to get a stable API response format
                     .header("Accept", "application/vnd.github.v3+json")
                     .build()
 
                 val releases = mutableListOf<FridaRelease>()
                 val gson = Gson()
 
-                // Execute the request and use the response inside the block
-                // .use {} ensures the response body is closed after we're done
                 client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        return@withContext emptyList()
-                    }
+                    if (!response.isSuccessful) return@withContext emptyList()
 
-                    // JsonReader streams the JSON array one element at a time
                     JsonReader(response.body?.charStream() ?: return@withContext emptyList()).use { reader ->
-                        reader.beginArray() // The response is a JSON array [...]
+                        reader.beginArray()
 
                         while (reader.hasNext()) {
-                            // Parse one release object from the stream
                             val githubRelease = gson.fromJson<GithubRelease>(reader, GithubRelease::class.java)
                             val fridaAssets = mutableListOf<FridaAsset>()
 
-                            // Filter assets: we only want frida-server binaries for Android
                             for (asset in githubRelease.assets) {
                                 val name = asset.name
-                                // Keep only files like: frida-server-16.7.0-android-arm64.xz
                                 if (name.startsWith("frida-server-") &&
                                     (name.endsWith(".xz") || name.endsWith(".zip"))
                                 ) {
-                                    // Extract the architecture from the filename using regex
-                                    // Pattern: "android-(arm|arm64|x86|x86_64)"
                                     val archPattern = "android-(arm64|arm|x86_64|x86)(?=[.-])".toRegex()
                                     val matchResult = archPattern.find(name)
                                     val architecture = matchResult?.groupValues?.get(1) ?: "unknown"
@@ -166,13 +133,10 @@ object FridaUtils {
                                 }
                             }
 
-                            // Only include releases that have Android server assets
                             if (fridaAssets.isNotEmpty()) {
                                 releases.add(
                                     FridaRelease(
-                                        // Tag name is the version number (e.g., "16.7.0")
                                         version = githubRelease.tagName,
-                                        // publishedAt is "2024-01-15T10:00:00Z" — we only want the date part
                                         releaseDate = githubRelease.publishedAt.split("T")[0],
                                         assets = fridaAssets
                                     )
@@ -191,34 +155,20 @@ object FridaUtils {
         }
     }
 
-    /**
-     * Finds the download URL for a specific Frida version and device architecture.
-     *
-     * First looks in the cached releases list, then falls back to constructing
-     * the URL manually if the version isn't in the list (e.g., older releases).
-     *
-     * @param version The Frida version string, e.g. "16.7.0"
-     * @param architecture The device architecture, e.g. "arm64"
-     * @return Download URL string, or null if not found
-     */
     suspend fun getFridaServerUrl(version: String, architecture: String): String? {
         return withContext(Dispatchers.IO) {
             try {
                 val releases = getAvailableFridaReleases()
-                // Find the release that matches the requested version
                 val release = releases.find { it.version == version }
 
                 if (release != null) {
-                    // Look for an asset that matches the device architecture
                     val asset = release.assets.find { it.architecture == architecture }
                     if (asset != null) return@withContext asset.downloadUrl
 
-                    // Fallback: search by partial filename match
                     val fallback = release.assets.find { it.name.contains("-android-$architecture") }
                     if (fallback != null) return@withContext fallback.downloadUrl
                 }
 
-                // Last resort: build the URL manually and verify it exists
                 return@withContext buildCustomVersionUrl(version, architecture)
             } catch (e: Exception) {
                 return@withContext null
@@ -226,73 +176,29 @@ object FridaUtils {
         }
     }
 
-    /**
-     * Constructs a download URL for a specific version and verifies it exists.
-     *
-     * Used when the version is not in the GitHub API response (e.g., very old releases).
-     * Sends a HEAD request (no body, just checks if the URL is valid).
-     *
-     * @param version Frida version, e.g. "16.5.9"
-     * @param architecture Device architecture, e.g. "arm64"
-     * @return The URL if it exists on GitHub, null otherwise
-     */
     private suspend fun buildCustomVersionUrl(version: String, architecture: String): String? {
-        // Do not depend on HEAD requests: GitHub/CDNs can reject them even when
-        // the release asset exists. The actual download performs the definitive
-        // HTTP status check and reports failure if the asset is unavailable.
         if (!isValidVersionFormat(version)) return null
         if (architecture !in setOf("arm", "arm64", "x86", "x86_64")) return null
         return "https://github.com/frida/frida/releases/download/$version/frida-server-$version-android-$architecture.xz"
     }
 
-    /**
-     * Validates that a version string has the correct format (e.g., "16.7.0").
-     *
-     * Regex explanation:
-     *   ^\d+    — starts with one or more digits
-     *   \.\d+   — followed by a dot and digits (repeated twice)
-     *   (-[a-zA-Z0-9]+)?$ — optionally followed by a dash and alphanumeric chars (e.g., "-rc1")
-     *
-     * @param version The version string to validate
-     * @return true if the format is valid
-     */
     fun isValidVersionFormat(version: String): Boolean {
         val pattern = Regex("^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$")
         return pattern.matches(version)
     }
 
-    // -------------------------------------------------------------------------
-    // Download and installation functions
-    // -------------------------------------------------------------------------
+    // ── Download y descompresión (sin cambios respecto al original) ───────────
 
-    /**
-     * Downloads the Frida server binary from the given URL.
-     *
-     * Handles three file formats:
-     *  - .xz  → decompress with XZInputStream
-     *  - .zip → extract the binary entry with ZipInputStream
-     *  - raw  → save directly (no decompression needed)
-     *
-     * The downloaded file is saved to the app's private files directory
-     * (context.filesDir), which is /data/data/com.hackpuntes.fridagate/files/
-     * This directory is readable only by our app, not by other apps.
-     *
-     * @param context Android context (needed to get the files directory)
-     * @param url The direct download URL for the binary
-     * @return The decompressed File object, or null if download/decompression failed
-     */
     suspend fun downloadFridaServerFromUrl(context: Context, url: String): File? {
         return withContext(Dispatchers.IO) {
             try {
                 val client = OkHttpClient.Builder()
                     .followRedirects(true)
                     .connectTimeout(60, TimeUnit.SECONDS)
-                    .readTimeout(60, TimeUnit.SECONDS) // Large file — needs more time
+                    .readTimeout(60, TimeUnit.SECONDS)
                     .build()
 
                 val downloadRequest = Request.Builder().url(url).build()
-
-                // Destination file: app's private directory + "frida-server"
                 val fridaFile = File(context.filesDir, "frida-server")
 
                 client.newCall(downloadRequest).execute().use { response ->
@@ -300,15 +206,12 @@ object FridaUtils {
 
                     response.body?.let { body ->
                         when {
-                            // --- Handle .xz compressed files ---
                             url.endsWith(".xz") -> {
-                                // First save the compressed file to disk
                                 val compressedFile = File(context.filesDir, "frida-server.xz")
 
-                                // Write the downloaded bytes to the .xz file
                                 FileOutputStream(compressedFile).use { output ->
                                     body.byteStream().use { input ->
-                                        val buffer = ByteArray(8192) // 8KB chunks
+                                        val buffer = ByteArray(8192)
                                         var bytesRead: Int
                                         while (input.read(buffer).also { bytesRead = it } != -1) {
                                             output.write(buffer, 0, bytesRead)
@@ -316,7 +219,6 @@ object FridaUtils {
                                     }
                                 }
 
-                                // Decompress the .xz file into the final binary
                                 try {
                                     XZInputStream(FileInputStream(compressedFile)).use { xzInput ->
                                         FileOutputStream(fridaFile).use { output ->
@@ -327,22 +229,18 @@ object FridaUtils {
                                             }
                                         }
                                     }
-                                    compressedFile.delete() // Clean up the .xz file
+                                    compressedFile.delete()
                                 } catch (e: Exception) {
-                                    // Clean up both files if decompression fails
                                     compressedFile.delete()
                                     if (fridaFile.exists()) fridaFile.delete()
                                     throw IOException("Failed to decompress .xz file", e)
                                 }
                             }
 
-                            // --- Handle .zip compressed files ---
                             url.endsWith(".zip") -> {
-                                // ZipInputStream lets us read entries inside the zip
                                 ZipInputStream(body.byteStream()).use { zipStream ->
                                     var entry = zipStream.nextEntry
                                     while (entry != null) {
-                                        // Find the entry that contains "frida-server"
                                         if (entry.name.contains("frida-server")) {
                                             FileOutputStream(fridaFile).use { output ->
                                                 val buffer = ByteArray(8192)
@@ -351,7 +249,7 @@ object FridaUtils {
                                                     output.write(buffer, 0, bytesRead)
                                                 }
                                             }
-                                            break // Found it, stop looking
+                                            break
                                         }
                                         zipStream.closeEntry()
                                         entry = zipStream.nextEntry
@@ -359,7 +257,6 @@ object FridaUtils {
                                 }
                             }
 
-                            // --- Handle raw (uncompressed) files ---
                             else -> {
                                 FileOutputStream(fridaFile).use { output ->
                                     body.byteStream().use { input ->
@@ -375,7 +272,6 @@ object FridaUtils {
                     }
                 }
 
-                // Mark the file as executable so Android can run it as a process
                 fridaFile.setExecutable(true)
                 return@withContext fridaFile
             } catch (e: Exception) {
@@ -384,33 +280,27 @@ object FridaUtils {
         }
     }
 
+    // ── Instalación ───────────────────────────────────────────────────────────
+
     /**
-     * Installs the Frida server binary to /data/local/tmp/ using root commands.
+     * Instala frida-server en la ruta configurada.
      *
-     * Steps:
-     *  1. Copy the file from our app's private directory to /data/local/tmp/
-     *  2. Set permissions to 755 (owner can read/write/execute, others can read/execute)
-     *  3. Save the version number to a text file for later display
-     *
-     * @param fridaFile The downloaded binary file (in the app's private directory)
-     * @param version The version string to save (e.g., "16.7.0")
-     * @return true if installation was successful
+     * CAMBIO: Crea el directorio de instalación si no existe
+     * y usa activeConfig.serverBinaryPath en vez de /data/local/tmp/frida-server.
      */
     suspend fun installFridaServer(fridaFile: File, version: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Copy the binary to /data/local/tmp/ — needs root because our app
-                // doesn't have direct write access to /data/local/tmp/
-                RootUtils.executeSuCommand("cp ${fridaFile.absolutePath} $FRIDA_BINARY_PATH")
+                // Crear directorio si no existe (ej: /data/local/tmp/.sys/)
+                RootUtils.executeSuCommand("mkdir -p ${activeConfig.installDir}")
 
-                // chmod 755: sets execute permissions so Android can run the binary
-                // 7 = rwx (owner), 5 = r-x (group), 5 = r-x (others)
+                // Copiar y dar permisos
+                RootUtils.executeSuCommand("cp ${fridaFile.absolutePath} $FRIDA_BINARY_PATH")
                 RootUtils.executeSuCommand("chmod 755 $FRIDA_BINARY_PATH")
 
-                // Save the version to a text file so we can display it later
+                // Guardar versión
                 saveInstalledVersion(version)
 
-                // Verify the installation by checking if the file exists
                 return@withContext isFridaServerInstalled()
             } catch (e: Exception) {
                 return@withContext false
@@ -418,16 +308,8 @@ object FridaUtils {
         }
     }
 
-    /**
-     * Saves the installed Frida version to a text file on the device.
-     * This file is read by getInstalledFridaVersion() to display the current version.
-     *
-     * @param version The version string to save
-     * @return true if the file was written successfully
-     */
     suspend fun saveInstalledVersion(version: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // "echo 'text' > file" writes text to a file, overwriting existing content
             RootUtils.executeSuCommand("echo '$version' > $FRIDA_VERSION_FILE")
             true
         } catch (e: Exception) {
@@ -435,21 +317,14 @@ object FridaUtils {
         }
     }
 
-    /**
-     * Reads the installed Frida version from the version text file.
-     *
-     * @return Version string (e.g., "16.7.0"), or null if not installed or file missing
-     */
     suspend fun getInstalledFridaVersion(): String? {
         return withContext(Dispatchers.IO) {
             try {
-                // Prefer the executable's real version; metadata files can be stale after manual updates.
                 val binaryVersion = RootUtils.executeSuCommand("$FRIDA_BINARY_PATH --version").trim()
                 if (Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(binaryVersion)) {
                     return@withContext binaryVersion
                 }
 
-                // Fallback for older installations whose binary cannot report its version.
                 val versionResult = RootUtils.executeSuCommand("cat $FRIDA_VERSION_FILE 2>/dev/null").trim()
                 versionResult.takeIf { Regex("^\\d+\\.\\d+\\.\\d+([.-][A-Za-z0-9.-]+)?$").matches(it) }
             } catch (e: Exception) {
@@ -458,47 +333,41 @@ object FridaUtils {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Server control functions
-    // -------------------------------------------------------------------------
+    // ── Control del servidor ──────────────────────────────────────────────────
 
-    /**
-     * Starts frida-server with no extra flags.
-     * Delegates to startFridaServerWithFlags with an empty string.
-     *
-     * @return true if the server started successfully
-     */
     suspend fun startFridaServer(): Boolean = startFridaServerWithFlags("")
 
     /**
-     * Starts frida-server with optional command-line flags.
+     * Inicia frida-server con flags opcionales.
      *
-     * Uses "nohup ... &" to run the process in the background:
-     *  - nohup: keeps the process running even if the shell session ends
-     *  - > /dev/null 2>&1: discards stdout and stderr output
-     *  - &: runs the command in the background (non-blocking)
-     *
-     * @param flags Extra flags to pass to frida-server (e.g., "-l 0.0.0.0:27042")
-     * @return true if the server is running after the start attempt
+     * CAMBIO: Si la configuración tiene un puerto custom (distinto de 27042),
+     * agrega automáticamente -l 127.0.0.1:PUERTO. El usuario puede sobreescribir
+     * esto con flags manuales si lo desea.
      */
     suspend fun startFridaServerWithFlags(flags: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Don't start a second instance if it's already running
                 if (isFridaServerRunning()) return@withContext true
 
-                val command = if (flags.isBlank()) {
+                // Construir el comando con el puerto configurado
+                val portFlag = activeConfig.portFlag  // "-l 127.0.0.1:37285" o ""
+                val effectiveFlags = buildString {
+                    if (portFlag.isNotEmpty()) append(portFlag)
+                    if (flags.isNotBlank()) {
+                        if (isNotEmpty()) append(" ")
+                        append(flags)
+                    }
+                }
+
+                val command = if (effectiveFlags.isBlank()) {
                     "nohup $FRIDA_BINARY_PATH > /dev/null 2>&1 &"
                 } else {
-                    "nohup $FRIDA_BINARY_PATH $flags > /dev/null 2>&1 &"
+                    "nohup $FRIDA_BINARY_PATH $effectiveFlags > /dev/null 2>&1 &"
                 }
 
                 RootUtils.executeSuCommand(command)
-
-                // Wait 1.5 seconds for the server to fully initialize
                 Thread.sleep(1500)
 
-                // Verify that the server is actually running now
                 return@withContext isFridaServerRunning()
             } catch (e: Exception) {
                 return@withContext false
@@ -507,39 +376,39 @@ object FridaUtils {
     }
 
     /**
-     * Stops the frida-server process using multiple kill strategies.
+     * Detiene frida-server.
      *
-     * Different Android versions and ROMs use different process tools,
-     * so we try multiple approaches until one works:
-     *  1. kill -9 with ps -A (modern Android)
-     *  2. kill -9 with pidof (standard Linux)
-     *  3. kill -9 with ps (older Android)
-     *  4. pkill -f (final fallback)
-     *
-     * kill -9 = SIGKILL = force kill, cannot be ignored by the process
-     *
-     * @return true if the server was stopped successfully
+     * CAMBIO: Usa el alias configurado en vez de "frida-server" hardcodeado.
+     * Las 4 estrategias de kill se mantienen iguales, pero buscan por
+     * el alias (ej: "thermal_svc") y por la ruta completa del binario.
      */
     suspend fun stopFridaServer(): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Strategy 1: modern Android (API 26+) uses "ps -A"
-                RootUtils.executeSuCommand("kill -9 \$(ps -A | grep frida-server | awk '{ print \$2 }')")
+                val alias = activeConfig.serverAlias
+                val binaryPath = FRIDA_BINARY_PATH
+
+                // Estrategia 1: ps -A + kill por ruta completa (más preciso)
+                RootUtils.executeSuCommand(
+                    "kill -9 \$(ps -A | grep \"$binaryPath\" | grep -v grep | awk '{ print \$2 }')"
+                )
                 Thread.sleep(500)
                 if (!isFridaServerRunning()) return@withContext true
 
-                // Strategy 2: use pidof to get the PID directly
-                RootUtils.executeSuCommand("kill -9 \$(pidof frida-server)")
+                // Estrategia 2: pidof con el alias
+                RootUtils.executeSuCommand("kill -9 \$(pidof $alias)")
                 Thread.sleep(300)
                 if (!isFridaServerRunning()) return@withContext true
 
-                // Strategy 3: older Android uses "ps" without "-A"
-                RootUtils.executeSuCommand("kill -9 \$(ps | grep frida-server | awk '{ print \$2 }')")
+                // Estrategia 3: ps sin -A (Android más antiguo)
+                RootUtils.executeSuCommand(
+                    "kill -9 \$(ps | grep \"$binaryPath\" | grep -v grep | awk '{ print \$2 }')"
+                )
                 Thread.sleep(300)
                 if (!isFridaServerRunning()) return@withContext true
 
-                // Strategy 4: pkill matches by process name pattern
-                RootUtils.executeSuCommand("pkill -9 -f frida-server")
+                // Estrategia 4: pkill por alias (fallback)
+                RootUtils.executeSuCommand("pkill -9 -x $alias")
                 Thread.sleep(500)
 
                 return@withContext !isFridaServerRunning()
@@ -549,18 +418,8 @@ object FridaUtils {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Status check functions
-    // -------------------------------------------------------------------------
+    // ── Checks de estado ──────────────────────────────────────────────────────
 
-    /**
-     * Checks whether the frida-server binary is installed on the device.
-     *
-     * Runs "ls -la" on the binary path and checks for the file in the output.
-     * If the file doesn't exist, "ls" returns a "No such file" error message.
-     *
-     * @return true if the binary exists at FRIDA_BINARY_PATH
-     */
     suspend fun isFridaServerInstalled(): Boolean = withContext(Dispatchers.IO) {
         try {
             RootUtils.executeSuCommand("test -x $FRIDA_BINARY_PATH && echo FRIDA_SERVER_EXECUTABLE")
@@ -571,17 +430,19 @@ object FridaUtils {
     }
 
     /**
-     * Checks whether the local Frida control port is listening.
-     * This is a socket-level check only; it does not prove a client handshake succeeded.
+     * Verifica si el puerto configurado está escuchando.
+     *
+     * CAMBIO: Usa activeConfig.port en vez del 27042 hardcodeado.
      */
     suspend fun isFridaServerPortListening(): Boolean = withContext(Dispatchers.IO) {
         try {
+            val port = activeConfig.port
             val output = RootUtils.executeSuCommand(
                 "ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null"
             )
             output.lineSequence().any { line ->
                 line.contains("LISTEN", ignoreCase = true) &&
-                    Regex("(^|[:.])27042(\\s|$)").containsMatchIn(line)
+                    Regex("(^|[:.])$port(\\s|$)").containsMatchIn(line)
             }
         } catch (_: Exception) {
             false
@@ -589,30 +450,31 @@ object FridaUtils {
     }
 
     /**
-     * Checks whether the frida-server process is currently running.
+     * Verifica si el proceso de frida-server está corriendo.
      *
-     * Tries multiple process listing commands for compatibility across Android versions.
-     *
-     * @return true if a frida-server process is found
+     * CAMBIO: Busca por activeConfig.serverAlias en vez de "frida-server" hardcodeado.
+     * Esto evita que el check devuelva false si el proceso fue renombrado.
      */
     suspend fun isFridaServerRunning(): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Prefer pidof: unlike grep, it cannot match its own command line.
-                val pidResult = RootUtils.executeSuCommand("pidof frida-server").trim()
+                val alias = activeConfig.serverAlias
+
+                // Preferir pidof: no puede coincidir con su propia línea de comando
+                val pidResult = RootUtils.executeSuCommand("pidof $alias").trim()
                 if (pidResult.split(Regex("\\s+")).any { it.isNotBlank() && it.all(Char::isDigit) }) {
                     return@withContext true
                 }
 
-                // Fallback for Android builds without pidof. Exclude grep itself so the
-                // status check cannot report a server that is not actually running.
+                // Fallback: buscar en ps por la ruta completa del binario
+                val binaryPath = FRIDA_BINARY_PATH
                 val processLists = listOf(
                     RootUtils.executeSuCommand("ps -A"),
                     RootUtils.executeSuCommand("ps")
                 )
                 processLists.any { output ->
                     output.lineSequence().any { line ->
-                        line.contains("frida-server") &&
+                        line.contains(binaryPath) &&
                             !line.contains("grep") &&
                             !line.contains("sh -c") &&
                             !line.contains("toybox")
@@ -624,25 +486,14 @@ object FridaUtils {
         }
     }
 
-    /**
-     * Uninstalls frida-server by removing the binary and version files.
-     *
-     * Stops the server first if it's running, then deletes both files.
-     *
-     * @return true if the binary no longer exists after uninstallation
-     */
     suspend fun uninstallFridaServer(): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Stop the server before removing the binary
                 if (isFridaServerRunning()) stopFridaServer()
 
-                // Remove the binary and the version file
-                // "rm -f" removes without error if the file doesn't exist
                 RootUtils.executeSuCommand("rm -f $FRIDA_BINARY_PATH")
                 RootUtils.executeSuCommand("rm -f $FRIDA_VERSION_FILE")
 
-                // Verify removal: if the file is gone, uninstall was successful
                 val result = RootUtils.executeSuCommand("ls -la $FRIDA_BINARY_PATH")
                 val stillExists = result.contains(FRIDA_BINARY_PATH) && !result.contains("No such file")
                 return@withContext !stillExists
@@ -652,28 +503,11 @@ object FridaUtils {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Device utility functions
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the CPU architecture of the current device.
-     *
-     * Android devices can have different CPU architectures:
-     *  - arm64-v8a → modern 64-bit ARM (most phones since 2015)
-     *  - armeabi-v7a → older 32-bit ARM
-     *  - x86_64 / x86 → emulators and some Intel devices
-     *
-     * Build.SUPPORTED_ABIS[0] returns the most preferred ABI for this device.
-     * We map it to the architecture name used in Frida's release filenames.
-     *
-     * @return Architecture string: "arm64", "arm", "x86_64", or "x86"
-     */
     fun getDeviceArchitecture(): String = when (Build.SUPPORTED_ABIS[0]) {
         "arm64-v8a" -> "arm64"
         "armeabi-v7a" -> "arm"
         "x86_64" -> "x86_64"
         "x86" -> "x86"
-        else -> "arm" // Default fallback for unknown architectures
+        else -> "arm"
     }
 }
