@@ -955,3 +955,225 @@ private fun exportLogFile(context: Context, prefix: String, logs: List<String>) 
         ).show()
     }
 }
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SmartInstallWizardDialog(
+    onDismiss: () -> Unit,
+    onInstall: (String, FridaStealthConfig) -> Unit
+) {
+    var step by remember { mutableStateOf(1) }
+    var releases by remember { mutableStateOf<List<FridaUtils.FridaRelease>>(emptyList()) }
+    var selectedVersion by remember { mutableStateOf("17.23.3") }
+    var manualVersion by remember { mutableStateOf("") }
+    var mode by remember { mutableStateOf("ORIGINAL") }
+    var installDir by remember { mutableStateOf(FridaStealthConfig.DEFAULT.installDir) }
+    var serverAlias by remember { mutableStateOf(FridaStealthConfig.DEFAULT.serverAlias) }
+    var injectAlias by remember { mutableStateOf(FridaStealthConfig.DEFAULT.injectAlias) }
+    var portText by remember { mutableStateOf(FridaStealthConfig.DEFAULT.port.toString()) }
+    var versionExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        releases = FridaUtils.getAvailableFridaReleases()
+        releases.firstOrNull()?.version?.let { latest ->
+            if (selectedVersion == "17.23.3" && releases.none { it.version == "17.23.3" }) {
+                selectedVersion = latest
+            }
+        }
+    }
+
+    val latestVersion = releases.firstOrNull()?.version ?: "17.23.3"
+    val featured = listOf(latestVersion, "17.6.0", "16.7.19").distinct()
+    val chosenVersion = manualVersion.trim().ifBlank { selectedVersion }
+    val validVersion = FridaUtils.isValidVersionFormat(chosenVersion)
+    val config = if (mode == "ORIGINAL") {
+        FridaStealthConfig.DEFAULT
+    } else {
+        FridaStealthConfig(
+            installDir = installDir.trim(),
+            serverAlias = serverAlias.trim(),
+            injectAlias = injectAlias.trim(),
+            port = portText.toIntOrNull() ?: -1
+        )
+    }
+    val validationError = config.validate()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (step == 1) "SELECCIONA UNA VERSIÓN DE FRIDA" else "CONFIGURACIÓN DE STEALTH")
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (step == 1) {
+                    Text(
+                        "Elegí una versión para instalar frida-server y frida-inject juntos.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    featured.forEachIndexed { index, version ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            RadioButton(
+                                selected = manualVersion.isBlank() && selectedVersion == version,
+                                onClick = {
+                                    selectedVersion = version
+                                    manualVersion = ""
+                                }
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text("V - $version", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    when (index) {
+                                        0 -> "ÚLTIMA VERSIÓN PUBLICADA"
+                                        1 -> "RECOMENDADA"
+                                        else -> "PRIMERAS PRUEBAS"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    ExposedDropdownMenuBox(
+                        expanded = versionExpanded,
+                        onExpandedChange = { versionExpanded = !versionExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = if (manualVersion.isBlank()) selectedVersion else manualVersion,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("O elegir de versiones publicadas") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = versionExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = versionExpanded,
+                            onDismissRequest = { versionExpanded = false }
+                        ) {
+                            releases.forEach { release ->
+                                DropdownMenuItem(
+                                    text = { Text(release.version) },
+                                    onClick = {
+                                        selectedVersion = release.version
+                                        manualVersion = ""
+                                        versionExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = manualVersion,
+                        onValueChange = { manualVersion = it.trim() },
+                        label = { Text("BUSCAR UNA VERSIÓN MANUALMENTE") },
+                        placeholder = { Text("Ejemplo: 16.5.5") },
+                        supportingText = { Text("Se comprobará que GitHub tenga los binarios server e inject para tu arquitectura.") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (manualVersion.isNotBlank() && !validVersion) {
+                        Text("Formato inválido. Usa el formato 16.5.5.", color = MaterialTheme.colorScheme.error)
+                    }
+                } else {
+                    Text(
+                        "STEALTH ESCONDE FRIDA INSTALÁNDOLO CON NOMBRES CUSTOM",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = mode == "ORIGINAL",
+                            onClick = { mode = "ORIGINAL" }
+                        )
+                        Text("ORIGINAL")
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = mode == "STEALTH",
+                            onClick = {
+                                if (mode != "STEALTH") {
+                                    mode = "STEALTH"
+                                    installDir = FridaStealthConfig.STEALTH.installDir
+                                    serverAlias = FridaStealthConfig.STEALTH.serverAlias
+                                    injectAlias = FridaStealthConfig.STEALTH.injectAlias
+                                    portText = FridaStealthConfig.STEALTH.port.toString()
+                                }
+                            }
+                        )
+                        Text("STEALTH")
+                    }
+                    if (mode == "STEALTH") {
+                        OutlinedTextField(
+                            value = installDir,
+                            onValueChange = { installDir = it },
+                            label = { Text("Directorio de instalación") },
+                            placeholder = { Text("/data/local/tmp/.sys") },
+                            supportingText = { Text("No usar /sdcard: Android no permite ejecutar binarios desde allí.") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = serverAlias,
+                            onValueChange = { serverAlias = it },
+                            label = { Text("Nombre del proceso server") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = injectAlias,
+                            onValueChange = { injectAlias = it },
+                            label = { Text("Nombre del proceso inject") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = portText,
+                            onValueChange = { portText = it },
+                            label = { Text("Puerto de escucha") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (validationError != null) {
+                            Text(validationError, color = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        Text(
+                            "Se utilizarán las rutas y nombres originales de Frida.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text("Versión seleccionada: $chosenVersion", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = if (step == 1) validVersion else validationError == null,
+                onClick = {
+                    if (step == 1) {
+                        step = 2
+                    } else if (validationError == null) {
+                        onInstall(chosenVersion, config)
+                    }
+                }
+            ) {
+                Text(if (step == 1) "SIGUIENTE" else "INSTALACIÓN INTELIGENTE")
+            }
+        },
+        dismissButton = {
+            Row {
+                if (step == 2) {
+                    TextButton(onClick = { step = 1 }) { Text("ATRÁS") }
+                }
+                TextButton(onClick = onDismiss) { Text("CANCELAR") }
+            }
+        }
+    )
+}
