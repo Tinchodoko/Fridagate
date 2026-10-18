@@ -86,7 +86,7 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
             }
             try {
                 logOperation("INICIO DE INSTALACIÓN DE FRIDA-INJECT")
-                if (!version.matches(Regex("^\\d+\\.\\d+\\.\\d+$"))) {
+                if (!FridaUtils.isValidVersionFormat(version)) {
                     logOperation("ERROR: SELECCIONA UNA VERSIÓN ESTABLE VÁLIDA.")
                     return@launch
                 }
