@@ -60,18 +60,9 @@ object FridaUtils {
 
     // ── Data classes (sin cambios respecto al original) ───────────────────────
 
-    data class FridaRelease(
-        val version: String,
-        val releaseDate: String,
-        val assets: List<FridaAsset>
-    )
+    data class FridaRelease(val version: String, val releaseDate: String, val assets: List<FridaAsset>)
 
-    data class FridaAsset(
-        val name: String,
-        val downloadUrl: String,
-        val architecture: String,
-        val size: Long
-    )
+    data class FridaAsset(val name: String, val downloadUrl: String, val architecture: String, val size: Long)
 
     data class GithubRelease(
         @SerializedName("tag_name") val tagName: String,
@@ -350,7 +341,7 @@ object FridaUtils {
                 if (isFridaServerRunning()) return@withContext true
 
                 // Construir el comando con el puerto configurado
-                val portFlag = activeConfig.portFlag  // "-l 127.0.0.1:37285" o ""
+                val portFlag = activeConfig.portFlag // "-l 127.0.0.1:37285" o ""
                 val effectiveFlags = buildString {
                     if (portFlag.isNotEmpty()) append(portFlag)
                     if (flags.isNotBlank()) {

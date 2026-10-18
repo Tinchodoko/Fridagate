@@ -119,7 +119,10 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
 
                 val statusText = if (isRunning) "running" else "stopped"
                 // CAMBIO: usa el puerto configurado, no 27042 hardcodeado
-                addLog("Puerto local ${_stealthConfig.value.port}: " + if (_isServerPortListening.value) "LISTENING" else "no confirmado")
+                addLog(
+                    "Puerto local ${_stealthConfig.value.port}: " +
+                        if (_isServerPortListening.value) "LISTENING" else "no confirmado"
+                )
                 addLog("Frida server ${_installedVersion.value} is installed and $statusText")
             } else {
                 addLog("Frida server is not installed")
@@ -313,7 +316,9 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
 
                     echo "=== Verificando que no quede nada ==="
                     ls -la ${sc.installDir}/ 2>/dev/null | grep -i "${sc.serverAlias}\|${sc.injectAlias}" || echo "No quedan archivos en ${sc.installDir}"
-                    ps -A | grep -iE "[${sc.serverAlias[0]}]${sc.serverAlias.drop(1)}" 2>/dev/null || echo "No quedan procesos activos"
+                    ps -A | grep -iE "[${sc.serverAlias[0]}]${sc.serverAlias.drop(
+                            1
+                        )}" 2>/dev/null || echo "No quedan procesos activos"
                     echo "=== Limpieza completa ==="
                         """.trimIndent()
                     )
@@ -381,7 +386,9 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
                 addLog("✅ Binario encontrado en la nueva ruta.")
             } else {
                 _installedVersion.value = "Not installed"
-                addLog("⚠️ Binario NO encontrado en ${newConfig.serverBinaryPath} — reinstalá para aplicar el camuflaje.")
+                addLog(
+                    "⚠️ Binario NO encontrado en ${newConfig.serverBinaryPath} — reinstalá para aplicar el camuflaje."
+                )
             }
         }
         return null

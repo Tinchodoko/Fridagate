@@ -22,10 +22,10 @@ class AppPreferences(private val context: Context) {
         val FRIDA_SELECTED_VERSION = stringPreferencesKey("frida_selected_version")
 
         // ── Configuración de camuflaje (nuevo) ───────────────────────────────
-        val STEALTH_INSTALL_DIR   = stringPreferencesKey("stealth_install_dir")
-        val STEALTH_SERVER_ALIAS  = stringPreferencesKey("stealth_server_alias")
-        val STEALTH_INJECT_ALIAS  = stringPreferencesKey("stealth_inject_alias")
-        val STEALTH_PORT          = intPreferencesKey("stealth_port")
+        val STEALTH_INSTALL_DIR = stringPreferencesKey("stealth_install_dir")
+        val STEALTH_SERVER_ALIAS = stringPreferencesKey("stealth_server_alias")
+        val STEALTH_INJECT_ALIAS = stringPreferencesKey("stealth_inject_alias")
+        val STEALTH_PORT = intPreferencesKey("stealth_port")
     }
 
     // ── Frida version selection (existente, sin cambios) ─────────────────────
@@ -48,20 +48,20 @@ class AppPreferences(private val context: Context) {
      */
     val stealthConfig: Flow<FridaStealthConfig> = context.dataStore.data.map { prefs ->
         FridaStealthConfig(
-            installDir   = prefs[Keys.STEALTH_INSTALL_DIR]  ?: FridaStealthConfig.DEFAULT.installDir,
-            serverAlias  = prefs[Keys.STEALTH_SERVER_ALIAS] ?: FridaStealthConfig.DEFAULT.serverAlias,
-            injectAlias  = prefs[Keys.STEALTH_INJECT_ALIAS] ?: FridaStealthConfig.DEFAULT.injectAlias,
-            port         = prefs[Keys.STEALTH_PORT]         ?: FridaStealthConfig.DEFAULT.port
+            installDir = prefs[Keys.STEALTH_INSTALL_DIR] ?: FridaStealthConfig.DEFAULT.installDir,
+            serverAlias = prefs[Keys.STEALTH_SERVER_ALIAS] ?: FridaStealthConfig.DEFAULT.serverAlias,
+            injectAlias = prefs[Keys.STEALTH_INJECT_ALIAS] ?: FridaStealthConfig.DEFAULT.injectAlias,
+            port = prefs[Keys.STEALTH_PORT] ?: FridaStealthConfig.DEFAULT.port
         )
     }
 
     /** Guarda la configuración de camuflaje en DataStore. */
     suspend fun saveStealthConfig(config: FridaStealthConfig) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.STEALTH_INSTALL_DIR]  = config.installDir
+            prefs[Keys.STEALTH_INSTALL_DIR] = config.installDir
             prefs[Keys.STEALTH_SERVER_ALIAS] = config.serverAlias
             prefs[Keys.STEALTH_INJECT_ALIAS] = config.injectAlias
-            prefs[Keys.STEALTH_PORT]         = config.port
+            prefs[Keys.STEALTH_PORT] = config.port
         }
     }
 

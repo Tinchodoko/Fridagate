@@ -23,23 +23,22 @@ fun StealthSettingsCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    var installDir  by remember(currentConfig) { mutableStateOf(currentConfig.installDir) }
+    var installDir by remember(currentConfig) { mutableStateOf(currentConfig.installDir) }
     var serverAlias by remember(currentConfig) { mutableStateOf(currentConfig.serverAlias) }
     var injectAlias by remember(currentConfig) { mutableStateOf(currentConfig.injectAlias) }
-    var portText    by remember(currentConfig) { mutableStateOf(currentConfig.port.toString()) }
-    var errorMsg    by remember { mutableStateOf<String?>(null) }
+    var portText by remember(currentConfig) { mutableStateOf(currentConfig.port.toString()) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
 
-    val isDirty = installDir  != currentConfig.installDir  ||
-                  serverAlias != currentConfig.serverAlias ||
-                  injectAlias != currentConfig.injectAlias ||
-                  portText    != currentConfig.port.toString()
+    val isDirty = installDir != currentConfig.installDir ||
+        serverAlias != currentConfig.serverAlias ||
+        injectAlias != currentConfig.injectAlias ||
+        portText != currentConfig.port.toString()
 
     val monoStyle = TextStyle(fontFamily = FontFamily.Monospace)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-
             // ── Header ────────────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -83,10 +82,12 @@ fun StealthSettingsCard(
                     Modifier.padding(top = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-
                     OutlinedTextField(
                         value = installDir,
-                        onValueChange = { installDir = it; errorMsg = null },
+                        onValueChange = {
+                            installDir = it
+                            errorMsg = null
+                        },
                         label = { Text("Directorio de instalación") },
                         placeholder = { Text("/data/local/tmp") },
                         modifier = Modifier.fillMaxWidth(),
@@ -100,7 +101,10 @@ fun StealthSettingsCard(
 
                     OutlinedTextField(
                         value = serverAlias,
-                        onValueChange = { serverAlias = it; errorMsg = null },
+                        onValueChange = {
+                            serverAlias = it
+                            errorMsg = null
+                        },
                         label = { Text("Nombre del proceso server") },
                         placeholder = { Text("thermal_svc") },
                         modifier = Modifier.fillMaxWidth(),
@@ -113,7 +117,10 @@ fun StealthSettingsCard(
 
                     OutlinedTextField(
                         value = injectAlias,
-                        onValueChange = { injectAlias = it; errorMsg = null },
+                        onValueChange = {
+                            injectAlias = it
+                            errorMsg = null
+                        },
                         label = { Text("Nombre del proceso inject") },
                         placeholder = { Text("msm_inject") },
                         modifier = Modifier.fillMaxWidth(),
@@ -126,7 +133,10 @@ fun StealthSettingsCard(
 
                     OutlinedTextField(
                         value = portText,
-                        onValueChange = { portText = it; errorMsg = null },
+                        onValueChange = {
+                            portText = it
+                            errorMsg = null
+                        },
                         label = { Text("Puerto de escucha") },
                         placeholder = { Text("37285") },
                         modifier = Modifier.fillMaxWidth(),
@@ -149,19 +159,19 @@ fun StealthSettingsCard(
                         )
                         AssistChip(
                             onClick = {
-                                installDir  = FridaStealthConfig.DEFAULT.installDir
+                                installDir = FridaStealthConfig.DEFAULT.installDir
                                 serverAlias = FridaStealthConfig.DEFAULT.serverAlias
                                 injectAlias = FridaStealthConfig.DEFAULT.injectAlias
-                                portText    = FridaStealthConfig.DEFAULT.port.toString()
+                                portText = FridaStealthConfig.DEFAULT.port.toString()
                             },
                             label = { Text("Original") }
                         )
                         AssistChip(
                             onClick = {
-                                installDir  = FridaStealthConfig.STEALTH.installDir
+                                installDir = FridaStealthConfig.STEALTH.installDir
                                 serverAlias = FridaStealthConfig.STEALTH.serverAlias
                                 injectAlias = FridaStealthConfig.STEALTH.injectAlias
-                                portText    = FridaStealthConfig.STEALTH.port.toString()
+                                portText = FridaStealthConfig.STEALTH.port.toString()
                             },
                             label = { Text("Stealth") }
                         )
@@ -195,10 +205,10 @@ fun StealthSettingsCard(
                                     return@Button
                                 }
                                 val newConfig = FridaStealthConfig(
-                                    installDir  = installDir.trim(),
+                                    installDir = installDir.trim(),
                                     serverAlias = serverAlias.trim(),
                                     injectAlias = injectAlias.trim(),
-                                    port        = port
+                                    port = port
                                 )
                                 val error = onSave(newConfig)
                                 if (error != null) {
@@ -214,7 +224,7 @@ fun StealthSettingsCard(
 
                     Text(
                         "ℹ️ Si el servidor está corriendo, se detendrá antes de aplicar el cambio. " +
-                        "Los binarios ya instalados NO se mueven — reinstalá en la nueva ruta.",
+                            "Los binarios ya instalados NO se mueven — reinstalá en la nueva ruta.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -228,7 +238,7 @@ fun StealthSettingsCard(
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("¿Resetear configuración?") },
-            text  = { Text("Esto restaurará las rutas y el puerto originales de Frida (sin camuflaje). ¿Continuar?") },
+            text = { Text("Esto restaurará las rutas y el puerto originales de Frida (sin camuflaje). ¿Continuar?") },
             confirmButton = {
                 TextButton(onClick = {
                     showResetDialog = false

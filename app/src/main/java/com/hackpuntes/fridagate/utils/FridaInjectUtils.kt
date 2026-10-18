@@ -75,7 +75,9 @@ object FridaInjectUtils {
             RootUtils.executeSuCommand("chmod 755 $INJECT_BINARY_PATH")
             RootUtils.executeSuCommand("echo '$version' > $INJECT_VERSION_FILE")
 
-            try { injectFile.delete() } catch (_: Exception) {}
+            try {
+                injectFile.delete()
+            } catch (_: Exception) {}
             isFridaInjectInstalled()
         } catch (e: Exception) {
             false
@@ -170,10 +172,12 @@ object FridaInjectUtils {
             val bootConfirmed = injectLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
             if (pid != null) {
                 if (bootConfirmed) {
-                    lines += "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
+                    lines +=
+                        "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
                     lines += "ℹ️ Esto confirma el inicio del script, no el éxito de todas sus operaciones posteriores."
                 } else {
-                    lines += "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
+                    lines +=
+                        "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
@@ -235,17 +239,20 @@ object FridaInjectUtils {
                             context.assets.open("scripts/FridaGate_Unity_IL2CPP_Diagnostics.bundle.js")
                                 .bufferedReader().use { it.readText() }
                         }.getOrNull()
+
                         isRuntimeDiagnostics -> runCatching {
                             context.assets.open("scripts/FridaGate_Runtime_Diagnostics.bundle.js")
                                 .bufferedReader().use { it.readText() }
                         }.getOrNull()
+
                         else -> null
                     }
                     appendLine("console.log('[FRIDAGATE-SCRIPT-BOOT]');")
                     appendLine(bundledDiagnostics ?: script.code)
                     appendLine()
                     if ((isUnityDiagnostics || isRuntimeDiagnostics) && bundledDiagnostics == null) {
-                        lines += "⚠️ No se encontró el bundle de diagnóstico esperado; se usó el código guardado del script."
+                        lines +=
+                            "⚠️ No se encontró el bundle de diagnóstico esperado; se usó el código guardado del script."
                     } else if (bundledDiagnostics != null && isUnityDiagnostics) {
                         lines += "✓ Bundle Unity IL2CPP cargado con bridges Java/IL2CPP."
                     } else if (bundledDiagnostics != null && isRuntimeDiagnostics) {
@@ -269,9 +276,11 @@ object FridaInjectUtils {
 
             val installedInjectVersion = getInstalledVersion() ?: "desconocida"
             val installedServerVersion = FridaUtils.getInstalledFridaVersion() ?: "desconocida"
-            lines += "ℹ️ Versiones detectadas: frida-server=$installedServerVersion; frida-inject=$installedInjectVersion"
+            lines +=
+                "ℹ️ Versiones detectadas: frida-server=$installedServerVersion; frida-inject=$installedInjectVersion"
             if (installedServerVersion != installedInjectVersion) {
-                lines += "⚠️ Las versiones de frida-server y frida-inject no coinciden; actualiza ambos a la misma versión antes de seguir."
+                lines +=
+                    "⚠️ Las versiones de frida-server y frida-inject no coinciden; actualiza ambos a la misma versión antes de seguir."
             }
 
             lines += "Enabled scripts: ${bypassScripts.size + customScripts.size}"
@@ -279,7 +288,8 @@ object FridaInjectUtils {
             customScripts.forEach { lines += "✓ ${it.name}" }
             lines += "Combined script staged at $devicePath"
             if (Regex("(?m)^\\s*import\\s+").containsMatchIn(source)) {
-                lines += "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
+                lines +=
+                    "⚠️ El script contiene importaciones ES (por ejemplo, frida-il2cpp-bridge). FridaGate no empaqueta módulos npm automáticamente; deben compilarse en un único bundle JavaScript antes de ejecutarlos."
             }
 
             val runtimeDiagnosticsOnly =
@@ -342,7 +352,8 @@ object FridaInjectUtils {
                     if (attachLog.contains("[FRIDAGATE-SCRIPT-BOOT]")) {
                         lines += "✅ Diagnóstico adjuntado; la aplicación continúa activa (PID $stillRunning)."
                     } else {
-                        lines += "⚠️ La aplicación continúa activa (PID $stillRunning), pero no se confirmó el inicio del script."
+                        lines +=
+                            "⚠️ La aplicación continúa activa (PID $stillRunning), pero no se confirmó el inicio del script."
                         lines += "ℹ️ Revisa el mensaje de frida-inject mostrado arriba."
                     }
                 } else {
@@ -402,22 +413,27 @@ object FridaInjectUtils {
             val pid = findProcessId(packageName)
             if (pid != null) {
                 if (scriptBootConfirmed) {
-                    lines += "✅ Confirmación de ejecución: $observedScriptBoots/$expectedScriptBoots scripts alcanzaron su marcador inicial dentro de Frida."
-                    lines += "ℹ️ Esto confirma que el agente ejecutó el inicio de cada script; no garantiza que todas sus operaciones posteriores hayan terminado sin errores."
+                    lines +=
+                        "✅ Confirmación de ejecución: $observedScriptBoots/$expectedScriptBoots scripts alcanzaron su marcador inicial dentro de Frida."
+                    lines +=
+                        "ℹ️ Esto confirma que el agente ejecutó el inicio de cada script; no garantiza que todas sus operaciones posteriores hayan terminado sin errores."
                 } else {
-                    lines += "⚠️ Proceso $packageName activo (PID $pid), pero la ejecución completa no está confirmada: marcadores $observedScriptBoots/$expectedScriptBoots."
+                    lines +=
+                        "⚠️ Proceso $packageName activo (PID $pid), pero la ejecución completa no está confirmada: marcadores $observedScriptBoots/$expectedScriptBoots."
                     lines += "ℹ️ Revisa la salida de frida-inject para detectar errores de sintaxis, carga o ejecución."
                 }
             } else if (observedScriptBoots > 0) {
                 lines += "⚠️ El script alcanzó su marcador inicial, pero el proceso $packageName ya no está activo."
-                lines += "ℹ️ Se omite el relanzamiento automático para evitar abrir la aplicación por segunda vez. Revisa la salida de frida-inject."
+                lines +=
+                    "ℹ️ Se omite el relanzamiento automático para evitar abrir la aplicación por segunda vez. Revisa la salida de frida-inject."
                 lines += "🔎 Recopilando errores recientes de Android para identificar por qué terminó el proceso..."
                 val crashDiagnostics = collectTargetCrashDiagnostics(packageName)
                 if (crashDiagnostics.isNotBlank()) {
                     crashDiagnostics.lines().forEach { lines += "📱 $it" }
                 } else {
                     lines += "ℹ️ Logcat no mostró una excepción/crash reconocible en el buffer reciente."
-                    lines += "ℹ️ Si vuelve a ocurrir, comparte este registro completo y el resultado de logcat del sistema."
+                    lines +=
+                        "ℹ️ Si vuelve a ocurrir, comparte este registro completo y el resultado de logcat del sistema."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
@@ -482,10 +498,12 @@ object FridaInjectUtils {
             val bootConfirmed = injectLog.contains("[FRIDAGATE-SCRIPT-BOOT]")
             if (pid != null) {
                 if (bootConfirmed) {
-                    lines += "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
+                    lines +=
+                        "✅ Confirmación de ejecución: se observó el marcador inicial del script dentro del proceso."
                     lines += "ℹ️ Esto confirma el inicio del script, no el éxito de todas sus operaciones posteriores."
                 } else {
-                    lines += "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
+                    lines +=
+                        "⚠️ $packageName está activo (PID $pid), pero esta ejecución no emitió el marcador de inicio; la inyección no queda confirmada."
                 }
             } else {
                 lines += "Process not found — trying attach fallback..."
@@ -573,7 +591,8 @@ object FridaInjectUtils {
                 }
             }
             if (!removed) {
-                lines += "ℹ️ No se pudo confirmar la eliminación de Recientes en esta versión de Android; la aplicación sí recibió el cierre forzado."
+                lines +=
+                    "ℹ️ No se pudo confirmar la eliminación de Recientes en esta versión de Android; la aplicación sí recibió el cierre forzado."
             }
             RootUtils.executeSuCommand("rm -f /data/local/tmp/fridagate_enabled_scripts.js")
             lines += "✓ Finalizado. Los registros de FridaGate se conservaron."
@@ -663,7 +682,9 @@ object FridaInjectUtils {
 
                 buildString {
                     if (pid != null) {
-                        append("⚠️ Found target process $packageName (PID $pid), but PID presence does NOT confirm successful injection or script execution.")
+                        append(
+                            "⚠️ Found target process $packageName (PID $pid), but PID presence does NOT confirm successful injection or script execution."
+                        )
                     } else {
                         append("Could not find process — is frida-server running?")
                     }

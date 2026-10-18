@@ -28,7 +28,7 @@ data class FridaStealthConfig(
 
     /** Ruta del archivo de versión del server */
     val serverVersionFile: String
-        get() = "$installDir/${serverAlias}-version.txt"
+        get() = "$installDir/$serverAlias-version.txt"
 
     /** Ruta completa del binario frida-inject */
     val injectBinaryPath: String
@@ -36,7 +36,7 @@ data class FridaStealthConfig(
 
     /** Ruta del archivo de versión del inject */
     val injectVersionFile: String
-        get() = "$installDir/${injectAlias}-version.txt"
+        get() = "$installDir/$injectAlias-version.txt"
 
     /** Flag de puerto para pasar a frida-server. Solo se agrega si es distinto del default. */
     val portFlag: String
@@ -44,16 +44,21 @@ data class FridaStealthConfig(
 
     /** Validaciones básicas */
     fun validate(): String? {
-        if (installDir.startsWith("/sdcard"))
+        if (installDir.startsWith("/sdcard")) {
             return "No se puede usar /sdcard/ — está montado con noexec."
-        if (serverAlias.isBlank())
+        }
+        if (serverAlias.isBlank()) {
             return "El nombre del server no puede estar vacío."
-        if (injectAlias.isBlank())
+        }
+        if (injectAlias.isBlank()) {
             return "El nombre del inject no puede estar vacío."
-        if (port !in 1024..65535)
+        }
+        if (port !in 1024..65535) {
             return "El puerto debe estar entre 1024 y 65535."
-        if (serverAlias == injectAlias)
+        }
+        if (serverAlias == injectAlias) {
             return "El nombre del server y del inject no pueden ser iguales."
+        }
         return null // null = válido
     }
 
