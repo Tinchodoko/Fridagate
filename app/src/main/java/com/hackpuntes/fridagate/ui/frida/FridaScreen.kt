@@ -359,7 +359,7 @@ private fun VersionSelector(
                 enabled = enabled
             )
             Text(
-                "Versiones disponibles: 17.23.3, 17.6.0 y 16.7.19",
+                "Versiones disponibles: desde 16.0.0 hasta la última versión publicada. La versión debe existir en GitHub y disponer de binarios Android para tu arquitectura; server e inject se instalan siempre con la misma versión.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -447,14 +447,16 @@ private fun ActionButtons(
                 }
             }
 
-            OutlinedButton(
-                onClick = { pendingAction = "DESINSTALAR" },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && !isInjectLoading && isRootAvailable,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) { Text("DESINSTALAR") }
+            if (isInstalled || isInjectInstalled) {
+                OutlinedButton(
+                    onClick = { pendingAction = "DESINSTALAR" },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading && !isInjectLoading && isRootAvailable,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("DESINSTALAR") }
+            }
 
             OutlinedButton(
                 onClick = { pendingAction = "ACTUALIZAR ESTADO" },
