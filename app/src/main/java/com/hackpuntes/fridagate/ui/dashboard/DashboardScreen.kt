@@ -457,11 +457,8 @@ fun DashboardScreen() {
         }
 
         pendingConfirmation?.let { action ->
-            val selectedFridaVersion = context.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
-                .getString("selected_frida_version", "") ?: ""
             val description = when (action) {
                 "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER."
-                "INSTALACIÓN INTELIGENTE" -> if (selectedFridaVersion.isBlank()) "PRIMERO SELECCIONA UNA VERSIÓN EN LA PESTAÑA FRIDA." else "INSTALAR FRIDA-SERVER Y FRIDA-INJECT $selectedFridaVersion."
                 "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
                 "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE 2.0 SOBRE OTRAS APLICACIONES."
@@ -1071,7 +1068,7 @@ private fun SmartInstallWizardDialog(
                             readOnly = true,
                             label = { Text("O elegir de versiones publicadas") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = versionExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
                         )
                         ExposedDropdownMenu(
                             expanded = versionExpanded,
