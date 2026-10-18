@@ -37,6 +37,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hackpuntes.fridagate.data.AppPreferences
+import com.hackpuntes.fridagate.utils.FridaStealthConfig
 import com.hackpuntes.fridagate.utils.FridaInjectUtils
 import com.hackpuntes.fridagate.utils.FridaUtils
 import com.hackpuntes.fridagate.utils.RootUtils
@@ -147,7 +149,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
      * Instala y prepara en secuencia los componentes principales de FridaGate.
      * Requiere root y conexión a Internet. Usa la misma versión para server e inject.
      */
-    fun smartInstallAll() {
+    fun smartInstallAll(version: String, config: FridaStealthConfig) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -159,14 +161,22 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 }
                 _isRootAvailable.value = true
 
-                val architecture = FridaUtils.getDeviceArchitecture()
-                val version = appContext.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
-                    .getString("selected_frida_version", "") ?: ""
-                if (version.isBlank()) {
-                    addLog("ERROR: SELECCIONA UNA VERSIÓN EN LA PESTAÑA FRIDA ANTES DE USAR INSTALACIÓN INTELIGENTE.")
+                if (!FridaUtils.isValidVersionFormat(version)) {
+                    addLog("ERROR: LA VERSIÓN INDICADA NO TIENE UN FORMATO VÁLIDO (EJEMPLO: 16.5.5).")
                     return@launch
                 }
-                addLog("VERSIÓN SELECCIONADA EN PESTAÑA FRIDA: $version ($architecture)")
+                config.validate()?.let {
+                    addLog("ERROR EN CONFIGURACIÓN DE CAMUFLAJE: $it")
+                    return@launch
+                }
+                AppPreferences(appContext).saveStealthConfig(config)
+                FridaUtils.configure(config)
+                appContext.getSharedPreferences("fridagate_settings", Context.MODE_PRIVATE)
+                    .edit().putString("selected_frida_version", version).apply()
+                val architecture = FridaUtils.getDeviceArchitecture()
+                addLog("VERSIÓN SELECCIONADA: $version ($architecture)")
+                addLog("MODO: " + if (config == FridaStealthConfig.DEFAULT) "ORIGINAL" else "STEALTH")
+                addLog("DIRECTORIO: ${config.installDir} | SERVER: ${config.serverAlias} | INJECT: ${config.injectAlias} | PUERTO: ${config.port}")
 
                 if (!FridaUtils.isFridaServerInstalled() ||
                     FridaUtils.getInstalledFridaVersion() != version
@@ -291,6 +301,7 @@ fun DashboardScreen() {
     val isLoading by viewModel.isLoading.collectAsState()
     val logs by viewModel.logs.collectAsState()
     var pendingConfirmation by remember { mutableStateOf<String?>(null) }
+    var showSmartInstallWizard by remember { mutableStateOf(false) }
 
     var hasStoragePermission by remember { mutableStateOf(storagePermissionGranted(context)) }
     var hasNotificationPermission by remember { mutableStateOf(notificationPermissionGranted(context)) }
@@ -425,7 +436,7 @@ fun DashboardScreen() {
                 isFridaInstalled = isFridaInstalled,
                 isFridaRunning = isFridaRunning,
                 onActivateAll = { pendingConfirmation = "ACTIVAR TODO" },
-                onSmartInstall = { pendingConfirmation = "INSTALACIÓN INTELIGENTE" },
+                onSmartInstall = { showSmartInstallWizard = true },
                 onDeactivateAll = { pendingConfirmation = "DETENER TODO" },
                 onRefresh = { pendingConfirmation = "ACTUALIZAR ESTADO" },
                 isFloatingIconVisible = isFloatingIconVisible,
@@ -465,8 +476,6 @@ fun DashboardScreen() {
                         pendingConfirmation = null
                         when (action) {
                             "ACTIVAR TODO" -> viewModel.activateAll()
-
-                            "INSTALACIÓN INTELIGENTE" -> viewModel.smartInstallAll()
 
                             "DETENER TODO" -> viewModel.deactivateAll()
 
@@ -508,6 +517,16 @@ fun DashboardScreen() {
                     }) { Text("SI") }
                 },
                 dismissButton = { TextButton(onClick = { pendingConfirmation = null }) { Text("NO") } }
+            )
+        }
+
+        if (showSmartInstallWizard) {
+            SmartInstallWizardDialog(
+                onDismiss = { showSmartInstallWizard = false },
+                onInstall = { version, config ->
+                    showSmartInstallWizard = false
+                    viewModel.smartInstallAll(version, config)
+                }
             )
         }
 
