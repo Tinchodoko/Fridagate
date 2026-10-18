@@ -139,6 +139,7 @@ fun FridaScreen() {
                 injectVersion = injectVersion,
                 isInjectLoading = injectLoading,
                 selectedVersion = selectedVersion,
+                installedVersion = installedVersion,
                 onDownloadInject = { version ->
                     extrasViewModel.downloadFridaInject(version) { viewModel.logOperation(it) }
                 },
@@ -373,6 +374,7 @@ private fun ActionButtons(
     injectVersion: String?,
     isInjectLoading: Boolean,
     selectedVersion: String,
+    installedVersion: String,
     onDownloadInject: (String) -> Unit,
     isInstalled: Boolean,
     isRunning: Boolean,
@@ -409,7 +411,8 @@ private fun ActionButtons(
             Button(
                 onClick = { pendingAction = "INSTALAR/ACTUALIZAR SERVER" },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && isRootAvailable && selectedVersion.isNotBlank()
+                enabled = !isLoading && isRootAvailable && selectedVersion.isNotBlank() &&
+                    (!isInjectInstalled || injectVersion == selectedVersion)
             ) {
                 Text(if (isInstalled) "ACTUALIZAR SERVER" else "INSTALAR SERVER")
             }
@@ -417,9 +420,18 @@ private fun ActionButtons(
             Button(
                 onClick = { pendingAction = "INSTALAR/ACTUALIZAR INJECT" },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isInjectLoading && !isLoading && isRootAvailable && selectedVersion.isNotBlank()
+                enabled = !isInjectLoading && !isLoading && isRootAvailable && selectedVersion.isNotBlank() &&
+                    (!isInstalled || installedVersion == selectedVersion)
             ) {
                 Text(if (isInjectInstalled) "ACTUALIZAR INJECT" else "INSTALAR INJECT")
+            }
+
+            if (isInstalled && isInjectInstalled && installedVersion != injectVersion) {
+                Text(
+                    "LAS VERSIONES DE SERVER E INJECT NO COINCIDEN. USA INSTALACIÓN INTELIGENTE PARA ACTUALIZAR AMBOS COMPONENTES A $selectedVersion.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             if (isInstalled) {
