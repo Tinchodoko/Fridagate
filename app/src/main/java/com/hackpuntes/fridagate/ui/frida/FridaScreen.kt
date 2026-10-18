@@ -120,7 +120,8 @@ fun FridaScreen() {
                     }
                     error
                 },
-                onReset = { viewModel.resetStealthConfig() }
+                onReset = { viewModel.resetStealthConfig() },
+                isFridaInstalled = isInstalled
             )
 
             // ── Section: Version Selector ─────────────────────────────────────
@@ -410,7 +411,7 @@ private fun ActionButtons(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable && selectedVersion.isNotBlank()
             ) {
-                Text("INSTALAR / ACTUALIZAR SERVER")
+                Text(if (isInstalled) "ACTUALIZAR SERVER" else "INSTALAR SERVER")
             }
 
             Button(
@@ -418,7 +419,7 @@ private fun ActionButtons(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isInjectLoading && !isLoading && isRootAvailable && selectedVersion.isNotBlank()
             ) {
-                Text(if (isInjectInstalled) "INSTALAR / ACTUALIZAR INJECT" else "INSTALAR / ACTUALIZAR INJECT")
+                Text(if (isInjectInstalled) "ACTUALIZAR INJECT" else "INSTALAR INJECT")
             }
 
             if (isInstalled) {
