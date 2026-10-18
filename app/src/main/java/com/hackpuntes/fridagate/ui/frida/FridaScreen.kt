@@ -28,27 +28,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hackpuntes.fridagate.ui.extras.ExtrasViewModel
+import com.hackpuntes.fridagate.utils.FridaStealthConfig
 import com.hackpuntes.fridagate.utils.FridaUtils
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * FridaScreen - The Frida tab UI built with Jetpack Compose.
- *
- * In Compose, the UI is a tree of @Composable functions.
- * Each composable describes what the UI looks like for a given state.
- * When the state changes, Compose automatically re-renders only the affected parts.
- *
- * This screen is split into smaller composable functions for readability:
- *  - FridaScreen         → root composable, holds the ViewModel and state
- *  - StatusCard          → shows installed/running status
- *  - VersionSelector     → dropdown to pick a Frida version
- *  - ActionButtons       → install, start, stop, uninstall buttons
- *  - LogPanel            → scrollable terminal-style log
- *  - CustomFlagsDialog   → dialog for entering custom flags
- */
 @Composable
 fun FridaScreen() {
     val context = LocalContext.current
@@ -60,8 +46,6 @@ fun FridaScreen() {
         }
     )
 
-    // collectAsState() turns a StateFlow into a Compose State object
-    // Every time the StateFlow emits a new value, the composable recomposes
     val isLoading by viewModel.isLoading.collectAsState()
     val isInstalled by viewModel.isServerInstalled.collectAsState()
     val isRunning by viewModel.isServerRunning.collectAsState()
@@ -72,6 +56,8 @@ fun FridaScreen() {
     val isRootAvailable by viewModel.isRootAvailable.collectAsState()
     val logs by viewModel.logs.collectAsState()
     val lastCustomFlags by viewModel.lastCustomFlags.collectAsState()
+    // NUEVO: estado de la config de camuflaje
+    val stealthConfig by viewModel.stealthConfig.collectAsState()
 
     val extrasViewModel: ExtrasViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -84,8 +70,6 @@ fun FridaScreen() {
     val injectVersion by extrasViewModel.fridaInjectVersion.collectAsState()
     val injectLoading by extrasViewModel.isLoading.collectAsState()
 
-    // Dashboard's smart installation can change device state while this ViewModel
-    // remains alive. Refresh when this screen is shown and whenever the app resumes.
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(viewModel, extrasViewModel) {
         viewModel.checkRootAndStatus()
@@ -102,12 +86,9 @@ fun FridaScreen() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // State for showing/hiding the custom flags dialog
     var showCustomFlagsDialog by remember { mutableStateOf(false) }
 
-    // Outer Box allows us to overlay the loading indicator on top of everything
     Box(modifier = Modifier.fillMaxSize()) {
-        // Main scrollable content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -116,21 +97,33 @@ fun FridaScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // ── Section: Device Info ──────────────────────────────────────────
-            // Shows the device model and CPU architecture
             DeviceInfoCard(isRootAvailable = isRootAvailable)
 
             // ── Section: Server Status ────────────────────────────────────────
-            // Shows whether frida-server is installed and running
+            // CAMBIO: pasa el puerto configurado para mostrarlo en el label
             StatusCard(
                 isInstalled = isInstalled,
                 isRunning = isRunning,
                 isPortListening = isServerPortListening,
                 installedVersion = installedVersion,
-                activeFlags = lastCustomFlags
+                activeFlags = lastCustomFlags,
+                configuredPort = stealthConfig.port
+            )
+
+            // ── NUEVO: Section: Configuración de camuflaje ───────────────────
+            StealthSettingsCard(
+                currentConfig = stealthConfig,
+                onSave = { newConfig ->
+                    val error = viewModel.updateStealthConfig(newConfig)
+                    if (error != null) {
+                        Toast.makeText(context, "⚠️ $error", Toast.LENGTH_LONG).show()
+                    }
+                    error
+                },
+                onReset = { viewModel.resetStealthConfig() }
             )
 
             // ── Section: Version Selector ─────────────────────────────────────
-            // Dropdown to pick which Frida version to install
             VersionSelector(
                 releases = availableReleases,
                 selectedVersion = selectedVersion,
@@ -178,12 +171,10 @@ fun FridaScreen() {
         }
 
         // ── Loading Overlay ───────────────────────────────────────────────────
-        // Shown on top of everything when an operation is in progress
         if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Semi-transparent black background blocks interaction with UI below
                     .background(Color.Black.copy(alpha = 0.4f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -206,12 +197,9 @@ fun FridaScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-composables — each one is responsible for one section of the screen
+// Sub-composables
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Shows device model and CPU architecture, plus a root access warning if needed.
- */
 @Composable
 private fun DeviceInfoCard(isRootAvailable: Boolean) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -222,14 +210,11 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(4.dp))
-            // Build.MODEL is the device model name (e.g., "Pixel 6")
-            // FridaUtils.getDeviceArchitecture() returns "arm64", "arm", etc.
             Text(
                 text = "${Build.MODEL} · ${FridaUtils.getDeviceArchitecture()}",
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            // Show a warning if root is not available
             if (!isRootAvailable) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -242,17 +227,15 @@ private fun DeviceInfoCard(isRootAvailable: Boolean) {
     }
 }
 
-/**
- * Shows the current frida-server status: installed, running, and version.
- * Uses green for active/yes states and red for inactive/no states.
- */
+// CAMBIO: recibe configuredPort para mostrar el puerto correcto en el label
 @Composable
 private fun StatusCard(
     isInstalled: Boolean,
     isRunning: Boolean,
     isPortListening: Boolean,
     installedVersion: String,
-    activeFlags: String
+    activeFlags: String,
+    configuredPort: Int = 27042
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -265,14 +248,14 @@ private fun StatusCard(
 
             StatusRow(label = "Instalado", value = if (isInstalled) "Sí" else "No", isActive = isInstalled)
             StatusRow(label = "En ejecución", value = if (isRunning) "Sí" else "No", isActive = isRunning)
+            // CAMBIO: el label usa el puerto configurado, no 27042 hardcodeado
             StatusRow(
-                label = "Puerto local 27042",
+                label = "Puerto local $configuredPort",
                 value = if (isPortListening) "Escuchando" else "No confirmado",
                 isActive = isPortListening
             )
             StatusRow(label = "Versión real", value = installedVersion, isActive = installedVersion != "No instalado")
 
-            // Show active flags only when the server is running
             if (isRunning) {
                 StatusRow(
                     label = "Parámetros",
@@ -284,13 +267,6 @@ private fun StatusCard(
     }
 }
 
-/**
- * A single row showing a label and a colored status value.
- *
- * @param label   The left-side label (e.g., "Installed")
- * @param value   The right-side value (e.g., "Yes")
- * @param isActive Whether to use green (true) or red (false) for the value
- */
 @Composable
 private fun StatusRow(label: String, value: String, isActive: Boolean) {
     Row(
@@ -309,19 +285,12 @@ private fun StatusRow(label: String, value: String, isActive: Boolean) {
             Text(
                 text = value,
                 fontWeight = FontWeight.Bold,
-                // Green when active, red when inactive; all confirmations share one left-aligned column.
                 color = if (isActive) Color(0xFF4CAF50) else Color(0xFFF44336)
             )
         }
     }
 }
 
-/**
- * Dropdown menu for selecting a Frida version to install.
- *
- * ExposedDropdownMenuBox is the Material3 Compose equivalent of a Spinner.
- * It shows the selected item and expands to show all options when tapped.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VersionSelector(
@@ -397,10 +366,6 @@ private fun VersionSelector(
     }
 }
 
-/**
- * All action buttons for frida-server management.
- * Buttons are enabled/disabled based on the current state.
- */
 @Composable
 private fun ActionButtons(
     isInjectInstalled: Boolean,
@@ -440,7 +405,6 @@ private fun ActionButtons(
             )
             Divider()
 
-            // Install server independently from frida-inject.
             Button(
                 onClick = { pendingAction = "INSTALAR/ACTUALIZAR SERVER" },
                 modifier = Modifier.fillMaxWidth(),
@@ -449,7 +413,6 @@ private fun ActionButtons(
                 Text("INSTALAR / ACTUALIZAR SERVER")
             }
 
-            // frida-inject is installed separately, using the server's installed version.
             Button(
                 onClick = { pendingAction = "INSTALAR/ACTUALIZAR INJECT" },
                 modifier = Modifier.fillMaxWidth(),
@@ -458,35 +421,31 @@ private fun ActionButtons(
                 Text(if (isInjectInstalled) "INSTALAR / ACTUALIZAR INJECT" else "INSTALAR / ACTUALIZAR INJECT")
             }
 
-            // Start/Stop/Custom buttons — only shown when frida-server is installed
             if (isInstalled) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Start button — disabled when already running
                     Button(
                         onClick = { pendingAction = "INICIAR" },
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading && !isRunning && isRootAvailable,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50) // Green
+                            containerColor = Color(0xFF4CAF50)
                         )
                     ) { Text("INICIAR") }
 
-                    // Stop button — disabled when not running
                     Button(
                         onClick = { pendingAction = "DETENER" },
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading && isRunning && isRootAvailable,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF44336) // Red
+                            containerColor = Color(0xFFF44336)
                         )
                     ) { Text("DETENER") }
                 }
             }
 
-            // Uninstall remains available even if only frida-inject is installed or status is stale.
             OutlinedButton(
                 onClick = { pendingAction = "DESINSTALAR" },
                 modifier = Modifier.fillMaxWidth(),
@@ -496,7 +455,6 @@ private fun ActionButtons(
                 )
             ) { Text("DESINSTALAR") }
 
-            // Refresh button — always available
             OutlinedButton(
                 onClick = { pendingAction = "ACTUALIZAR ESTADO" },
                 modifier = Modifier.fillMaxWidth(),
@@ -540,22 +498,12 @@ private fun ActionButtons(
     }
 }
 
-/**
- * Terminal-style scrollable log panel.
- *
- * LazyColumn is Compose's equivalent of RecyclerView — it only renders
- * the items that are currently visible on screen, making it memory-efficient
- * for long lists.
- */
 @Composable
 private fun LogPanel(logs: List<String>, context: android.content.Context, onClear: () -> Unit, onExport: () -> Unit) {
-    // Used to programmatically scroll to the bottom when new logs arrive
     val listState = rememberLazyListState()
 
-    // Auto-scroll to bottom whenever the logs list changes
     LaunchedEffect(logs.size) {
         if (logs.isNotEmpty()) {
-            // animateScrollToItem scrolls smoothly to the last item
             listState.animateScrollToItem(logs.size - 1)
         }
     }
@@ -589,7 +537,6 @@ private fun LogPanel(logs: List<String>, context: android.content.Context, onCle
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Dark background to simulate a terminal
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -612,7 +559,7 @@ private fun LogPanel(logs: List<String>, context: android.content.Context, onCle
                         items(logs) { logLine ->
                             Text(
                                 text = logLine,
-                                color = Color(0xFF00FF00), // Green text like a terminal
+                                color = Color(0xFF00FF00),
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
                                 lineHeight = 16.sp
@@ -625,16 +572,8 @@ private fun LogPanel(logs: List<String>, context: android.content.Context, onCle
     }
 }
 
-/**
- * Dialog for entering custom frida-server flags.
- *
- * @param initialFlags The last used flags (pre-filled for convenience)
- * @param onConfirm Called with the entered flags when the user taps Start
- * @param onDismiss Called when the user cancels
- */
 @Composable
 private fun CustomFlagsDialog(initialFlags: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    // remember keeps this value across recompositions within this dialog's lifetime
     var flags by remember { mutableStateOf(initialFlags) }
 
     AlertDialog(
@@ -651,7 +590,6 @@ private fun CustomFlagsDialog(initialFlags: String, onConfirm: (String) -> Unit,
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Help text showing common flags
                 Text(
                     text = "PARÁMETROS HABITUALES:\n" +
                         "-l ADDRESS  Listen on address\n" +
