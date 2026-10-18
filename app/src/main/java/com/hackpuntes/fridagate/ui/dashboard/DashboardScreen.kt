@@ -1050,6 +1050,7 @@ private fun SmartInstallWizardDialog(
                                 onClick = {
                                     selectedVersion = version
                                     manualVersion = ""
+                                    versionChoiceMade = true
                                 }
                             )
                             Column(Modifier.weight(1f)) {
@@ -1088,6 +1089,7 @@ private fun SmartInstallWizardDialog(
                                     onClick = {
                                         selectedVersion = release.version
                                         manualVersion = ""
+                                        versionChoiceMade = true
                                         versionExpanded = false
                                     }
                                 )
@@ -1096,7 +1098,10 @@ private fun SmartInstallWizardDialog(
                     }
                     OutlinedTextField(
                         value = manualVersion,
-                        onValueChange = { manualVersion = it.trim() },
+                        onValueChange = {
+                            manualVersion = it.trim()
+                            versionChoiceMade = true
+                        },
                         label = { Text("BUSCAR UNA VERSIÓN MANUALMENTE") },
                         placeholder = { Text("Ejemplo: 16.5.5") },
                         supportingText = { Text("Se comprobará que GitHub tenga los binarios server e inject para tu arquitectura.") },
