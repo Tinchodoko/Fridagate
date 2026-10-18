@@ -981,7 +981,7 @@ private fun SmartInstallWizardDialog(
 ) {
     var step by remember { mutableStateOf(1) }
     var releases by remember { mutableStateOf<List<FridaUtils.FridaRelease>>(emptyList()) }
-    var selectedVersion by remember { mutableStateOf("17.23.3") }
+    var selectedVersion by remember { mutableStateOf("17.24.0) }
     var manualVersion by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf("ORIGINAL") }
     var installDir by remember { mutableStateOf(FridaStealthConfig.DEFAULT.installDir) }
@@ -993,13 +993,13 @@ private fun SmartInstallWizardDialog(
     LaunchedEffect(Unit) {
         releases = FridaUtils.getAvailableFridaReleases()
         releases.firstOrNull()?.version?.let { latest ->
-            if (selectedVersion == "17.23.3" && releases.none { it.version == "17.23.3" }) {
+            if (selectedVersion == "17.24.0 && releases.none { it.version == "17.24.0 }) {
                 selectedVersion = latest
             }
         }
     }
 
-    val latestVersion = releases.firstOrNull()?.version ?: "17.23.3"
+    val latestVersion = releases.firstOrNull()?.version ?: "17.24.0
     val featured = listOf(latestVersion, "17.6.0", "16.7.19").distinct()
     val chosenVersion = manualVersion.trim().ifBlank { selectedVersion }
     val validVersion = FridaUtils.isValidVersionFormat(chosenVersion)
