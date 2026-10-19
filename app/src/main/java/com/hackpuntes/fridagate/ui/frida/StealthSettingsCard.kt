@@ -189,16 +189,7 @@ fun StealthSettingsCard(
                         )
                     }
 
-                    Text(
-                        if (isFridaInstalled) {
-                            "Configuración bloqueada mientras Frida está instalado."
-                        } else {
-                            "Elegí ORIGINAL o STEALTH para guardar automáticamente el preset."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
                 }
             }
         }
