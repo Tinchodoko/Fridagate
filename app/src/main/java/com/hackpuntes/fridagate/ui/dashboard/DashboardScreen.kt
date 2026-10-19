@@ -45,6 +45,7 @@ import com.hackpuntes.fridagate.utils.RootUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,6 +81,12 @@ class DashboardViewModel(context: Context) : ViewModel() {
     private val _isFridaRunning = MutableStateFlow(false)
     val isFridaRunning: StateFlow<Boolean> = _isFridaRunning.asStateFlow()
 
+    /** Whether frida-inject is installed in Original or Stealth mode */
+    private val _isInjectInstalled = MutableStateFlow(false)
+    val isInjectInstalled: StateFlow<Boolean> = _isInjectInstalled.asStateFlow()
+
+    private var detectedConfig: FridaStealthConfig = FridaStealthConfig.DEFAULT
+
     /** Whether a background operation is in progress */
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -102,19 +109,47 @@ class DashboardViewModel(context: Context) : ViewModel() {
     fun refreshStatus() {
         viewModelScope.launch {
             _isLoading.value = true
-            addLog("Refreshing system status...")
+            try {
+                addLog("Actualizando estado de Frida...")
+                _isRootAvailable.value = RootUtils.isRootAvailable()
+                val savedConfig = AppPreferences(appContext).stealthConfig.first()
+                val candidates = listOf(savedConfig, FridaStealthConfig.DEFAULT, FridaStealthConfig.STEALTH).distinct()
+                var foundServerConfig: FridaStealthConfig? = null
+                var anyServerInstalled = false
+                var anyInjectInstalled = false
+                var anyServerRunning = false
 
-            // Check root
-            val root = RootUtils.isRootAvailable()
-            _isRootAvailable.value = root
-
-            // Check Frida
-            val fridaInstalled = FridaUtils.isFridaServerInstalled()
-            _isFridaInstalled.value = fridaInstalled
-            val fridaRunning = if (fridaInstalled) FridaUtils.isFridaServerRunning() else false
-            _isFridaRunning.value = fridaRunning
-
-            _isLoading.value = false
+                for (config in candidates) {
+                    FridaUtils.configure(config)
+                    val serverInstalled = FridaUtils.isFridaServerInstalled()
+                    val injectInstalled = FridaInjectUtils.isFridaInjectInstalled()
+                    val serverRunning = serverInstalled && FridaUtils.isFridaServerRunning()
+                    if (serverInstalled) {
+                        anyServerInstalled = true
+                        if (foundServerConfig == null) foundServerConfig = config
+                    }
+                    if (injectInstalled) anyInjectInstalled = true
+                    if (serverRunning) {
+                        anyServerRunning = true
+                        foundServerConfig = config
+                    }
+                }
+                detectedConfig = foundServerConfig ?: candidates.firstOrNull { config ->
+                    FridaUtils.configure(config)
+                    FridaInjectUtils.isFridaInjectInstalled()
+                } ?: savedConfig
+                FridaUtils.configure(detectedConfig)
+                _isFridaInstalled.value = anyServerInstalled
+                _isInjectInstalled.value = anyInjectInstalled
+                _isFridaRunning.value = anyServerRunning
+                addLog("Estado: server=" + (if (anyServerInstalled) "instalado" else "no instalado") +
+                    ", inject=" + (if (anyInjectInstalled) "instalado" else "no instalado") +
+                    ", ejecución=" + (if (anyServerRunning) "activa" else "detenida") + ".")
+            } catch (e: Exception) {
+                addLog("ERROR al actualizar el estado: " + (e.message ?: "desconocido"))
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -132,6 +167,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
                     addLog("ERROR: FRIDA-SERVER NO ESTÁ INSTALADO. USA INSTALACIÓN INTELIGENTE.")
                     return@launch
                 }
+                FridaUtils.configure(detectedConfig)
                 val started = if (FridaUtils.isFridaServerRunning()) true else FridaUtils.startFridaServer()
                 _isFridaRunning.value = started
                 addLog(if (started) "FRIDA-SERVER ESTÁ EN EJECUCIÓN." else "ERROR: NO SE PUDO INICIAR FRIDA-SERVER")
@@ -253,7 +289,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
 
                 addLog("Deteniendo frida-server...")
                 val stopped = FridaUtils.stopFridaServer()
-                _isFridaRunning.value = !FridaUtils.isFridaServerRunning()
+                _isFridaRunning.value = FridaUtils.isFridaServerRunning()
                 addLog(
                     if (stopped &&
                         !_isFridaRunning.value
@@ -264,11 +300,56 @@ class DashboardViewModel(context: Context) : ViewModel() {
                     }
                 )
 
+                _isFridaRunning.value = false
                 addLog("Detener todo finalizado. Los binarios de Frida se conservan instalados.")
             } catch (e: Exception) {
                 addLog("ERROR al detener todo: ${e.message ?: "desconocido"}")
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /** Stops and removes Frida server + inject in both Original and Stealth locations. */
+    fun uninstallAll() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                addLog("── DESINSTALAR TODO ───────────────")
+                val savedConfig = AppPreferences(appContext).stealthConfig.first()
+                val candidates = listOf(savedConfig, FridaStealthConfig.DEFAULT, FridaStealthConfig.STEALTH).distinct()
+                addLog("Deteniendo inyecciones activas...")
+                FridaInjectUtils.stopAllInjections().forEach { addLog(it) }
+
+                for (config in candidates) {
+                    FridaUtils.configure(config)
+                    val serverInstalled = FridaUtils.isFridaServerInstalled()
+                    val injectInstalled = FridaInjectUtils.isFridaInjectInstalled()
+                    val serverRunning = serverInstalled && FridaUtils.isFridaServerRunning()
+                    if (serverRunning) {
+                        addLog("Deteniendo " + config.serverAlias + " antes de desinstalar...")
+                        val stopped = FridaUtils.stopFridaServer()
+                        if (!stopped || FridaUtils.isFridaServerRunning()) {
+                            addLog("ERROR: no se pudo confirmar la detención de " + config.serverAlias + "; se omite esa configuración.")
+                            continue
+                        }
+                    }
+                    if (injectInstalled) {
+                        val removedInject = FridaInjectUtils.uninstallFridaInject()
+                        addLog(if (removedInject) "frida-inject eliminado de " + config.injectBinaryPath else "ERROR al eliminar frida-inject de " + config.injectBinaryPath)
+                    }
+                    if (serverInstalled) {
+                        val removedServer = FridaUtils.uninstallFridaServer()
+                        addLog(if (removedServer) "frida-server eliminado de " + config.serverBinaryPath else "ERROR al eliminar frida-server de " + config.serverBinaryPath)
+                    }
+                }
+                FridaUtils.configure(savedConfig)
+                addLog("── DESINSTALACIÓN FINALIZADA ──────")
+            } catch (e: Exception) {
+                addLog("ERROR durante la desinstalación: " + (e.message ?: "desconocido"))
+            } finally {
+                _isLoading.value = false
+                refreshStatus()
             }
         }
     }
@@ -306,6 +387,7 @@ fun DashboardScreen() {
     val isRootAvailable by viewModel.isRootAvailable.collectAsState()
     val isFridaInstalled by viewModel.isFridaInstalled.collectAsState()
     val isFridaRunning by viewModel.isFridaRunning.collectAsState()
+    val isInjectInstalled by viewModel.isInjectInstalled.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val logs by viewModel.logs.collectAsState()
     var pendingConfirmation by remember { mutableStateOf<String?>(null) }
@@ -442,9 +524,13 @@ fun DashboardScreen() {
                 isLoading = isLoading,
                 isRootAvailable = isRootAvailable,
                 isFridaInstalled = isFridaInstalled,
+                isInjectInstalled = isInjectInstalled,
                 isFridaRunning = isFridaRunning,
                 onActivateAll = { pendingConfirmation = "ACTIVAR TODO" },
-                onSmartInstall = { showSmartInstallWizard = true },
+                onSmartInstall = {
+                    if (isFridaInstalled && isInjectInstalled) pendingConfirmation = "DESINSTALAR TODO"
+                    else showSmartInstallWizard = true
+                },
                 onDeactivateAll = { pendingConfirmation = "DETENER TODO" },
                 onRefresh = { pendingConfirmation = "ACTUALIZAR ESTADO" },
                 isFloatingIconVisible = isFloatingIconVisible,
@@ -468,6 +554,7 @@ fun DashboardScreen() {
             val description = when (action) {
                 "ACTIVAR TODO" -> "INICIAR FRIDA-SERVER."
                 "DETENER TODO" -> "DETENER INYECCIONES Y FRIDA-SERVER."
+                "DESINSTALAR TODO" -> if (isFridaRunning) "FRIDA ESTÁ EN EJECUCIÓN. AL CONFIRMAR, SE DETENDRÁN LAS INYECCIONES, SE DETENDRÁ FRIDA-SERVER Y SE DESINSTALARÁN SERVER E INJECT EN ORIGINAL Y STEALTH." else "AL CONFIRMAR, SE DESINSTALARÁN FRIDA-SERVER Y FRIDA-INJECT EN ORIGINAL Y STEALTH."
                 "ACTUALIZAR ESTADO" -> "VOLVER A COMPROBAR ROOT, FRIDA Y EL ESTADO DEL SISTEMA."
                 "MOSTRAR ICONO FLOTANTE" -> "MOSTRAR EL ICONO FLOTANTE DE FRIDAGATE 2.0 SOBRE OTRAS APLICACIONES."
                 else -> "OCULTAR EL ICONO FLOTANTE DE FRIDAGATE 2.0."
@@ -483,6 +570,8 @@ fun DashboardScreen() {
                             "ACTIVAR TODO" -> viewModel.activateAll()
 
                             "DETENER TODO" -> viewModel.deactivateAll()
+
+                            "DESINSTALAR TODO" -> viewModel.uninstallAll()
 
                             "ACTUALIZAR ESTADO" -> viewModel.refreshStatus()
 
@@ -795,6 +884,7 @@ private fun OneTabActionsCard(
     isLoading: Boolean,
     isRootAvailable: Boolean,
     isFridaInstalled: Boolean,
+    isInjectInstalled: Boolean,
     isFridaRunning: Boolean,
     onActivateAll: () -> Unit,
     onSmartInstall: () -> Unit,
@@ -816,20 +906,16 @@ private fun OneTabActionsCard(
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            Text(
-                text = "ACTIVAR TODO INICIA FRIDA-SERVER.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-
             // ACTIVATE ALL — green, prominent
             Button(
                 onClick = onActivateAll,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && isRootAvailable && isFridaInstalled,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                enabled = !isLoading && isRootAvailable && isFridaInstalled && !isFridaRunning,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50),
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Text(
                     text = "▶  ACTIVAR TODO",
@@ -846,7 +932,7 @@ private fun OneTabActionsCard(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(
-                    text = "⚙  INSTALACIÓN INTELIGENTE",
+                    text = if (isFridaInstalled && isInjectInstalled) "⚙  DESINSTALAR TODO" else "⚙  INSTALACIÓN INTELIGENTE",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -857,7 +943,11 @@ private fun OneTabActionsCard(
                 onClick = onDeactivateAll,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && isRootAvailable && isFridaRunning,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFF44336),
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Text(
                     text = "■  DETENER TODO",
@@ -987,6 +1077,9 @@ private fun SmartInstallWizardDialog(
     onDismiss: () -> Unit,
     onInstall: (String, FridaStealthConfig) -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var configSavedMessage by remember { mutableStateOf("") }
     var step by remember { mutableStateOf(1) }
     var releases by remember { mutableStateOf<List<FridaUtils.FridaRelease>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf("17.24.0") }
@@ -1178,21 +1271,35 @@ private fun SmartInstallWizardDialog(
                         )
                     }
                     Text("Versión seleccionada: $chosenVersion", style = MaterialTheme.typography.labelMedium)
+                    if (configSavedMessage.isNotBlank()) {
+                        Text(configSavedMessage, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(
-                enabled = if (step == 1) validVersion else validationError == null,
-                onClick = {
-                    if (step == 1) {
-                        step = 2
-                    } else if (validationError == null) {
-                        onInstall(chosenVersion, config)
-                    }
+            if (step == 1) {
+                TextButton(
+                    enabled = validVersion,
+                    onClick = { step = 2 }
+                ) { Text("SIGUIENTE") }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        enabled = validationError == null,
+                        onClick = {
+                            scope.launch {
+                                AppPreferences(context).saveStealthConfig(config)
+                                FridaUtils.configure(config)
+                                configSavedMessage = "Configuración guardada."
+                            }
+                        }
+                    ) { Text("GUARDAR") }
+                    TextButton(
+                        enabled = validationError == null,
+                        onClick = { onInstall(chosenVersion, config) }
+                    ) { Text("INSTALACIÓN INTELIGENTE") }
                 }
-            ) {
-                Text(if (step == 1) "SIGUIENTE" else "INSTALACIÓN INTELIGENTE")
             }
         },
         dismissButton = {
