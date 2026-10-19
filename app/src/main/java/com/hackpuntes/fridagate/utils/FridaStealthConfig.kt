@@ -68,9 +68,9 @@ data class FridaStealthConfig(
 
         /** Preset semi-oculto sugerido para uso con DIVA y aprendizaje */
         val STEALTH = FridaStealthConfig(
-            installDir = "/data/local/tmp/.sys",
-            serverAlias = "thermal_svc",
-            injectAlias = "msm_inject",
+            installDir = "/data/local/tmp/.Tinchodoko",
+            serverAlias = "tincho_doko",
+            injectAlias = "doko_tincho",
             port = 1996
         )
     }
