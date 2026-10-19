@@ -1103,10 +1103,10 @@ private fun SmartInstallWizardDialog(
     var manualVersion by remember { mutableStateOf("") }
     var versionChoiceMade by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("ORIGINAL") }
-    var installDir by remember { mutableStateOf(FridaStealthConfig.DEFAULT.installDir) }
-    var serverAlias by remember { mutableStateOf(FridaStealthConfig.DEFAULT.serverAlias) }
-    var injectAlias by remember { mutableStateOf(FridaStealthConfig.DEFAULT.injectAlias) }
-    var portText by remember { mutableStateOf(FridaStealthConfig.DEFAULT.port.toString()) }
+    var installDir by remember { mutableStateOf(FridaStealthConfig.STEALTH.installDir) }
+    var serverAlias by remember { mutableStateOf(FridaStealthConfig.STEALTH.serverAlias) }
+    var injectAlias by remember { mutableStateOf(FridaStealthConfig.STEALTH.injectAlias) }
+    var portText by remember { mutableStateOf(FridaStealthConfig.STEALTH.port.toString()) }
 
     LaunchedEffect(Unit) {
         releases = FridaUtils.getAvailableFridaReleases()
@@ -1135,7 +1135,7 @@ private fun SmartInstallWizardDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                if (step == 1) "SELECCIONA UNA VERSIÓN DE FRIDA" else "CONFIGURACIÓN DE STEALTH",
+                if (step == 1) "SELECCIONE UNA VERSIÓN DE FRIDA" else "CONFIGURACIÓN DE STEALTH",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -1204,7 +1204,10 @@ private fun SmartInstallWizardDialog(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
+                        Column(
+                            Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text("ORIGINAL", fontWeight = FontWeight.Bold)
                             Text("Directorio: ${FridaStealthConfig.DEFAULT.installDir}")
                             Text("Server: ${FridaStealthConfig.DEFAULT.serverAlias}")
@@ -1213,7 +1216,10 @@ private fun SmartInstallWizardDialog(
                         }
                     }
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
+                        Column(
+                            Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text("STEALTH", fontWeight = FontWeight.Bold)
                             Text("Directorio: $installDir")
                             Text("Server: $serverAlias")
