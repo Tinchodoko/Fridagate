@@ -115,6 +115,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
                 val savedConfig = AppPreferences(appContext).stealthConfig.first()
                 val candidates = listOf(savedConfig, FridaStealthConfig.DEFAULT, FridaStealthConfig.STEALTH).distinct()
                 var foundServerConfig: FridaStealthConfig? = null
+                var foundInjectConfig: FridaStealthConfig? = null
                 var anyServerInstalled = false
                 var anyInjectInstalled = false
                 var anyServerRunning = false
@@ -128,16 +129,16 @@ class DashboardViewModel(context: Context) : ViewModel() {
                         anyServerInstalled = true
                         if (foundServerConfig == null) foundServerConfig = config
                     }
-                    if (injectInstalled) anyInjectInstalled = true
+                    if (injectInstalled) {
+                        anyInjectInstalled = true
+                        if (foundInjectConfig == null) foundInjectConfig = config
+                    }
                     if (serverRunning) {
                         anyServerRunning = true
                         foundServerConfig = config
                     }
                 }
-                detectedConfig = foundServerConfig ?: candidates.firstOrNull { config ->
-                    FridaUtils.configure(config)
-                    FridaInjectUtils.isFridaInjectInstalled()
-                } ?: savedConfig
+                detectedConfig = foundServerConfig ?: foundInjectConfig ?: savedConfig
                 FridaUtils.configure(detectedConfig)
                 _isFridaInstalled.value = anyServerInstalled
                 _isInjectInstalled.value = anyInjectInstalled
