@@ -51,7 +51,10 @@ fun StealthSettingsCard(
         serverAlias.trim() == injectAlias.trim()
     val knownFridaPort = port == 27042
     val invalidPort = port == null || port !in 1024..65535
+    val invalidInstallDir = installDirSuffix.isBlank() ||
+        installDirSuffix.split('/').any { it == ".." }
     val validationError = when {
+        invalidInstallDir -> "Coloca una nueva ruta de instalación válida."
         sameProcessName -> "EL NOMBRE DEL PROCESO INJECT DEBE SER DIFERENTE AL DE SERVER"
         knownFridaPort -> "Elige otro puerto, este es el puerto conocido de FRIDA"
         invalidPort -> "Coloca un puerto desde 1024 a 65535"
@@ -148,8 +151,7 @@ fun StealthSettingsCard(
                             textStyle = monoStyle,
                             singleLine = true,
                             enabled = !isFridaInstalled,
-                            isError = installDirSuffix.isBlank() ||
-                                installDirSuffix.split('/').any { it == ".." },
+                            isError = invalidInstallDir,
                             supportingText = {
                                 Text(
                                     "Coloca una nueva ruta de instalación. Se debe instalar en la ruta\n" +
