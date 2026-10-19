@@ -190,7 +190,46 @@ fun StealthSettingsCard(
                         )
                     }
 
-
+                    // Solo aparece cuando los valores difieren de la configuración guardada.
+                    if (isDirty && !isFridaInstalled) {
+                        Button(
+                            onClick = {
+                                val newPort = portText.toIntOrNull()
+                                if (newPort == null) {
+                                    errorMsg = "El puerto debe ser un número entre 1024 y 65535."
+                                } else {
+                                    val updatedConfig = FridaStealthConfig(
+                                        installDir = installDir.trim(),
+                                        serverAlias = serverAlias.trim(),
+                                        injectAlias = injectAlias.trim(),
+                                        port = newPort
+                                    )
+                                    val validationError = updatedConfig.validate()
+                                    if (validationError != null) {
+                                        errorMsg = validationError
+                                    } else {
+                                        val saveError = onSave(updatedConfig)
+                                        if (saveError == null) {
+                                            installDir = updatedConfig.installDir
+                                            serverAlias = updatedConfig.serverAlias
+                                            injectAlias = updatedConfig.injectAlias
+                                            portText = updatedConfig.port.toString()
+                                            errorMsg = null
+                                        } else {
+                                            errorMsg = saveError
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF00C853),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text("✓ GUARDAR CAMBIOS")
+                        }
+                    }
                 }
             }
         }
