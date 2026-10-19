@@ -63,6 +63,48 @@ fun StealthSettingsCard(
                 }
             }
 
+                    // Presets: al seleccionarlos, se guardan automáticamente.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text("Presets:", style = MaterialTheme.typography.labelMedium)
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            enabled = !isFridaInstalled,
+                            onClick = {
+                                val preset = FridaStealthConfig.DEFAULT
+                                val error = onSave(preset)
+                                if (error == null) {
+                                    installDir = preset.installDir
+                                    serverAlias = preset.serverAlias
+                                    injectAlias = preset.injectAlias
+                                    portText = preset.port.toString()
+                                    errorMsg = null
+                                } else errorMsg = error
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                        ) { Text("ORIGINAL") }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            enabled = !isFridaInstalled,
+                            onClick = {
+                                val preset = FridaStealthConfig.STEALTH
+                                val error = onSave(preset)
+                                if (error == null) {
+                                    installDir = preset.installDir
+                                    serverAlias = preset.serverAlias
+                                    injectAlias = preset.injectAlias
+                                    portText = preset.port.toString()
+                                    errorMsg = null
+                                } else errorMsg = error
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                        ) { Text("STEALTH") }
+                    }
+
+
             // ── Formulario ────────────────────────────────────────────────────
             AnimatedVisibility(visible = true) {
                 Column(
@@ -138,47 +180,6 @@ fun StealthSettingsCard(
                         singleLine = true,
                         enabled = !isFridaInstalled
                     )
-
-                    // Presets: al seleccionarlos, se guardan automáticamente.
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text("Presets:", style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            enabled = !isFridaInstalled,
-                            onClick = {
-                                val preset = FridaStealthConfig.DEFAULT
-                                val error = onSave(preset)
-                                if (error == null) {
-                                    installDir = preset.installDir
-                                    serverAlias = preset.serverAlias
-                                    injectAlias = preset.injectAlias
-                                    portText = preset.port.toString()
-                                    errorMsg = null
-                                } else errorMsg = error
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                        ) { Text("ORIGINAL") }
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            enabled = !isFridaInstalled,
-                            onClick = {
-                                val preset = FridaStealthConfig.STEALTH
-                                val error = onSave(preset)
-                                if (error == null) {
-                                    installDir = preset.installDir
-                                    serverAlias = preset.serverAlias
-                                    injectAlias = preset.injectAlias
-                                    portText = preset.port.toString()
-                                    errorMsg = null
-                                } else errorMsg = error
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
-                        ) { Text("STEALTH") }
-                    }
 
                     // Mensaje de error
                     if (errorMsg != null) {
