@@ -364,7 +364,17 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
 
                         echo "=== Retirando directorios de instalación vacíos ==="
                         for dir in $quotedDirs; do
-                            if [ -d "${'
+                            if [ -d "${'$'}dir" ]; then
+                                if rmdir "${'$'}dir" 2>/dev/null; then
+                                    echo "DIRECTORIO ELIMINADO: ${'$'}dir"
+                                else
+                                    echo "ADVERTENCIA: ${'$'}dir no está vacío; se conservan los archivos restantes por seguridad"
+                                fi
+                            else
+                                echo "DIRECTORIO NO EXISTE: ${'$'}dir"
+                            fi
+                        done
+
                         for name in $quotedAliases; do
                             pids=${'$'}(pidof "${'$'}name" 2>/dev/null)
                             if [ -n "${'$'}pids" ]; then
