@@ -348,6 +348,19 @@ class DashboardViewModel(context: Context) : ViewModel() {
                         addLog(if (removedServer) "frida-server eliminado de " + config.serverBinaryPath else "ERROR al eliminar frida-server de " + config.serverBinaryPath)
                     }
                 }
+                val installDirs = linkedSetOf(
+                    savedConfig.installDir,
+                    FridaStealthConfig.DEFAULT.installDir,
+                    FridaStealthConfig.STEALTH.installDir,
+                    "/data/local/tmp/frida"
+                ).filter { it.startsWith("/data/local/tmp/") && it != "/data/local/tmp" }
+                for (dir in installDirs) {
+                    val quotedDir = "'" + dir.replace("'", "'\\''") + "'"
+                    val cleanup = RootUtils.executeSuCommand(
+                        "if [ -d $quotedDir ]; then if rmdir $quotedDir 2>/dev/null; then echo 'DIRECTORIO ELIMINADO: ' $quotedDir; else echo 'DIRECTORIO NO VACÍO, SE CONSERVA: ' $quotedDir; fi; fi"
+                    )
+                    if (cleanup.isNotBlank()) addLog(cleanup)
+                }
                 FridaUtils.configure(savedConfig)
                 addLog("── DESINSTALACIÓN FINALIZADA ──────")
             } catch (e: Exception) {
