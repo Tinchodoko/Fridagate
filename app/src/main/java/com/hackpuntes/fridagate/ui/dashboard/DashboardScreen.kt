@@ -268,6 +268,10 @@ class DashboardViewModel(context: Context) : ViewModel() {
                     addLog("ERROR: No se pudo iniciar frida-server")
                     return@launch
                 }
+                _isFridaInstalled.value = FridaUtils.isFridaServerInstalled()
+                _isInjectInstalled.value = FridaInjectUtils.isFridaInjectInstalled()
+                _isFridaRunning.value = FridaUtils.isFridaServerRunning()
+                detectedConfig = config
                 addLog("frida-server iniciado")
                 addLog("Frida-server está instalado y en ejecución.")
                 addLog("frida-inject está instalado con la misma versión.")
