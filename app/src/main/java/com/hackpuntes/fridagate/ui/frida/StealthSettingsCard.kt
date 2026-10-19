@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -31,8 +30,6 @@ fun StealthSettingsCard(
     var injectAlias by remember(currentConfig) { mutableStateOf(currentConfig.injectAlias) }
     var portText by remember(currentConfig) { mutableStateOf(currentConfig.port.toString()) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
-    var showResetDialog by remember { mutableStateOf(false) }
-
     val isDirty = installDir != currentConfig.installDir ||
         serverAlias != currentConfig.serverAlias ||
         injectAlias != currentConfig.injectAlias ||
@@ -61,13 +58,6 @@ fun StealthSettingsCard(
                         Text(
                             "Configuración de camuflaje",
                             style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            "${currentConfig.serverAlias}  ·  :${currentConfig.port}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -138,7 +128,7 @@ fun StealthSettingsCard(
                             errorMsg = null
                         },
                         label = { Text("Puerto de escucha") },
-                        placeholder = { Text("37285") },
+                        placeholder = { Text("1996") },
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = monoStyle,
                         supportingText = {
@@ -149,35 +139,45 @@ fun StealthSettingsCard(
                         enabled = !isFridaInstalled
                     )
 
-                    // Presets rápidos
+                    // Presets: al seleccionarlos, se guardan automáticamente.
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            "Presets:",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        AssistChip(
+                        Text("Presets:", style = MaterialTheme.typography.labelMedium)
+                        Spacer(Modifier.width(8.dp))
+                        Button(
                             enabled = !isFridaInstalled,
                             onClick = {
-                                installDir = FridaStealthConfig.DEFAULT.installDir
-                                serverAlias = FridaStealthConfig.DEFAULT.serverAlias
-                                injectAlias = FridaStealthConfig.DEFAULT.injectAlias
-                                portText = FridaStealthConfig.DEFAULT.port.toString()
+                                val preset = FridaStealthConfig.DEFAULT
+                                val error = onSave(preset)
+                                if (error == null) {
+                                    installDir = preset.installDir
+                                    serverAlias = preset.serverAlias
+                                    injectAlias = preset.injectAlias
+                                    portText = preset.port.toString()
+                                    errorMsg = null
+                                } else errorMsg = error
                             },
-                            label = { Text("Original") }
-                        )
-                        AssistChip(
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                        ) { Text("ORIGINAL") }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
                             enabled = !isFridaInstalled,
                             onClick = {
-                                installDir = FridaStealthConfig.STEALTH.installDir
-                                serverAlias = FridaStealthConfig.STEALTH.serverAlias
-                                injectAlias = FridaStealthConfig.STEALTH.injectAlias
-                                portText = FridaStealthConfig.STEALTH.port.toString()
+                                val preset = FridaStealthConfig.STEALTH
+                                val error = onSave(preset)
+                                if (error == null) {
+                                    installDir = preset.installDir
+                                    serverAlias = preset.serverAlias
+                                    injectAlias = preset.injectAlias
+                                    portText = preset.port.toString()
+                                    errorMsg = null
+                                } else errorMsg = error
                             },
-                            label = { Text("Stealth") }
-                        )
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                        ) { Text("STEALTH") }
                     }
 
                     // Mensaje de error
@@ -189,75 +189,19 @@ fun StealthSettingsCard(
                         )
                     }
 
-                    // Botones Guardar / Resetear
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedButton(
-                            enabled = !isFridaInstalled,
-                            onClick = { showResetDialog = true },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Resetear") }
-
-                        Button(
-                            enabled = isDirty && !isFridaInstalled,
-                            onClick = {
-                                val port = portText.toIntOrNull()
-                                if (port == null) {
-                                    errorMsg = "Puerto inválido — ingresá un número."
-                                    return@Button
-                                }
-                                val newConfig = FridaStealthConfig(
-                                    installDir = installDir.trim(),
-                                    serverAlias = serverAlias.trim(),
-                                    injectAlias = injectAlias.trim(),
-                                    port = port
-                                )
-                                val error = onSave(newConfig)
-                                if (error != null) {
-                                    errorMsg = error
-                                } else {
-                                    errorMsg = null
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Guardar") }
-                    }
-
                     Text(
                         if (isFridaInstalled) {
-                            "🔒 Configuración bloqueada: Frida ya está instalado. Desinstalá Frida para volver a editar Stealth."
+                            "Configuración bloqueada mientras Frida está instalado."
                         } else {
-                            "ℹ️ Guardá la configuración antes de instalar Frida. Una vez instalado, los campos quedarán bloqueados."
+                            "Elegí ORIGINAL o STEALTH para guardar automáticamente el preset."
                         },
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
-                            Color.White
-                        } else {
-                            Color.Black
-                        }
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
         }
     }
 
-    // Diálogo confirmación reset
-    if (showResetDialog && !isFridaInstalled) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("¿Resetear configuración?") },
-            text = { Text("Esto restaurará las rutas y el puerto originales de Frida (sin camuflaje). ¿Continuar?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showResetDialog = false
-                    onReset()
-                }) { Text("Resetear") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetDialog = false }) { Text("Cancelar") }
-            }
-        )
-    }
 }
