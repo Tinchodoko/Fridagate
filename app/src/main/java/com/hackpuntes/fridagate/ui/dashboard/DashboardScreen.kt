@@ -13,6 +13,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -1148,12 +1151,21 @@ private fun SmartInstallWizardDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (step == 1) {
-                    Text(
-                        "Elegí una versión para instalar frida-server y frida-inject juntos.",
-                        style = MaterialTheme.typography.bodyMedium,
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Elija una versión para instalar",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Text(
+                            "Frida-server y Frida-inject juntos",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                     featured.forEachIndexed { index, version ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1203,44 +1215,53 @@ private fun SmartInstallWizardDialog(
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    val originalSelected = mode == "ORIGINAL"
+                    val originalGlow = Color(0xFF00E676)
+                    val stealthGlow = Color(0xFF00E5FF)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (originalSelected) Modifier.border(
+                                    2.dp,
+                                    Brush.horizontalGradient(listOf(originalGlow, Color(0xFFB2FF59), originalGlow)),
+                                    MaterialTheme.shapes.medium
+                                ) else Modifier
+                            )
+                            .clickable { mode = "ORIGINAL" },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (originalSelected) originalGlow.copy(alpha = 0.10f)
+                            else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
                         Column(
-                            Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text("ORIGINAL", fontWeight = FontWeight.Bold)
+                            Text(
+                                "ORIGINAL",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = originalGlow
+                            )
                             Text("Directorio: ${FridaStealthConfig.DEFAULT.installDir}")
                             Text("Server: ${FridaStealthConfig.DEFAULT.serverAlias}")
                             Text("Inject: ${FridaStealthConfig.DEFAULT.injectAlias}")
                             Text("Puerto: ${FridaStealthConfig.DEFAULT.port}")
                         }
                     }
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("STEALTH", fontWeight = FontWeight.Bold)
-                            Text("Directorio: $installDir")
-                            Text("Server: $serverAlias")
-                            Text("Inject: $injectAlias")
-                            Text("Puerto: $portText")
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = mode == "ORIGINAL",
-                            onClick = { mode = "ORIGINAL" }
-                        )
-                        Text("ORIGINAL")
-                        Spacer(Modifier.width(12.dp))
-                        RadioButton(
-                            selected = mode == "STEALTH",
-                            onClick = {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (!originalSelected) Modifier.border(
+                                    2.dp,
+                                    Brush.horizontalGradient(listOf(stealthGlow, Color(0xFF80D8FF), stealthGlow)),
+                                    MaterialTheme.shapes.medium
+                                ) else Modifier
+                            )
+                            .clickable {
                                 if (mode != "STEALTH") {
                                     mode = "STEALTH"
                                     installDir = FridaStealthConfig.STEALTH.installDir
@@ -1248,57 +1269,30 @@ private fun SmartInstallWizardDialog(
                                     injectAlias = FridaStealthConfig.STEALTH.injectAlias
                                     portText = FridaStealthConfig.STEALTH.port.toString()
                                 }
-                            }
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (!originalSelected) stealthGlow.copy(alpha = 0.10f)
+                            else MaterialTheme.colorScheme.surface
                         )
-                        Text("STEALTH")
-                    }
-                    if (mode == "STEALTH") {
-                        OutlinedTextField(
-                            value = installDir,
-                            onValueChange = { installDir = it },
-                            label = { Text("Directorio de instalación") },
-                            placeholder = { Text("/data/local/tmp/.sys") },
-                            supportingText = { Text("No usar /sdcard: Android no permite ejecutar binarios desde allí.") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = serverAlias,
-                            onValueChange = { serverAlias = it },
-                            label = { Text("Nombre del proceso server") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = injectAlias,
-                            onValueChange = { injectAlias = it },
-                            label = { Text("Nombre del proceso inject") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = portText,
-                            onValueChange = { portText = it },
-                            label = { Text("Puerto de escucha") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (validationError != null) {
-                            Text(validationError, color = MaterialTheme.colorScheme.error)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                "STEALTH",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = stealthGlow
+                            )
+                            Text("Directorio: $installDir")
+                            Text("Server: $serverAlias")
+                            Text("Inject: $injectAlias")
+                            Text("Puerto: $portText")
                         }
-                    } else {
-                        Text(
-                            "Se utilizarán las rutas y nombres originales de Frida.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
-                    Text(
-                        "Versión seleccionada: $chosenVersion",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+
                 }
             }
         },
@@ -1310,15 +1304,17 @@ private fun SmartInstallWizardDialog(
             ) {
                 if (step == 1) {
                     Button(
+                        modifier = Modifier.weight(1f),
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-                    ) { Text("✕ CANCELAR") }
+                    ) { Text("✕ CANCELAR", maxLines = 1) }
                     Spacer(Modifier.width(8.dp))
                     Button(
+                        modifier = Modifier.weight(1f),
                         enabled = validVersion,
                         onClick = { step = 2 },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) { Text("SIGUIENTE ✓") }
+                    ) { Text("SIGUIENTE ✓", maxLines = 1) }
                 } else {
                     Button(
                         onClick = { step = 1 },
