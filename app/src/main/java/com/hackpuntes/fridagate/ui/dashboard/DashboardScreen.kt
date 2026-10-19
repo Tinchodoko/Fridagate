@@ -1084,7 +1084,6 @@ private fun SmartInstallWizardDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var configSavedMessage by remember { mutableStateOf("") }
     var step by remember { mutableStateOf(1) }
     var releases by remember { mutableStateOf<List<FridaUtils.FridaRelease>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf("17.24.0") }
@@ -1095,7 +1094,6 @@ private fun SmartInstallWizardDialog(
     var serverAlias by remember { mutableStateOf(FridaStealthConfig.DEFAULT.serverAlias) }
     var injectAlias by remember { mutableStateOf(FridaStealthConfig.DEFAULT.injectAlias) }
     var portText by remember { mutableStateOf(FridaStealthConfig.DEFAULT.port.toString()) }
-    var versionExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         releases = FridaUtils.getAvailableFridaReleases()
@@ -1123,7 +1121,11 @@ private fun SmartInstallWizardDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(if (step == 1) "SELECCIONA UNA VERSIÓN DE FRIDA" else "CONFIGURACIÓN DE STEALTH")
+            Text(
+                if (step == 1) "SELECCIONA UNA VERSIÓN DE FRIDA" else "CONFIGURACIÓN DE STEALTH",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         },
         text = {
             Column(
@@ -1135,7 +1137,9 @@ private fun SmartInstallWizardDialog(
                 if (step == 1) {
                     Text(
                         "Elegí una versión para instalar frida-server y frida-inject juntos.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     featured.forEachIndexed { index, version ->
                         Row(
@@ -1164,35 +1168,6 @@ private fun SmartInstallWizardDialog(
                             }
                         }
                     }
-                    ExposedDropdownMenuBox(
-                        expanded = versionExpanded,
-                        onExpandedChange = { versionExpanded = !versionExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = if (manualVersion.isBlank()) selectedVersion else manualVersion,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("O elegir de versiones publicadas") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = versionExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
-                        )
-                        ExposedDropdownMenu(
-                            expanded = versionExpanded,
-                            onDismissRequest = { versionExpanded = false }
-                        ) {
-                            releases.forEach { release ->
-                                DropdownMenuItem(
-                                    text = { Text(release.version) },
-                                    onClick = {
-                                        selectedVersion = release.version
-                                        manualVersion = ""
-                                        versionChoiceMade = true
-                                        versionExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
                     OutlinedTextField(
                         value = manualVersion,
                         onValueChange = {
@@ -1210,10 +1185,34 @@ private fun SmartInstallWizardDialog(
                     }
                 } else {
                     Text(
-                        "STEALTH ESCONDE FRIDA INSTALÁNDOLO CON NOMBRES CUSTOM",
-                        style = MaterialTheme.typography.bodyMedium
+                        "CONFIGURACIÓN DE INSTALACIÓN",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("ORIGINAL", fontWeight = FontWeight.Bold)
+                            Text("Directorio: ${FridaStealthConfig.DEFAULT.installDir}")
+                            Text("Server: ${FridaStealthConfig.DEFAULT.serverAlias}")
+                            Text("Inject: ${FridaStealthConfig.DEFAULT.injectAlias}")
+                            Text("Puerto: ${FridaStealthConfig.DEFAULT.port}")
+                        }
+                    }
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("STEALTH", fontWeight = FontWeight.Bold)
+                            Text("Directorio: $installDir")
+                            Text("Server: $serverAlias")
+                            Text("Inject: $injectAlias")
+                            Text("Puerto: $portText")
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         RadioButton(
                             selected = mode == "ORIGINAL",
                             onClick = { mode = "ORIGINAL" }
@@ -1275,45 +1274,57 @@ private fun SmartInstallWizardDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text("Versión seleccionada: $chosenVersion", style = MaterialTheme.typography.labelMedium)
-                    if (configSavedMessage.isNotBlank()) {
-                        Text(configSavedMessage, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-                    }
+                    Text(
+                        "Versión seleccionada: $chosenVersion",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
             }
         },
         confirmButton = {
-            if (step == 1) {
-                TextButton(
-                    enabled = validVersion,
-                    onClick = { step = 2 }
-                ) { Text("SIGUIENTE") }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (step == 1) {
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                    ) { Text("✕ CANCELAR") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        enabled = validVersion,
+                        onClick = { step = 2 },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                    ) { Text("SIGUIENTE ✓") }
+                } else {
+                    Button(
+                        onClick = { step = 1 },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) { Text("← ATRÁS") }
+                    Spacer(Modifier.width(6.dp))
+                    Button(
                         enabled = validationError == null,
                         onClick = {
                             scope.launch {
                                 AppPreferences(context).saveStealthConfig(config)
                                 FridaUtils.configure(config)
-                                configSavedMessage = "Configuración guardada."
+                                onInstall(chosenVersion, config)
                             }
-                        }
-                    ) { Text("GUARDAR") }
-                    TextButton(
-                        enabled = validationError == null,
-                        onClick = { onInstall(chosenVersion, config) }
-                    ) { Text("INSTALACIÓN INTELIGENTE") }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                    ) { Text("✓ INSTALAR") }
+                    Spacer(Modifier.width(6.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                    ) { Text("✕ CANCELAR") }
                 }
             }
         },
-        dismissButton = {
-            Row {
-                if (step == 2) {
-                    TextButton(onClick = { step = 1 }) { Text("ATRÁS") }
-                }
-                TextButton(onClick = onDismiss) { Text("CANCELAR") }
-            }
-        }
+        dismissButton = {}
     )
 }
