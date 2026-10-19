@@ -166,11 +166,11 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             )
 
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text("✅ INSTALACIÓN INTELIGENTE: ASISTENTE INDEPENDIENTE PARA ELEGIR VERSIÓN, MODO ORIGINAL O STEALTH Y CONFIGURAR SERVER E INJECT EN UNA SOLA OPERACIÓN.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ INSTALACIÓN INTELIGENTE: ASISTENTE RÁPIDO CON VERSIONES RECOMENDADAS, CONFIGURACIÓN ORIGINAL O STEALTH Y GUARDADO AUTOMÁTICO ANTES DE INSTALAR.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ FRIDA SERVER E INJECT: INSTALACIÓN, ACTUALIZACIÓN, INICIO, DETENCIÓN Y DESINSTALACIÓN COMPLETA.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ VERSIONES: SELECCIÓN DE VERSIONES PUBLICADAS Y ENTRADA MANUAL; SERVER E INJECT USAN SIEMPRE LA MISMA VERSIÓN.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ CAMUFLAJE STEALTH: DIRECTORIO, NOMBRES DE PROCESO Y PUERTO PERSONALIZABLES; CONFIGURACIÓN BLOQUEADA MIENTRAS FRIDA ESTÁ INSTALADO.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ LIMPIEZA COMPLETA: DETENCIÓN DE PROCESOS Y ELIMINACIÓN DE BINARIOS, METADATOS Y ARCHIVOS TEMPORALES CON REGISTRO DE RESULTADOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ VERSIONES: SELECCIÓN RÁPIDA DE VERSIONES RECOMENDADAS Y OPCIÓN MANUAL; SERVER E INJECT USAN SIEMPRE LA MISMA VERSIÓN.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ CONFIGURACIÓN DE INSTALACIÓN: PRESETS ORIGINAL Y STEALTH CON GUARDADO AUTOMÁTICO; PUERTO DEL PRESET STEALTH CONFIGURADO EN 1996.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✅ DESINSTALACIÓN: DETENCIÓN DE PROCESOS Y ELIMINACIÓN DE BINARIOS, METADATOS Y TEMPORALES; INTENTA RETIRAR LOS DIRECTORIOS DE INSTALACIÓN CUANDO QUEDAN VACÍOS, SIN BORRAR ARCHIVOS AJENOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR, ELIMINAR Y EJECUTAR SCRIPTS HABILITADOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN OBJETIVO Y EJECUCIÓN DE SCRIPTS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
                 Text("✅ REGISTROS: ACTIVIDAD EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
