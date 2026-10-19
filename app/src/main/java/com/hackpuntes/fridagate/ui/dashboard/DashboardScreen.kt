@@ -1103,7 +1103,6 @@ private fun SmartInstallWizardDialog(
     var step by remember { mutableStateOf(1) }
     var releases by remember { mutableStateOf<List<FridaUtils.FridaRelease>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf("17.24.0") }
-    var manualVersion by remember { mutableStateOf("") }
     var versionChoiceMade by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf("ORIGINAL") }
     var installDir by remember { mutableStateOf(FridaStealthConfig.STEALTH.installDir) }
@@ -1120,7 +1119,7 @@ private fun SmartInstallWizardDialog(
 
     val latestVersion = releases.firstOrNull()?.version ?: "17.24.0"
     val featured = listOf(latestVersion, "17.6.0", "16.7.19").distinct()
-    val chosenVersion = manualVersion.trim().ifBlank { selectedVersion }
+    val chosenVersion = selectedVersion
     val validVersion = FridaUtils.isValidVersionFormat(chosenVersion)
     val config = if (mode == "ORIGINAL") {
         FridaStealthConfig.DEFAULT
@@ -1172,10 +1171,9 @@ private fun SmartInstallWizardDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             RadioButton(
-                                selected = manualVersion.isBlank() && selectedVersion == version,
+                                selected = selectedVersion == version,
                                 onClick = {
                                     selectedVersion = version
-                                    manualVersion = ""
                                     versionChoiceMade = true
                                 }
                             )
@@ -1192,21 +1190,6 @@ private fun SmartInstallWizardDialog(
                                 )
                             }
                         }
-                    }
-                    OutlinedTextField(
-                        value = manualVersion,
-                        onValueChange = {
-                            manualVersion = it.trim()
-                            versionChoiceMade = true
-                        },
-                        label = { Text("BUSCAR UNA VERSIÓN MANUALMENTE") },
-                        placeholder = { Text("Ejemplo: 16.5.5") },
-                        supportingText = { Text("Se comprobará que GitHub tenga los binarios server e inject para tu arquitectura.") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (manualVersion.isNotBlank() && !validVersion) {
-                        Text("Formato inválido. Usa el formato 16.5.5.", color = MaterialTheme.colorScheme.error)
                     }
                 } else {
                     Text(
@@ -1297,31 +1280,25 @@ private fun SmartInstallWizardDialog(
             }
         },
         confirmButton = {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (step == 1) {
                     Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-                    ) { Text("✕ CANCELAR", maxLines = 1) }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = validVersion,
                         onClick = { step = 2 },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) { Text("SIGUIENTE ✓", maxLines = 1) }
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                    ) { Text("CANCELAR ✖️", maxLines = 1) }
                 } else {
                     Button(
-                        onClick = { step = 1 },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) { Text("← ATRÁS") }
-                    Spacer(Modifier.width(6.dp))
-                    Button(
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = validationError == null,
                         onClick = {
                             scope.launch {
@@ -1331,12 +1308,17 @@ private fun SmartInstallWizardDialog(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) { Text("✓ INSTALAR") }
-                    Spacer(Modifier.width(6.dp))
+                    ) { Text("INSTALAR ✓") }
                     Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { step = 1 },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) { Text("← ATRÁS") }
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-                    ) { Text("✕ CANCELAR") }
+                    ) { Text("CANCELAR ✖️") }
                 }
             }
         },
