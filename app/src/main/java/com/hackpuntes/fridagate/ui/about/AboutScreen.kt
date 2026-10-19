@@ -133,7 +133,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
 
             // Description
             Text(
-                "FridaGate 2.0 integra la gestión del entorno de Frida, scripts JavaScript, diagnósticos de runtime, registros, una terminal y un navegador integrado para apoyar pruebas autorizadas y análisis de aplicaciones Android.",
+                "FridaGate 2.0 integra la gestión del entorno de Frida, scripts JavaScript, diagnósticos de runtime, registros, una terminal y navegación web mediante Android WebView para apoyar pruebas autorizadas y análisis de aplicaciones Android.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -166,19 +166,17 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
             )
 
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text("✅ INSTALACIÓN INTELIGENTE: ASISTENTE RÁPIDO CON VERSIONES RECOMENDADAS, CONFIGURACIÓN ORIGINAL O STEALTH Y GUARDADO AUTOMÁTICO ANTES DE INSTALAR.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ FRIDA SERVER E INJECT: INSTALACIÓN, ACTUALIZACIÓN, INICIO, DETENCIÓN Y DESINSTALACIÓN COMPLETA.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ VERSIONES: SELECCIÓN RÁPIDA DE VERSIONES RECOMENDADAS Y OPCIÓN MANUAL; SERVER E INJECT USAN SIEMPRE LA MISMA VERSIÓN.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ CONFIGURACIÓN DE INSTALACIÓN: PRESETS ORIGINAL Y STEALTH CON GUARDADO AUTOMÁTICO; PUERTO DEL PRESET STEALTH CONFIGURADO EN 1996.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ DESINSTALACIÓN: DETENCIÓN DE PROCESOS Y ELIMINACIÓN DE BINARIOS, METADATOS Y TEMPORALES; INTENTA RETIRAR LOS DIRECTORIOS DE INSTALACIÓN CUANDO QUEDAN VACÍOS, SIN BORRAR ARCHIVOS AJENOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ SCRIPTS JAVASCRIPT: CREAR, EDITAR, IMPORTAR, GUARDAR, ELIMINAR Y EJECUTAR SCRIPTS HABILITADOS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ INYECCIÓN: SELECCIÓN DE APLICACIÓN OBJETIVO Y EJECUCIÓN DE SCRIPTS.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ REGISTROS: ACTIVIDAD EN TIEMPO REAL, DIAGNÓSTICO DE ERRORES Y EXPORTACIÓN TXT.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ DIAGNÓSTICO DE RUNTIME: AGENTES JAVA Y UNITY/IL2CPP INCLUIDOS EN LA BUILD.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ ICONO FLOTANTE PARA ACCESO RÁPIDO ENTRE FRIDAGATE Y LA APLICACIÓN OBJETIVO.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ NAVEGADOR INTEGRADO CON OPCIÓN PARA ABRIR PÁGINAS EN EL NAVEGADOR EXTERNO.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ TERMINAL INTEGRADA: EJECUCIÓN DE COMANDOS, HISTORIAL Y EXPORTACIÓN TXT.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
-                Text("✅ ACTUALIZACIONES DESDE LA APP: CONSULTA DE BUILDS Y DESCARGA DE LA ÚLTIMA APK CON APERTURA DEL INSTALADOR DE ANDROID.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ INSTALACIÓN INTELIGENTE", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ ACTUALIZACIÓN DE LA APLICACIÓN INTEGRADA", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ GESTIÓN DE ENTORNOS FRIDA", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ CONFIGURACIÓN DE CAMUFLAJE", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ GESTIÓN DE SCRIPTS JAVASCRIPT", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ INYECCIÓN DE SCRIPTS EN APLICACIONES OBJETIVO", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ DIAGNÓSTICO DE RUNTIME", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ REGISTROS Y EXPORTACIÓN TXT", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ ICONO FLOTANTE DE ACCESO RÁPIDO", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ TERMINAL INTEGRADA", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
+                Text("✓ NAVEGACIÓN WEB MEDIANTE ANDROID WEBVIEW", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 4.dp))
             }
 
             // Links Section
@@ -388,7 +386,12 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                                             .setAllowedOverMetered(true)
                                             .setAllowedOverRoaming(true)
                                         val downloadId = downloadManager.enqueue(downloadRequest)
-                                        Toast.makeText(
+                                                                                                context.getSharedPreferences("fridagate_update", Context.MODE_PRIVATE)
+                                                            .edit()
+                                                            .putLong("pending_download_id", downloadId)
+                                                            .putInt("pending_build", buildNumber.toInt())
+                                                            .apply()
+Toast.makeText(
                                             context,
                                             "Descargando la última versión de FridaGate 2.0...",
                                             Toast.LENGTH_SHORT
