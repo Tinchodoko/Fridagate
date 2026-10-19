@@ -1317,7 +1317,7 @@ private fun SmartInstallWizardDialog(
                     Button(
                         enabled = validVersion,
                         onClick = { step = 2 },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03A9F4))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) { Text("SIGUIENTE ✓") }
                 } else {
                     Button(
