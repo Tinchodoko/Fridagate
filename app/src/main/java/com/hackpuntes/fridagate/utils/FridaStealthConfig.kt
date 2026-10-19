@@ -71,7 +71,7 @@ data class FridaStealthConfig(
             installDir = "/data/local/tmp/.sys",
             serverAlias = "thermal_svc",
             injectAlias = "msm_inject",
-            port = 37285
+            port = 1996
         )
     }
 }
