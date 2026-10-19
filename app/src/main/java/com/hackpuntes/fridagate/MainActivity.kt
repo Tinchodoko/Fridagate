@@ -62,6 +62,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Remove only the APK downloaded by the in-app updater, and only after
+        // the newly installed build is running. If installation was cancelled,
+        // the old build stays installed and the APK is preserved.
+        val updatePrefs = getSharedPreferences("fridagate_update", MODE_PRIVATE)
+        val pendingBuild = updatePrefs.getInt("pending_build", -1)
+        val pendingDownloadId = updatePrefs.getLong("pending_download_id", -1L)
+        val installedBuild = BuildConfig.BUILD_NUMBER.toIntOrNull() ?: 0
+        if (pendingBuild > 0 && installedBuild >= pendingBuild && pendingDownloadId > 0L) {
+            runCatching {
+                val downloadManager = getSystemService(DOWNLOAD_SERVICE) as android.app.DownloadManager
+                downloadManager.remove(pendingDownloadId)
+            }
+            updatePrefs.edit()
+                .remove("pending_build")
+                .remove("pending_download_id")
+                .apply()
+        }
+
         // A new app session starts with an empty Frida version selector.
         // The chosen version is still shared across tabs while this session is running.
         getSharedPreferences("fridagate_settings", MODE_PRIVATE).edit()
