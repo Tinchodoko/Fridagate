@@ -129,7 +129,6 @@ fun FridaScreen() {
                 releases = availableReleases,
                 selectedVersion = selectedVersion,
                 onVersionSelected = { viewModel.setSelectedVersion(it) },
-                onCustomVersion = { viewModel.setCustomVersion(it) },
                 enabled = !isLoading && isRootAvailable
             )
 
@@ -299,11 +298,9 @@ private fun VersionSelector(
     releases: List<com.hackpuntes.fridagate.utils.FridaUtils.FridaRelease>,
     selectedVersion: String,
     onVersionSelected: (String) -> Unit,
-    onCustomVersion: (String) -> Unit,
     enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var customVersion by remember { mutableStateOf("") }
     val versions = releases.map { it.version }.distinct().sortedWith(
         compareByDescending<String> { it.substringBefore('.').toIntOrNull() ?: 0 }
             .thenByDescending { it.substringAfter('.', "").substringBefore('.').toIntOrNull() ?: 0 }
@@ -339,31 +336,12 @@ private fun VersionSelector(
                             text = { Text(version, fontWeight = FontWeight.Normal) },
                             onClick = {
                                 onVersionSelected(version)
-                                customVersion = ""
                                 expanded = false
                             }
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = customVersion,
-                onValueChange = { value ->
-                    customVersion = value
-                    onCustomVersion(value)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("VERSION DE FRIDA...") },
-                label = { Text("Versión manual") },
-                singleLine = true,
-                enabled = enabled
-            )
-            Text(
-                "Versiones disponibles: desde las primeras publicaciones hasta la última versión de Frida. Puedes introducir cualquier versión manualmente; se verificará que existan server e inject para tu arquitectura y se usará la misma versión en ambos.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
