@@ -13,6 +13,9 @@ import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.EditText
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -37,6 +40,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -54,6 +58,7 @@ import com.hackpuntes.fridagate.utils.ScriptUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -834,47 +839,190 @@ fun EditorTab(
     onClear: () -> Unit
 ) {
     var scriptName by remember { mutableStateOf(selectedScript?.name ?: "") }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchStatus by remember { mutableStateOf("Escribe una palabra y pulsa buscar") }
+    var editorView by remember { mutableStateOf<EditText?>(null) }
+    var lastModelCode by remember { mutableStateOf(editorCode) }
+    var syncJob by remember { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(selectedScript) {
         scriptName = selectedScript?.name ?: ""
+        searchQuery = ""
+        searchStatus = "Escribe una palabra y pulsa buscar"
     }
 
+    // Native EditText is more responsive than a Compose Material TextField for large bundles.
     Column(modifier = Modifier.fillMaxSize()) {
-        // Script name input
         TextField(
             value = scriptName,
             onValueChange = { scriptName = it },
             label = { Text("NOMBRE DEL SCRIPT") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
             singleLine = true
         )
 
-        // Code editor
-        TextField(
-            value = editorCode,
-            onValueChange = onCodeChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(8.dp),
-            textStyle = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp
-            ),
-            placeholder = { Text("ESCRIBE TU CÓDIGO FRIDA AQUÍ...") },
-            singleLine = false
+        AndroidView(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp, vertical = 4.dp),
+            factory = { context ->
+                EditText(context).apply {
+                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f)
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    setTextColor(android.graphics.Color.BLACK)
+                    setHintTextColor(android.graphics.Color.GRAY)
+                    hint = "ESCRIBE TU CÓDIGO FRIDA AQUÍ..."
+                    gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                    isSingleLine = false
+                    setHorizontallyScrolling(true)
+                    isVerticalScrollBarEnabled = true
+                    isHorizontalScrollBarEnabled = true
+                    isScrollbarFadingEnabled = false
+                    scrollbarStyle = android.view.View.SCROLLBARS_INSIDE_INSET
+                    setPadding(12, 12, 12, 12)
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        setColor(android.graphics.Color.TRANSPARENT)
+                        setStroke(
+                            (resources.displayMetrics.density).toInt().coerceAtLeast(1),
+                            android.graphics.Color.GRAY
+                        )
+                        cornerRadius = 8 * resources.displayMetrics.density
+                    }
+                    setText(editorCode)
+                    setSelection(text?.length ?: 0)
+                    editorView = this
+                    addTextChangedListener(object : TextWatcher {
+                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                            syncJob?.cancel()
+                            syncJob = scope.launch {
+                                delay(300)
+                                val latestCode = text?.toString().orEmpty()
+                                lastModelCode = latestCode
+                                onCodeChange(latestCode)
+                            }
+                        }
+                        override fun afterTextChanged(s: Editable?) = Unit
+                    })
+                }
+            },
+            update = { view ->
+                // Sync only when the ViewModel changed externally, not during active typing.
+                if (editorCode != lastModelCode) {
+                    if (view.text.toString() != editorCode) {
+                        syncJob?.cancel()
+                        view.setText(editorCode)
+                        view.setSelection(view.text?.length ?: 0)
+                    }
+                    lastModelCode = editorCode
+                }
+                editorView = view
+            }
         )
 
-        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onSave(scriptName) }, modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    searchStatus = if (it.isBlank()) "Escribe una palabra y pulsa buscar" else "Pulsa ↑ o ↓ para buscar"
+                },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                label = { Text("BUSCAR EN EL SCRIPT") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+            )
+            IconButton(
+                onClick = {
+                    val view = editorView
+                    val query = searchQuery
+                    if (view == null || query.isBlank()) {
+                        searchStatus = "Escribe una palabra para buscar"
+                    } else {
+                        val content = view.text?.toString().orEmpty()
+                        val current = view.selectionStart.coerceAtLeast(0)
+                        val found = content.lastIndexOf(query, (current - 1).coerceAtLeast(0), ignoreCase = true)
+                            .takeIf { current > 0 && it >= 0 }
+                            ?: content.lastIndexOf(query, ignoreCase = true)
+                        if (found >= 0) {
+                            view.requestFocus()
+                            view.setSelection(found, found + query.length)
+                            view.post {
+                                val line = view.layout?.getLineForOffset(found) ?: 0
+                                view.scrollTo(0, (view.layout?.getLineTop(line) ?: 0).coerceAtLeast(0))
+                            }
+                            searchStatus = "Encontrado en la posición \${found + 1}"
+                        } else searchStatus = "No se encontró «$query»"
+                    }
+                },
+                enabled = searchQuery.isNotBlank()
+            ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Buscar coincidencia anterior") }
+            IconButton(
+                onClick = {
+                    val view = editorView
+                    val query = searchQuery
+                    if (view == null || query.isBlank()) {
+                        searchStatus = "Escribe una palabra para buscar"
+                    } else {
+                        val content = view.text?.toString().orEmpty()
+                        val startAt = view.selectionEnd.coerceAtLeast(0)
+                        val found = content.indexOf(query, startAt, ignoreCase = true)
+                            .takeIf { it >= 0 }
+                            ?: content.indexOf(query, ignoreCase = true)
+                        if (found >= 0) {
+                            view.requestFocus()
+                            view.setSelection(found, found + query.length)
+                            view.post {
+                                val line = view.layout?.getLineForOffset(found) ?: 0
+                                view.scrollTo(0, (view.layout?.getLineTop(line) ?: 0).coerceAtLeast(0))
+                            }
+                            searchStatus = "Encontrado en la posición \${found + 1}"
+                        } else searchStatus = "No se encontró «$query»"
+                    }
+                },
+                enabled = searchQuery.isNotBlank()
+            ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Buscar coincidencia siguiente") }
+        }
+        Text(
+            text = searchStatus,
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = {
+                    syncJob?.cancel()
+                    val latestCode = editorView?.text?.toString().orEmpty()
+                    lastModelCode = latestCode
+                    onCodeChange(latestCode)
+                    onSave(scriptName)
+                },
+                modifier = Modifier.weight(1f)
+            ) {
                 Icon(Icons.Default.Save, null, modifier = Modifier.padding(end = 8.dp))
                 Text("GUARDAR")
             }
-            OutlinedButton(onClick = { scriptName = ""; onClear() }, modifier = Modifier.weight(1f)) {
-                Text("🧹 Limpiar")
-            }
+            OutlinedButton(
+                onClick = {
+                    syncJob?.cancel()
+                    scriptName = ""
+                    searchQuery = ""
+                    searchStatus = "Editor limpio"
+                    lastModelCode = ""
+                    editorView?.setText("")
+                    onClear()
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text("🧹 Limpiar") }
         }
     }
 }
