@@ -880,7 +880,7 @@ fun EditorTab(
                     isVerticalScrollBarEnabled = true
                     isHorizontalScrollBarEnabled = true
                     isScrollbarFadingEnabled = false
-                    scrollbarStyle = android.view.View.SCROLLBARS_INSIDE_INSET
+                    scrollBarStyle = android.view.View.SCROLLBARS_INSIDE_INSET
                     setPadding(12, 12, 12, 12)
                     background = android.graphics.drawable.GradientDrawable().apply {
                         setColor(editorBackgroundColor)
