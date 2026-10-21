@@ -166,9 +166,8 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
 
     var pendingFrameworkTestScript by remember { mutableStateOf<FridaScript?>(null) }
     var pendingLaunchAfterPermission by remember { mutableStateOf(false) }
-    val launchSelectedScripts: (FridaScript?) -> Unit = { frameworkTestScript ->
-        val activeBuiltInScripts = extrasViewModel.scripts.filter { enabledBypassScripts.contains(it.id) }
-        viewModel.launchEnabledScripts(context, targetPackage, activeBuiltInScripts, frameworkTestScript)
+    val launchSelectedScripts: (FridaScript?) -> Unit = { _ ->
+        viewModel.launchEnabledScripts(context, targetPackage, emptyList(), null)
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
