@@ -954,7 +954,7 @@ fun EditorTab(
                                 val line = view.layout?.getLineForOffset(found) ?: 0
                                 view.scrollTo(0, (view.layout?.getLineTop(line) ?: 0).coerceAtLeast(0))
                             }
-                            searchStatus = "Encontrado en la posición \${found + 1}"
+                            searchStatus = "Encontrado en la posición ${found + 1}"
                         } else searchStatus = "No se encontró «$query»"
                     }
                 },
@@ -979,7 +979,7 @@ fun EditorTab(
                                 val line = view.layout?.getLineForOffset(found) ?: 0
                                 view.scrollTo(0, (view.layout?.getLineTop(line) ?: 0).coerceAtLeast(0))
                             }
-                            searchStatus = "Encontrado en la posición \${found + 1}"
+                            searchStatus = "Encontrado en la posición ${found + 1}"
                         } else searchStatus = "No se encontró «$query»"
                     }
                 },
