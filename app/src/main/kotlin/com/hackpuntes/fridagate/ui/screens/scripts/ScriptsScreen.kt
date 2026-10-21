@@ -35,6 +35,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -845,6 +846,8 @@ fun EditorTab(
     var lastModelCode by remember { mutableStateOf(editorCode) }
     var syncJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
+    val editorTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val editorBackgroundColor = MaterialTheme.colorScheme.surface.toArgb()
 
     LaunchedEffect(selectedScript) {
         scriptName = selectedScript?.name ?: ""
@@ -868,7 +871,7 @@ fun EditorTab(
                 EditText(context).apply {
                     setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f)
                     typeface = android.graphics.Typeface.MONOSPACE
-                    setTextColor(android.graphics.Color.BLACK)
+                    setTextColor(editorTextColor)
                     setHintTextColor(android.graphics.Color.GRAY)
                     hint = "ESCRIBE TU CÓDIGO FRIDA AQUÍ..."
                     gravity = android.view.Gravity.TOP or android.view.Gravity.START
@@ -880,7 +883,7 @@ fun EditorTab(
                     scrollbarStyle = android.view.View.SCROLLBARS_INSIDE_INSET
                     setPadding(12, 12, 12, 12)
                     background = android.graphics.drawable.GradientDrawable().apply {
-                        setColor(android.graphics.Color.TRANSPARENT)
+                        setColor(editorBackgroundColor)
                         setStroke(
                             (resources.displayMetrics.density).toInt().coerceAtLeast(1),
                             android.graphics.Color.GRAY
