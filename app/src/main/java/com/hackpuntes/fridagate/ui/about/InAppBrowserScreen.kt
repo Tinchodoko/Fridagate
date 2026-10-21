@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -79,7 +80,15 @@ fun InAppBrowserScreen(url: String, onBack: () -> Unit) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
-                try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && WebView.getCurrentWebViewPackage() == null) {
+                    webViewUnavailable = true
+                    openExternal(url)
+                    TextView(ctx).apply {
+                        text = "Android System WebView no tiene un proveedor activo. Se intentó abrir el enlace en el navegador externo."
+                        textSize = 16f
+                        setPadding(32, 32, 32, 32)
+                    }
+                } else try {
                     WebView(ctx).apply {
                         webView = this
                         settings.javaScriptEnabled = true
