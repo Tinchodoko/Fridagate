@@ -112,6 +112,7 @@ class DashboardViewModel(context: Context) : ViewModel() {
     fun refreshStatus() {
         viewModelScope.launch {
             _isLoading.value = true
+            _logs.value = emptyList()
             try {
                 addLog("Actualizando estado de Frida...")
                 _isRootAvailable.value = RootUtils.isRootAvailable()
