@@ -156,7 +156,7 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
     }
 
     LaunchedEffect(selectedTab, targetPackage) {
-        if (selectedTab == 2) {
+        if (selectedTab == 3) {
             repeat(Int.MAX_VALUE) {
                 viewModel.refreshInjectionLogs()
                 delay(1200)
@@ -446,21 +446,27 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Tab(
-                text = { Text("Mis scripts", fontSize = 12.sp) },
+                text = { Text("INICIO", fontSize = 12.sp) },
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
                 icon = { Icon(Icons.Default.List, null) }
             )
             Tab(
-                text = { Text("Editor", fontSize = 12.sp) },
+                text = { Text("SCRIPTS", fontSize = 12.sp) },
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
+                icon = { Icon(Icons.Default.List, null) }
+            )
+            Tab(
+                text = { Text("Editor", fontSize = 12.sp) },
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
                 icon = { Icon(Icons.Default.Edit, null) }
             )
             Tab(
                 text = { Text("Registros", fontSize = 12.sp) },
-                selected = selectedTab == 2,
-                onClick = { selectedTab = 2 },
+                selected = selectedTab == 3,
+                onClick = { selectedTab = 3 },
                 icon = { Icon(Icons.Default.Info, null) }
             )
         }
@@ -520,20 +526,41 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
                     onDeleteScript = { script ->
                         scriptToDelete = script
                         showConfirmDelete = true
-                    }
+                    },
+                    activeOnly = true
                 )
 
-                1 -> EditorTab(
+                1 -> ScriptListTab(
+                    scripts = scripts, selectedScript = selectedScript, selectedTargetApp = targetPackage,
+                    onImportScript = { viewModel.addLog("Seleccionando archivo JavaScript para importar"); importJsLauncher.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "*/*")) },
+                    onExportScript = { script -> scriptToExport = script; showConfirmExport = true },
+                    onLog = { viewModel.addLog(it) }, enabledBypassScripts = enabledBypassScripts,
+                    onToggleBypassScript = { extrasViewModel.toggleScript(it) }, bypassScripts = extrasViewModel.scripts,
+                    onLaunchWithBypass = { launchSelectedScripts(it) }, activeTargetPackage = activeTargetPackage,
+                    onStopTargetApp = { packageName -> viewModel.stopTargetApp(context, packageName) },
+                    frameworkInfo = detectedFrameworks[targetPackage], frameworkTestEnabled = frameworkTestEnabled,
+                    onToggleFrameworkTest = { frameworkTestEnabled = it }, bypassLoading = bypassLoading || isExecuting,
+                    isRootAvailable = isRootAvailable,
+                    onToggleUserScript = { script, enabled -> viewModel.setUserScriptEnabled(script.id, enabled) },
+                    fridaInjectReady = fridaInjectReady,
+                    onSelectScript = { script -> viewModel.selectScript(script); selectedTab = 2 },
+                    onNewScript = { viewModel.createNewScript(); selectedTab = 2 },
+                    onDeleteScript = { script -> scriptToDelete = script; showConfirmDelete = true },
+                    activeOnly = false
+                )
+
+                2 -> EditorTab(
                     selectedScript = selectedScript,
                     editorCode = editorCode,
                     onCodeChange = { viewModel.updateEditorCode(it) },
                     onSave = { name ->
                         viewModel.saveCurrentScript(name)
                         viewModel.clearMessage()
-                    }
+                    },
+                    onClear = { viewModel.clearEditor() }
                 )
 
-                2 -> LogsTab(
+                3 -> LogsTab(
                     logs = (logs + bypassLogs).takeLast(500),
                     context = context,
                     onClearLogs = {
@@ -664,275 +691,61 @@ private fun AppPackageIcon(packageName: String) {
 
 @Composable
 fun ScriptListTab(
-    scripts: List<FridaScript>,
-    selectedScript: FridaScript?,
-    selectedTargetApp: String,
-    onImportScript: () -> Unit,
-    onExportScript: (FridaScript) -> Unit,
-    onLog: (String) -> Unit,
-    enabledBypassScripts: Set<String>,
-    onToggleBypassScript: (String) -> Unit,
-    bypassScripts: List<ScriptUtils.BypassScript>,
-    onLaunchWithBypass: (FridaScript?) -> Unit,
-    activeTargetPackage: String?,
-    onStopTargetApp: (String) -> Unit,
-    frameworkInfo: FrameworkInfo?,
-    frameworkTestEnabled: Boolean,
-    onToggleFrameworkTest: (Boolean) -> Unit,
-    bypassLoading: Boolean,
-    isRootAvailable: Boolean,
-    onToggleUserScript: (FridaScript, Boolean) -> Unit,
-    fridaInjectReady: Boolean,
-    onSelectScript: (FridaScript) -> Unit,
-    onNewScript: () -> Unit,
-    onDeleteScript: (FridaScript) -> Unit
+    scripts: List<FridaScript>, selectedScript: FridaScript?, selectedTargetApp: String,
+    onImportScript: () -> Unit, onExportScript: (FridaScript) -> Unit, onLog: (String) -> Unit,
+    enabledBypassScripts: Set<String>, onToggleBypassScript: (String) -> Unit,
+    bypassScripts: List<ScriptUtils.BypassScript>, onLaunchWithBypass: (FridaScript?) -> Unit,
+    activeTargetPackage: String?, onStopTargetApp: (String) -> Unit,
+    frameworkInfo: FrameworkInfo?, frameworkTestEnabled: Boolean, onToggleFrameworkTest: (Boolean) -> Unit,
+    bypassLoading: Boolean, isRootAvailable: Boolean,
+    onToggleUserScript: (FridaScript, Boolean) -> Unit, fridaInjectReady: Boolean,
+    onSelectScript: (FridaScript) -> Unit, onNewScript: () -> Unit,
+    onDeleteScript: (FridaScript) -> Unit, activeOnly: Boolean
 ) {
-    val context = LocalContext.current
-    LazyColumn(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // NEW SCRIPT BUTTON
-        item {
-            Button(
-                onClick = onNewScript,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.padding(end = 8.dp))
-                Text("NUEVO SCRIPT")
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        if (activeOnly) {
+            item { Text("LISTA DE SCRIPTS ACTIVADOS", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) }
+            val activeScripts = scripts.filter { it.enabledForLaunch }
+            if (activeScripts.isEmpty()) {
+                item { Text("No hay scripts activados.", color = MaterialTheme.colorScheme.outline, modifier = Modifier.fillMaxWidth().padding(20.dp)) }
+            } else {
+                items(activeScripts, key = { it.id }) { script ->
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(script.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                        Icon(Icons.Default.CheckCircle, contentDescription = "Script activado", tint = androidx.compose.ui.graphics.Color(0xFF00C853))
+                    }
+                }
             }
-        }
-
-        // IMPORT BUTTON
-        item {
-            Button(
-                onClick = onImportScript,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Icon(Icons.Default.CloudDownload, null, modifier = Modifier.padding(end = 8.dp))
-                Text("📂 IMPORTAR ARCHIVO .JS")
-            }
-        }
-
-        // DIVIDER
-        item {
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-        }
-
-        // PREDEFINED SCRIPTS SECTION
-        item {
-            Text(
-                "🛡️ Scripts predefinidos",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-            )
-        }
-        if (frameworkInfo != null && selectedTargetApp.isNotBlank()) {
             item {
-                val testCode = remember(frameworkInfo.name, frameworkInfo.category) {
-                    FrameworkTestScript.build(frameworkInfo.name, frameworkInfo.category)
-                }
-                var showTestSource by remember(selectedTargetApp, frameworkInfo.name) { mutableStateOf(false) }
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                    )
+                Button(
+                    onClick = { if (activeTargetPackage == selectedTargetApp) onStopTargetApp(selectedTargetApp) else onLaunchWithBypass(null) },
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    enabled = isRootAvailable && !bypassLoading && selectedTargetApp.isNotBlank() &&
+                        (activeTargetPackage == selectedTargetApp || (fridaInjectReady && activeScripts.isNotEmpty())),
+                    colors = if (activeTargetPackage == selectedTargetApp) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error) else ButtonDefaults.buttonColors()
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "🧪 Script Test By Tinchodoko — ${frameworkInfo.name}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    "Muestra “Hola Mundo” y registra solo el primer toque Android en los logs.",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = frameworkTestEnabled,
-                                onCheckedChange = onToggleFrameworkTest,
-                                enabled = !bypassLoading
-                            )
-                        }
-                        TextButton(onClick = { showTestSource = !showTestSource }) {
-                            Text(if (showTestSource) "Ocultar código" else "Ver código de prueba")
-                        }
-                        if (showTestSource) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                LazyColumn(modifier = Modifier.padding(8.dp)) {
-                                    items(testCode.lines()) { line ->
-                                        Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        items(bypassScripts) { script ->
-            var showSource by remember(script.id) { mutableStateOf(false) }
-            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                script.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                script.description,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Switch(
-                            checked = enabledBypassScripts.contains(script.id),
-                            onCheckedChange = { onToggleBypassScript(script.id) },
-                            enabled = !bypassLoading
-                        )
-                    }
-                    TextButton(onClick = { showSource = !showSource }) {
-                        Text(if (showSource) "Ocultar código" else "Ver código (solo lectura)")
-                    }
-                    if (showSource) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            val source = remember(script.id) {
-                                runCatching {
-                                    context.assets.open(script.assetPath).bufferedReader().use { it.readText() }
-                                }.getOrDefault("No se pudo leer el script.")
-                            }
-                            LazyColumn(modifier = Modifier.padding(8.dp)) {
-                                items(source.lines()) { line ->
-                                    Text(line, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Button(
-                onClick = {
-                    if (activeTargetPackage == selectedTargetApp) {
-                        onStopTargetApp(selectedTargetApp)
-                    } else {
-                        val testScript = if (frameworkTestEnabled && frameworkInfo != null) {
-                            FridaScript(
-                                name = "Script Test By Tinchodoko ${frameworkInfo.name}",
-                                code = FrameworkTestScript.build(frameworkInfo.name, frameworkInfo.category),
-                                description = "Prueba de banner y primer toque",
-                                enabledForLaunch = true
-                            )
-                        } else {
-                            null
-                        }
-                        onLaunchWithBypass(testScript)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                enabled = isRootAvailable && !bypassLoading && selectedTargetApp.isNotBlank() &&
-                    if (activeTargetPackage == selectedTargetApp) {
-                        true
-                    } else {
-                        fridaInjectReady &&
-                            (
-                                enabledBypassScripts.isNotEmpty() || scripts.any { it.enabledForLaunch } ||
-                                    (frameworkTestEnabled && frameworkInfo != null)
-                                )
-                    },
-                colors = if (activeTargetPackage == selectedTargetApp) {
-                    ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                } else {
-                    ButtonDefaults.buttonColors()
-                }
-            ) {
-                if (activeTargetPackage == selectedTargetApp) {
-                    Icon(Icons.Default.Stop, contentDescription = null)
-                } else {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (activeTargetPackage == selectedTargetApp) "Detener aplicación" else "Lanzar aplicación")
-            }
-            if (!fridaInjectReady) {
-                Text(
-                    "Instala frida-inject desde la pestaña Frida para habilitar la inyección.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-            }
-        }
-
-        // DIVIDER
-        item {
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-        }
-
-        // USER SCRIPTS SECTION
-        item {
-            Text(
-                "📝 Mis scripts",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-            )
-        }
-
-        // Scripts List
-        if (scripts.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp)
-                        .wrapContentSize(Alignment.Center)
-                ) {
-                    Text(
-                        "No hay scripts. Crea uno nuevo.",
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                    Icon(if (activeTargetPackage == selectedTargetApp) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (activeTargetPackage == selectedTargetApp) "DETENER APLICACIÓN" else "LANZAR APLICACIÓN")
                 }
             }
         } else {
-            items(scripts) { script ->
-                ScriptListItem(
-                    script = script,
-                    isSelected = selectedScript?.id == script.id,
-                    onSelect = { onSelectScript(script) },
-                    onExport = { onExportScript(script) },
-                    onDelete = { onDeleteScript(script) },
-                    isEnabledForLaunch = script.enabledForLaunch,
-                    onToggleEnabled = { enabled -> onToggleUserScript(script, enabled) }
-                )
+            item {
+                Button(onClick = onImportScript, modifier = Modifier.fillMaxWidth().padding(8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
+                    Icon(Icons.Default.CloudDownload, null, modifier = Modifier.padding(end = 8.dp))
+                    Text("IMPORTAR ARCHIVO .JS")
+                }
+            }
+            item { Text("MIS SCRIPTS", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp)) }
+            if (scripts.isEmpty()) {
+                item { Text("No hay scripts guardados. Importa un archivo .js.", color = MaterialTheme.colorScheme.outline, modifier = Modifier.fillMaxWidth().padding(24.dp)) }
+            } else {
+                items(scripts, key = { it.id }) { script ->
+                    ScriptListItem(script = script, isSelected = selectedScript?.id == script.id,
+                        onSelect = { onSelectScript(script) }, onExport = { onExportScript(script) },
+                        onDelete = { onDeleteScript(script) }, isEnabledForLaunch = script.enabledForLaunch,
+                        onToggleEnabled = { enabled -> onToggleUserScript(script, enabled) })
+                }
             }
         }
     }
@@ -1033,7 +846,8 @@ fun EditorTab(
     selectedScript: FridaScript?,
     editorCode: String,
     onCodeChange: (String) -> Unit,
-    onSave: (String) -> Unit
+    onSave: (String) -> Unit,
+    onClear: () -> Unit
 ) {
     var scriptName by remember { mutableStateOf(selectedScript?.name ?: "") }
 
@@ -1069,15 +883,15 @@ fun EditorTab(
             singleLine = false
         )
 
-        // Save button
-        Button(
-            onClick = { onSave(scriptName) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            Icon(Icons.Default.Save, null, modifier = Modifier.padding(end = 8.dp))
-            Text("💾 GUARDAR")
+        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { onSave(scriptName) }, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.Save, null, modifier = Modifier.padding(end = 8.dp))
+                Text("GUARDAR")
+            }
+            OutlinedButton(onClick = { scriptName = ""; onClear() }, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.CleaningServices, null, modifier = Modifier.padding(end = 6.dp))
+                Text("🧹 Limpiar")
+            }
         }
     }
 }
