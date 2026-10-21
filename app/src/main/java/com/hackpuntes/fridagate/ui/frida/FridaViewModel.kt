@@ -93,6 +93,8 @@ class FridaViewModel(private val appContext: Context) : ViewModel() {
     fun checkRootAndStatus() {
         viewModelScope.launch {
             _isLoading.value = true
+            _logs.value = emptyList()
+            versionPreferences.edit().putString("frida_operation_logs", "").apply()
             addLog("Checking root access and server status...")
 
             val rootAvailable = RootUtils.isRootAvailable()
