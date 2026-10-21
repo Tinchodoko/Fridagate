@@ -18,7 +18,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,7 +32,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -56,7 +54,6 @@ import com.hackpuntes.fridagate.utils.ScriptUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -212,6 +209,53 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // Header
+        TopAppBar(
+            title = { Text("📝 ADMINISTRADOR DE SCRIPTS") },
+            navigationIcon = {
+                IconButton(
+                    // This arrow is an in-screen navigation control: always return to
+                    // "Mis scripts". Leaving the Scripts destination is done with the
+                    // bottom navigation, so exporting logs can never strand the user on Inicio.
+                    onClick = { selectedTab = 0 }
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver a INICIO")
+                }
+            },
+            actions = {}
+        )
+
+        // Tabs
+        TabRow(
+            selectedTabIndex = selectedTab,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Tab(
+                text = { Text("INICIO", fontSize = 12.sp) },
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                icon = { Icon(Icons.Default.List, null) }
+            )
+            Tab(
+                text = { Text("SCRIPTS", fontSize = 12.sp) },
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                icon = { Icon(Icons.Default.List, null) }
+            )
+            Tab(
+                text = { Text("Editor", fontSize = 12.sp) },
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                icon = { Icon(Icons.Default.Edit, null) }
+            )
+            Tab(
+                text = { Text("Registros", fontSize = 12.sp) },
+                selected = selectedTab == 3,
+                onClick = { selectedTab = 3 },
+                icon = { Icon(Icons.Default.Info, null) }
+            )
+        }
+
         // The target selector belongs to the script-list tab. Editor and Logs use the full content area.
         if (selectedTab == 0) {
             Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
@@ -410,52 +454,6 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
             }
         }
 
-        // Header
-        TopAppBar(
-            title = { Text("📝 ADMINISTRADOR DE SCRIPTS") },
-            navigationIcon = {
-                IconButton(
-                    // This arrow is an in-screen navigation control: always return to
-                    // "Mis scripts". Leaving the Scripts destination is done with the
-                    // bottom navigation, so exporting logs can never strand the user on Inicio.
-                    onClick = { selectedTab = 0 }
-                ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver a INICIO")
-                }
-            },
-            actions = {}
-        )
-
-        // Tabs
-        TabRow(
-            selectedTabIndex = selectedTab,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Tab(
-                text = { Text("INICIO", fontSize = 12.sp) },
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
-                icon = { Icon(Icons.Default.List, null) }
-            )
-            Tab(
-                text = { Text("SCRIPTS", fontSize = 12.sp) },
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
-                icon = { Icon(Icons.Default.List, null) }
-            )
-            Tab(
-                text = { Text("Editor", fontSize = 12.sp) },
-                selected = selectedTab == 2,
-                onClick = { selectedTab = 2 },
-                icon = { Icon(Icons.Default.Edit, null) }
-            )
-            Tab(
-                text = { Text("Registros", fontSize = 12.sp) },
-                selected = selectedTab == 3,
-                onClick = { selectedTab = 3 },
-                icon = { Icon(Icons.Default.Info, null) }
-            )
-        }
 
         // Contenido
         Box(
@@ -875,7 +873,6 @@ fun EditorTab(
                 Text("GUARDAR")
             }
             OutlinedButton(onClick = { scriptName = ""; onClear() }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.CleaningServices, null, modifier = Modifier.padding(end = 6.dp))
                 Text("🧹 Limpiar")
             }
         }
