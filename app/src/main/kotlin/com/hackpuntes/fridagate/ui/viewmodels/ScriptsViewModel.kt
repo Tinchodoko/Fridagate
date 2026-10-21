@@ -142,6 +142,12 @@ class ScriptsViewModel(private val repository: ScriptRepository) : ViewModel() {
         _editorCode.value = code
     }
 
+    fun clearEditor() {
+        _selectedScript.value = null
+        _editorCode.value = ""
+        _message.value = ""
+    }
+
     fun saveCurrentScript(name: String) = viewModelScope.launch {
         val code = _editorCode.value
 
