@@ -82,6 +82,20 @@ class MainActivity : ComponentActivity() {
                 if (!updateDownloadDir.exists()) updateDownloadDir.mkdirs()
             }
         }
+        // Clean only APKs created by older updater builds in public Downloads.
+        // Never touch APKs from other applications or manual backups.
+        runCatching {
+            val publicDownloads = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS
+            )
+            publicDownloads.listFiles()
+                ?.filter {
+                    it.isFile &&
+                        it.name.startsWith("FridaGate2.0-Build-", ignoreCase = true) &&
+                        it.extension.equals("apk", ignoreCase = true)
+                }
+                ?.forEach { it.delete() }
+        }
         updatePrefs.edit()
             .remove("pending_build")
             .remove("pending_download_id")
