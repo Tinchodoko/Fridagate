@@ -379,7 +379,8 @@ fun AboutScreen(onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
                                             .setNotificationVisibility(
                                                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
                                             )
-                                            .setDestinationInExternalPublicDir(
+                                            .setDestinationInExternalFilesDir(
+                                                context,
                                                 Environment.DIRECTORY_DOWNLOADS,
                                                 fileName
                                             )
