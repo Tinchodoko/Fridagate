@@ -212,19 +212,6 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .pointerInput(selectedTab) {
-                var horizontalDistance = 0f
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, dragAmount -> horizontalDistance += dragAmount },
-                    onDragEnd = {
-                        if (abs(horizontalDistance) > 70f) {
-                            selectedTab = (selectedTab + if (horizontalDistance < 0) 1 else -1).coerceIn(0, 2)
-                        }
-                        horizontalDistance = 0f
-                    },
-                    onDragCancel = { horizontalDistance = 0f }
-                )
-            }
     ) {
         // The target selector belongs to the script-list tab. Editor and Logs use the full content area.
         if (selectedTab == 0) {
@@ -434,7 +421,7 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
                     // bottom navigation, so exporting logs can never strand the user on Inicio.
                     onClick = { selectedTab = 0 }
                 ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver a Mis scripts")
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver a INICIO")
                 }
             },
             actions = {}
@@ -515,13 +502,13 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
                     fridaInjectReady = fridaInjectReady,
                     onSelectScript = { script ->
                         viewModel.selectScript(script)
-                        selectedTab = 1
+                        selectedTab = 2
                     },
                     onLog = { viewModel.addLog(it) },
                     onNewScript = {
                         viewModel.addLog("Nuevo script abierto en el editor")
                         viewModel.createNewScript()
-                        selectedTab = 1
+                        selectedTab = 2
                     },
                     onDeleteScript = { script ->
                         scriptToDelete = script
