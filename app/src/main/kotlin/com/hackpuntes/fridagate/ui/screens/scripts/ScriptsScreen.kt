@@ -842,7 +842,7 @@ fun EditorTab(
     var scriptName by remember { mutableStateOf(selectedScript?.name ?: "") }
     var searchQuery by remember { mutableStateOf("") }
     var searchStatus by remember { mutableStateOf("Escribe una palabra y pulsa buscar") }
-    var editorView by remember { mutableStateOf<EditText?>(null) }
+    val editorViewRef = remember { arrayOfNulls<EditText>(1) }
     var lastModelCode by remember { mutableStateOf(editorCode) }
     var syncJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
@@ -892,7 +892,7 @@ fun EditorTab(
                     }
                     setText(editorCode)
                     setSelection(text?.length ?: 0)
-                    editorView = this
+                    editorViewRef[0] = this
                     addTextChangedListener(object : TextWatcher {
                         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -918,7 +918,7 @@ fun EditorTab(
                     }
                     lastModelCode = editorCode
                 }
-                editorView = view
+                editorViewRef[0] = view
             }
         )
 
@@ -940,7 +940,7 @@ fun EditorTab(
             )
             IconButton(
                 onClick = {
-                    val view = editorView
+                    val view = editorViewRef[0]
                     val query = searchQuery
                     if (view == null || query.isBlank()) {
                         searchStatus = "Escribe una palabra para buscar"
@@ -965,7 +965,7 @@ fun EditorTab(
             ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Buscar coincidencia anterior") }
             IconButton(
                 onClick = {
-                    val view = editorView
+                    val view = editorViewRef[0]
                     val query = searchQuery
                     if (view == null || query.isBlank()) {
                         searchStatus = "Escribe una palabra para buscar"
@@ -1021,7 +1021,7 @@ fun EditorTab(
                     searchQuery = ""
                     searchStatus = "Editor limpio"
                     lastModelCode = ""
-                    editorView?.setText("")
+                    editorViewRef[0]?.setText("")
                     onClear()
                 },
                 modifier = Modifier.weight(1f)
