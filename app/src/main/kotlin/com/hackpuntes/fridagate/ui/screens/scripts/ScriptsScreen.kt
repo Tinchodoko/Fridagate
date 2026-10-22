@@ -842,20 +842,24 @@ fun EditorTab(
     var scriptName by remember { mutableStateOf(selectedScript?.name ?: "") }
     var searchQuery by remember { mutableStateOf("") }
     var searchStatus by remember { mutableStateOf("Escribe una palabra y pulsa buscar") }
-    val editorViewRef = remember { arrayOfNulls<EditText>(1) }
-    var lastModelCode by remember { mutableStateOf(editorCode) }
-    var syncJob by remember { mutableStateOf<Job?>(null) }
-    val scope = rememberCoroutineScope()
-    val editorTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
-    val editorBackgroundColor = MaterialTheme.colorScheme.surface.toArgb()
+    var codeFieldValue by remember { mutableStateOf(TextFieldValue(editorCode)) }
 
     LaunchedEffect(selectedScript) {
         scriptName = selectedScript?.name ?: ""
         searchQuery = ""
         searchStatus = "Escribe una palabra y pulsa buscar"
+        codeFieldValue = TextFieldValue(editorCode)
     }
 
-    // Native EditText is more responsive than a Compose Material TextField for large bundles.
+    LaunchedEffect(editorCode) {
+        if (editorCode != codeFieldValue.text) {
+            codeFieldValue = TextFieldValue(
+                text = editorCode,
+                selection = TextRange(editorCode.length)
+            )
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TextField(
             value = scriptName,
@@ -865,61 +869,21 @@ fun EditorTab(
             singleLine = true
         )
 
-        AndroidView(
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp, vertical = 4.dp),
-            factory = { context ->
-                EditText(context).apply {
-                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f)
-                    typeface = android.graphics.Typeface.MONOSPACE
-                    setTextColor(editorTextColor)
-                    setHintTextColor(android.graphics.Color.GRAY)
-                    hint = "ESCRIBE TU CÓDIGO FRIDA AQUÍ..."
-                    gravity = android.view.Gravity.TOP or android.view.Gravity.START
-                    isSingleLine = false
-                    setHorizontallyScrolling(true)
-                    isVerticalScrollBarEnabled = true
-                    isHorizontalScrollBarEnabled = true
-                    isScrollbarFadingEnabled = false
-                    scrollBarStyle = android.view.View.SCROLLBARS_INSIDE_INSET
-                    setPadding(12, 12, 12, 12)
-                    background = android.graphics.drawable.GradientDrawable().apply {
-                        setColor(editorBackgroundColor)
-                        setStroke(
-                            (resources.displayMetrics.density).toInt().coerceAtLeast(1),
-                            android.graphics.Color.GRAY
-                        )
-                        cornerRadius = 8 * resources.displayMetrics.density
-                    }
-                    setText(editorCode)
-                    setSelection(text?.length ?: 0)
-                    editorViewRef[0] = this
-                    addTextChangedListener(object : TextWatcher {
-                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                            syncJob?.cancel()
-                            syncJob = scope.launch {
-                                delay(300)
-                                val latestCode = text?.toString().orEmpty()
-                                lastModelCode = latestCode
-                                onCodeChange(latestCode)
-                            }
-                        }
-                        override fun afterTextChanged(s: Editable?) = Unit
-                    })
-                }
+        // Use the original Compose editor implementation while retaining built-in text scrolling.
+        // Search selects the match in TextFieldValue so Compose scrolls it into view.
+        TextField(
+            value = codeFieldValue,
+            onValueChange = {
+                codeFieldValue = it
+                onCodeChange(it.text)
             },
-            update = { view ->
-                // Sync only when the ViewModel changed externally, not during active typing.
-                if (editorCode != lastModelCode) {
-                    if (view.text.toString() != editorCode) {
-                        syncJob?.cancel()
-                        view.setText(editorCode)
-                        view.setSelection(view.text?.length ?: 0)
-                    }
-                    lastModelCode = editorCode
-                }
-                editorViewRef[0] = view
-            }
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp),
+            textStyle = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            ),
+            placeholder = { Text("ESCRIBE TU CÓDIGO FRIDA AQUÍ...") },
+            singleLine = false
         )
 
         Row(
@@ -940,54 +904,57 @@ fun EditorTab(
             )
             IconButton(
                 onClick = {
-                    val view = editorViewRef[0]
                     val query = searchQuery
-                    if (view == null || query.isBlank()) {
+                    val content = codeFieldValue.text
+                    val current = codeFieldValue.selection.start.coerceAtLeast(0)
+                    if (query.isBlank()) {
                         searchStatus = "Escribe una palabra para buscar"
                     } else {
-                        val content = view.text?.toString().orEmpty()
-                        val current = view.selectionStart.coerceAtLeast(0)
-                        val found = content.lastIndexOf(query, (current - 1).coerceAtLeast(0), ignoreCase = true)
-                            .takeIf { current > 0 && it >= 0 }
+                        val found = content.lastIndexOf(
+                            query,
+                            (current - 1).coerceAtLeast(0),
+                            ignoreCase = true
+                        ).takeIf { current > 0 && it >= 0 }
                             ?: content.lastIndexOf(query, ignoreCase = true)
                         if (found >= 0) {
-                            view.requestFocus()
-                            view.setSelection(found, found + query.length)
-                            view.post {
-                                val line = view.layout?.getLineForOffset(found) ?: 0
-                                view.scrollTo(0, (view.layout?.getLineTop(line) ?: 0).coerceAtLeast(0))
-                            }
+                            codeFieldValue = codeFieldValue.copy(
+                                selection = TextRange(found, found + query.length)
+                            )
                             searchStatus = "Encontrado en la posición ${found + 1}"
-                        } else searchStatus = "No se encontró «$query»"
+                        } else {
+                            searchStatus = "No se encontró «$query»"
+                        }
                     }
                 },
                 enabled = searchQuery.isNotBlank()
-            ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Buscar coincidencia anterior") }
+            ) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Buscar coincidencia anterior")
+            }
             IconButton(
                 onClick = {
-                    val view = editorViewRef[0]
                     val query = searchQuery
-                    if (view == null || query.isBlank()) {
+                    val content = codeFieldValue.text
+                    val startAt = codeFieldValue.selection.end.coerceAtLeast(0)
+                    if (query.isBlank()) {
                         searchStatus = "Escribe una palabra para buscar"
                     } else {
-                        val content = view.text?.toString().orEmpty()
-                        val startAt = view.selectionEnd.coerceAtLeast(0)
                         val found = content.indexOf(query, startAt, ignoreCase = true)
                             .takeIf { it >= 0 }
                             ?: content.indexOf(query, ignoreCase = true)
                         if (found >= 0) {
-                            view.requestFocus()
-                            view.setSelection(found, found + query.length)
-                            view.post {
-                                val line = view.layout?.getLineForOffset(found) ?: 0
-                                view.scrollTo(0, (view.layout?.getLineTop(line) ?: 0).coerceAtLeast(0))
-                            }
+                            codeFieldValue = codeFieldValue.copy(
+                                selection = TextRange(found, found + query.length)
+                            )
                             searchStatus = "Encontrado en la posición ${found + 1}"
-                        } else searchStatus = "No se encontró «$query»"
+                        } else {
+                            searchStatus = "No se encontró «$query»"
+                        }
                     }
                 },
                 enabled = searchQuery.isNotBlank()
-            ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Buscar coincidencia siguiente") }
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Buscar coincidencia siguiente")
+            }
         }
         Text(
             text = searchStatus,
@@ -1003,10 +970,7 @@ fun EditorTab(
         ) {
             Button(
                 onClick = {
-                    syncJob?.cancel()
-                    val latestCode = editorViewRef[0]?.text?.toString().orEmpty()
-                    lastModelCode = latestCode
-                    onCodeChange(latestCode)
+                    onCodeChange(codeFieldValue.text)
                     onSave(scriptName)
                 },
                 modifier = Modifier.weight(1f)
@@ -1016,16 +980,17 @@ fun EditorTab(
             }
             OutlinedButton(
                 onClick = {
-                    syncJob?.cancel()
                     scriptName = ""
                     searchQuery = ""
                     searchStatus = "Editor limpio"
-                    lastModelCode = ""
-                    editorViewRef[0]?.setText("")
+                    codeFieldValue = TextFieldValue("")
+                    onCodeChange("")
                     onClear()
                 },
                 modifier = Modifier.weight(1f)
-            ) { Text("🧹 Limpiar") }
+            ) {
+                Text("🧹 Limpiar")
+            }
         }
     }
 }
