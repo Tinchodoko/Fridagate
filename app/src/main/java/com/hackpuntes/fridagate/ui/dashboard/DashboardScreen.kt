@@ -1119,7 +1119,7 @@ private fun SmartInstallWizardDialog(
     }
 
     val latestVersion = releases.firstOrNull()?.version ?: "17.24.0"
-    val featured = listOf(latestVersion, "17.6.0", "16.7.19").distinct()
+    val featured = listOf(latestVersion, "17.6.0", "16.7.19", "16.5.9").distinct()
     val chosenVersion = selectedVersion
     val validVersion = FridaUtils.isValidVersionFormat(chosenVersion)
     val config = if (mode == "ORIGINAL") {
@@ -1184,7 +1184,8 @@ private fun SmartInstallWizardDialog(
                                     when (index) {
                                         0 -> "ÚLTIMA VERSIÓN PUBLICADA"
                                         1 -> "RECOMENDADA"
-                                        else -> "PRIMERAS PRUEBAS"
+                                        2 -> "PRIMERAS PRUEBAS"
+                                         else -> "PRUEBAS DE COMPATIBILIDAD"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
