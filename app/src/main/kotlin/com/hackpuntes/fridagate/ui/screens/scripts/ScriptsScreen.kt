@@ -827,6 +827,43 @@ fun ScriptListItem(
 
 // ==================== EDITOR TAB ====================
 
+// Busca coincidencias literales y, opcionalmente, exige límites de identificador.
+// En JavaScript, letras, números, "_" y "$" forman parte de un identificador.
+private fun findEditorMatches(
+    content: String,
+    query: String,
+    matchCase: Boolean,
+    wholeWord: Boolean
+): List<Int> {
+    if (query.isEmpty()) return emptyList()
+
+    val matches = mutableListOf<Int>()
+    var fromIndex = 0
+    while (fromIndex <= content.length - query.length) {
+        val found = content.indexOf(query, fromIndex, ignoreCase = !matchCase)
+        if (found < 0) break
+
+        val endIndex = found + query.length
+        val leftIsIdentifier = found > 0 && (
+            content[found - 1].isLetterOrDigit() ||
+                content[found - 1] == '_' ||
+                content[found - 1] == '$'
+            )
+        val rightIsIdentifier = endIndex < content.length && (
+            content[endIndex].isLetterOrDigit() ||
+                content[endIndex] == '_' ||
+                content[endIndex] == '$'
+            )
+
+        if (!wholeWord || (!leftIsIdentifier && !rightIsIdentifier)) {
+            matches.add(found)
+        }
+        // Avanzar un carácter permite detectar también coincidencias superpuestas.
+        fromIndex = found + 1
+    }
+    return matches
+}
+
 @Composable
 fun EditorTab(
     selectedScript: FridaScript?,
@@ -837,13 +874,17 @@ fun EditorTab(
 ) {
     var scriptName by remember { mutableStateOf(selectedScript?.name ?: "") }
     var searchQuery by remember { mutableStateOf("") }
-    var searchStatus by remember { mutableStateOf("Escribe una palabra y pulsa buscar") }
+    var matchCase by remember { mutableStateOf(false) }
+    var wholeWord by remember { mutableStateOf(false) }
+    var searchStatus by remember { mutableStateOf("Escribe una palabra para buscar") }
     var codeFieldValue by remember { mutableStateOf(TextFieldValue(editorCode)) }
 
     LaunchedEffect(selectedScript) {
         scriptName = selectedScript?.name ?: ""
         searchQuery = ""
-        searchStatus = "Escribe una palabra y pulsa buscar"
+        matchCase = false
+        wholeWord = false
+        searchStatus = "Escribe una palabra para buscar"
         codeFieldValue = TextFieldValue(editorCode)
     }
 
@@ -856,6 +897,11 @@ fun EditorTab(
         }
     }
 
+    val matches = remember(codeFieldValue.text, searchQuery, matchCase, wholeWord) {
+        findEditorMatches(codeFieldValue.text, searchQuery, matchCase, wholeWord)
+    }
+    val selectedMatchIndex = matches.indexOf(codeFieldValue.selection.start)
+
     Column(modifier = Modifier.fillMaxSize()) {
         TextField(
             value = scriptName,
@@ -865,8 +911,7 @@ fun EditorTab(
             singleLine = true
         )
 
-        // Use the original Compose editor implementation while retaining built-in text scrolling.
-        // Search selects the match in TextFieldValue so Compose scrolls it into view.
+        // Keep the stable Compose editor. Selecting a match moves the caret to it.
         TextField(
             value = codeFieldValue,
             onValueChange = {
@@ -882,44 +927,68 @@ fun EditorTab(
             singleLine = false
         )
 
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = {
+                searchQuery = it
+                searchStatus = if (it.isBlank()) {
+                    "Escribe una palabra para buscar"
+                } else {
+                    "Pulsa ↑ o ↓ para recorrer las coincidencias"
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+            singleLine = true,
+            label = { Text("BUSCAR EN EL SCRIPT") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = {
+                        searchQuery = ""
+                        searchStatus = "Escribe una palabra para buscar"
+                    }) {
+                        Icon(Icons.Default.Close, contentDescription = "Borrar búsqueda")
+                    }
+                }
+            }
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = {
-                    searchQuery = it
-                    searchStatus = if (it.isBlank()) "Escribe una palabra y pulsa buscar" else "Pulsa ↑ o ↓ para buscar"
+            FilterChip(
+                selected = matchCase,
+                onClick = {
+                    matchCase = !matchCase
+                    searchStatus = "Filtro actualizado"
                 },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                label = { Text("BUSCAR EN EL SCRIPT") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                label = { Text("Aa") }
             )
+            FilterChip(
+                selected = wholeWord,
+                onClick = {
+                    wholeWord = !wholeWord
+                    searchStatus = "Filtro actualizado"
+                },
+                label = { Text("Ab|") }
+            )
+            Spacer(modifier = Modifier.weight(1f))
             IconButton(
                 onClick = {
-                    val query = searchQuery
-                    val content = codeFieldValue.text
-                    val current = codeFieldValue.selection.start.coerceAtLeast(0)
-                    if (query.isBlank()) {
+                    val currentStart = codeFieldValue.selection.start
+                    val found = matches.lastOrNull { it < currentStart }
+                        ?: matches.lastOrNull()
+                    if (searchQuery.isBlank()) {
                         searchStatus = "Escribe una palabra para buscar"
+                    } else if (found != null) {
+                        codeFieldValue = codeFieldValue.copy(
+                            selection = TextRange(found, found + searchQuery.length)
+                        )
+                        searchStatus = "Coincidencia ${matches.indexOf(found) + 1} de ${matches.size}"
                     } else {
-                        val found = content.lastIndexOf(
-                            query,
-                            (current - 1).coerceAtLeast(0),
-                            ignoreCase = true
-                        ).takeIf { current > 0 && it >= 0 }
-                            ?: content.lastIndexOf(query, ignoreCase = true)
-                        if (found >= 0) {
-                            codeFieldValue = codeFieldValue.copy(
-                                selection = TextRange(found, found + query.length)
-                            )
-                            searchStatus = "Encontrado en la posición ${found + 1}"
-                        } else {
-                            searchStatus = "No se encontró «$query»"
-                        }
+                        searchStatus = "No se encontraron coincidencias"
                     }
                 },
                 enabled = searchQuery.isNotBlank()
@@ -928,23 +997,18 @@ fun EditorTab(
             }
             IconButton(
                 onClick = {
-                    val query = searchQuery
-                    val content = codeFieldValue.text
-                    val startAt = codeFieldValue.selection.end.coerceAtLeast(0)
-                    if (query.isBlank()) {
+                    val currentEnd = codeFieldValue.selection.end
+                    val found = matches.firstOrNull { it >= currentEnd }
+                        ?: matches.firstOrNull()
+                    if (searchQuery.isBlank()) {
                         searchStatus = "Escribe una palabra para buscar"
+                    } else if (found != null) {
+                        codeFieldValue = codeFieldValue.copy(
+                            selection = TextRange(found, found + searchQuery.length)
+                        )
+                        searchStatus = "Coincidencia ${matches.indexOf(found) + 1} de ${matches.size}"
                     } else {
-                        val found = content.indexOf(query, startAt, ignoreCase = true)
-                            .takeIf { it >= 0 }
-                            ?: content.indexOf(query, ignoreCase = true)
-                        if (found >= 0) {
-                            codeFieldValue = codeFieldValue.copy(
-                                selection = TextRange(found, found + query.length)
-                            )
-                            searchStatus = "Encontrado en la posición ${found + 1}"
-                        } else {
-                            searchStatus = "No se encontró «$query»"
-                        }
+                        searchStatus = "No se encontraron coincidencias"
                     }
                 },
                 enabled = searchQuery.isNotBlank()
@@ -952,8 +1016,15 @@ fun EditorTab(
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Buscar coincidencia siguiente")
             }
         }
+
+        val statusText = when {
+            searchQuery.isBlank() -> searchStatus
+            matches.isEmpty() -> "0 coincidencias"
+            selectedMatchIndex >= 0 -> "Coincidencia ${selectedMatchIndex + 1} de ${matches.size}"
+            else -> "${matches.size} coincidencias"
+        }
         Text(
-            text = searchStatus,
+            text = statusText,
             modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -978,6 +1049,8 @@ fun EditorTab(
                 onClick = {
                     scriptName = ""
                     searchQuery = ""
+                    matchCase = false
+                    wholeWord = false
                     searchStatus = "Editor limpio"
                     codeFieldValue = TextFieldValue("")
                     onCodeChange("")
