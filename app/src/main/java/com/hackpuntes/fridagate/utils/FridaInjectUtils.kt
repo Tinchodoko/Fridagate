@@ -152,7 +152,7 @@ object FridaInjectUtils {
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
             recordInjectedPackage(packageName)
-            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $scriptPath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $scriptPath </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
             if (!launchResult.contains("INJECT_LAUNCHED")) {
                 lines += "ERROR: Could not start frida-inject as root."
@@ -369,7 +369,7 @@ object FridaInjectUtils {
             RootUtils.executeSuCommand("rm -f $INJECT_LOG")
 
             recordInjectedPackage(packageName)
-            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath -e </dev/null > $INJECT_LOG 2>&1 & echo \$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
+            val injectCmd = "nohup $INJECT_BINARY_PATH -f $packageName -s $devicePath </dev/null > $INJECT_LOG 2>&1 & echo \$! > /data/local/tmp/fridagate_inject.pid; chmod 600 /data/local/tmp/fridagate_inject.pid; echo INJECT_LAUNCHED"
             val launchResult = RootUtils.executeSuCommand(injectCmd).trim()
             if (!launchResult.contains("INJECT_LAUNCHED")) {
                 lines += "ERROR: Could not start frida-inject as root."
@@ -670,7 +670,7 @@ object FridaInjectUtils {
 
                 RootUtils.executeSuCommand("rm -f $INJECT_LOG")
                 recordInjectedPackage(packageName)
-                val attachCmd = "nohup $INJECT_BINARY_PATH -n $packageName -s $scriptPath -e </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
+                val attachCmd = "nohup $INJECT_BINARY_PATH -n $packageName -s $scriptPath </dev/null > $INJECT_LOG 2>&1 & echo INJECT_LAUNCHED"
                 val launchResult = RootUtils.executeSuCommand(attachCmd).trim()
                 if (!launchResult.contains("INJECT_LAUNCHED")) {
                     return@withContext "ERROR: Could not start frida-inject attach process."
