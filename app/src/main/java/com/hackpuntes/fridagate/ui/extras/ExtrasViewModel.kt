@@ -147,9 +147,9 @@ class ExtrasViewModel(private val context: Context) : ViewModel() {
     fun refreshEnvironmentStatus() {
         checkEnvironment()
     }
+    /** Clears this secondary log stream silently; the Registro screen emits one confirmation. */
     fun clearLogs() {
         _logs.value = emptyList()
-        addLog("Logs cleared")
     }
 
     // -------------------------------------------------------------------------
