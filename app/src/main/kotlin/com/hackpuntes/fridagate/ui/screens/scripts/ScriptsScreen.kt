@@ -98,6 +98,14 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
     val bypassLoading by extrasViewModel.isLoading.collectAsState()
     val fridaInjectReady by extrasViewModel.isFridaInjectInstalled.collectAsState()
     val bypassLogs by extrasViewModel.logs.collectAsState()
+    // These two ViewModels timestamp their own events. Merge by timestamp so the
+    // Registro console shows one chronological timeline instead of appending an
+    // older environment message after newer script events.
+    val combinedLogs = remember(logs, bypassLogs) {
+        (logs + bypassLogs)
+            .sortedBy { line -> line.substringAfter('[').substringBefore(']') }
+            .takeLast(500)
+    }
 
     // Re-check device-side Frida state whenever the Scripts destination becomes active.
     // Frida-inject may have been installed from the Frida tab after this ViewModel's init
@@ -547,16 +555,19 @@ fun ScriptsScreen(viewModel: ScriptsViewModel, onBack: () -> Unit) {
                 )
 
                 3 -> LogsTab(
-                    logs = (logs + bypassLogs).takeLast(500),
+                    logs = combinedLogs,
                     context = context,
                     onClearLogs = {
+                        // ScriptsViewModel owns the single user-facing confirmation.
+                        // ExtrasViewModel clears its private stream silently to avoid
+                        // a second, English "Logs cleared" entry in the same console.
                         viewModel.clearLogs()
                         extrasViewModel.clearLogs()
                     },
                     onExportLogs = {
                         val exportedPath = viewModel.exportLogs(
                             context = context,
-                            logLines = (logs + bypassLogs).takeLast(500),
+                            logLines = combinedLogs,
                             packageName = targetPackage
                         )
                         if (exportedPath != null) {
