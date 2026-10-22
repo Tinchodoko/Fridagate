@@ -1004,7 +1004,7 @@ fun EditorTab(
             Button(
                 onClick = {
                     syncJob?.cancel()
-                    val latestCode = editorView?.text?.toString().orEmpty()
+                    val latestCode = editorViewRef[0]?.text?.toString().orEmpty()
                     lastModelCode = latestCode
                     onCodeChange(latestCode)
                     onSave(scriptName)
