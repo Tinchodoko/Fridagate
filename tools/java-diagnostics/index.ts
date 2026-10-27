@@ -59,5 +59,6 @@ try {
         log("WARN", "Java.available=false. El bridge está incluido, pero esta sesión todavía no expone una VM Java.");
     }
 } catch (error) {
-    log("ERROR", `Fallo al inicializar frida-java-bridge: ${error}`);
+    const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    log("ERROR", `Fallo al inicializar frida-java-bridge: ${detail}`);
 }
