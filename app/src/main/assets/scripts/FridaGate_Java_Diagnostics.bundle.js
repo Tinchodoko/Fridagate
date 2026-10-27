@@ -1823,6 +1823,7 @@
     getAndroidApiLevel: () => getAndroidApiLevel,
     getAndroidVersion: () => getAndroidVersion,
     getApi: () => getApi,
+    getArtApexVersion: () => getArtApexVersion,
     getArtClassSpec: () => getArtClassSpec,
     getArtFieldSpec: () => getArtFieldSpec,
     getArtMethodSpec: () => getArtMethodSpec,
@@ -3000,6 +3001,7 @@
   var getAndroidVersion = memoize(_getAndroidVersion);
   var getAndroidCodename = memoize(_getAndroidCodename);
   var getAndroidApiLevel = memoize(_getAndroidApiLevel);
+  var getArtApexVersion = memoize(_getArtApexVersion);
   var getArtQuickFrameInfoGetterThunk = memoize(_getArtQuickFrameInfoGetterThunk);
   var makeCxxMethodWrapperReturningPointerByValue = Process.arch === "ia32" ? makeCxxMethodWrapperReturningPointerByValueInFirstArg : makeCxxMethodWrapperReturningPointerByValueGeneric;
   var nativeFunctionOptions3 = {
@@ -3130,6 +3132,7 @@
         _ZNK3art12StackVisitor24GetCurrentQuickFrameInfoEv: function(address) {
           this["art::StackVisitor::GetCurrentQuickFrameInfo"] = makeArtQuickFrameInfoGetter(address);
         },
+        _ZN3art7Context6CreateEv: ["art::Context::Create", "pointer", []],
         _ZN3art6Thread18GetLongJumpContextEv: ["art::Thread::GetLongJumpContext", "pointer", ["pointer"]],
         _ZN3art6mirror5Class13GetDescriptorEPNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE: function(address) {
           this["art::mirror::Class::GetDescriptor"] = address;
@@ -3183,6 +3186,7 @@
         _ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE: ["art::Instrumentation::Deoptimize", "void", ["pointer", "pointer"]],
         // Android >= 11
         _ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID: ["art::jni::JniIdManager::DecodeMethodId", "pointer", ["pointer", "pointer"]],
+        _ZN3art3jni12JniIdManager13DecodeFieldIdEP9_jfieldID: ["art::jni::JniIdManager::DecodeFieldId", "pointer", ["pointer", "pointer"]],
         _ZN3art11interpreter18GetNterpEntryPointEv: ["art::interpreter::GetNterpEntryPoint", "pointer", []],
         _ZN3art7Monitor17TranslateLocationEPNS_9ArtMethodEjPPKcPi: ["art::Monitor::TranslateLocation", "void", ["pointer", "uint32", "pointer", "pointer"]]
       },
@@ -3221,6 +3225,7 @@
         "_ZNK3art12StackVisitor9GetMethodEv",
         "_ZNK3art12StackVisitor16DescribeLocationEv",
         "_ZNK3art12StackVisitor24GetCurrentQuickFrameInfoEv",
+        "_ZN3art7Context6CreateEv",
         "_ZN3art6Thread18GetLongJumpContextEv",
         "_ZN3art6mirror5Class13GetDescriptorEPNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE",
         "_ZN3art6mirror5Class11GetLocationEv",
@@ -3240,6 +3245,7 @@
         "_ZN3art3Dbg20ManageDeoptimizationEv",
         "_ZN3art3Dbg9gRegistryE",
         "_ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID",
+        "_ZN3art3jni12JniIdManager13DecodeFieldIdEP9_jfieldID",
         "_ZN3art11interpreter18GetNterpEntryPointEv",
         "_ZN3art7Monitor17TranslateLocationEPNS_9ArtMethodEjPPKcPi"
       ])
@@ -3318,6 +3324,10 @@
       const runtimeOffset = runtimeSpec.offset;
       const instrumentationOffset = runtimeOffset.instrumentation;
       temporaryApi.artInstrumentation = instrumentationOffset !== null ? artRuntime.add(instrumentationOffset) : null;
+      const instrumentationIsPointer = getArtApexVersion() >= 36e7;
+      if (instrumentationIsPointer && temporaryApi.artInstrumentation != null) {
+        temporaryApi.artInstrumentation = temporaryApi.artInstrumentation.readPointer();
+      }
       temporaryApi.artHeap = artRuntime.add(runtimeOffset.heap).readPointer();
       temporaryApi.artThreadList = artRuntime.add(runtimeOffset.threadList).readPointer();
       const classLinker = artRuntime.add(runtimeOffset.classLinker).readPointer();
@@ -3409,8 +3419,7 @@
     if (api2.flavor !== "art") {
       return;
     }
-    env.getFieldId(classRef, "x", "Z");
-    env.exceptionClear();
+    env.getClassName(classRef);
   }
   function getArtVMSpec(api2) {
     return {
@@ -3483,7 +3492,8 @@
     if (spec === null) {
       throw new Error("Unable to determine Runtime field offsets");
     }
-    spec.offset.instrumentation = tryDetectInstrumentationOffset(api2);
+    const instrumentationIsPointer = getArtApexVersion() >= 36e7;
+    spec.offset.instrumentation = instrumentationIsPointer ? tryDetectInstrumentationPointer(api2) : tryDetectInstrumentationOffset(api2);
     spec.offset.jniIdsIndirection = tryDetectJniIdsIndirectionOffset(api2);
     return spec;
   }
@@ -3540,6 +3550,63 @@
       return null;
     }
     const offset = op2.value.valueOf();
+    if (offset < 256 || offset > 1024) {
+      return null;
+    }
+    return offset;
+  }
+  var instrumentationPointerParser = {
+    ia32: parsex86InstrumentationPointer,
+    x64: parsex86InstrumentationPointer,
+    arm: parseArmInstrumentationPointer,
+    arm64: parseArm64InstrumentationPointer
+  };
+  function tryDetectInstrumentationPointer(api2) {
+    const impl = api2["art::Runtime::DeoptimizeBootImage"];
+    if (impl === void 0) {
+      return null;
+    }
+    return parseInstructionsAt(impl, instrumentationPointerParser[Process.arch], { limit: 30 });
+  }
+  function parsex86InstrumentationPointer(insn) {
+    if (insn.mnemonic !== "mov") {
+      return null;
+    }
+    const ops = insn.operands;
+    const dst = ops[0];
+    if (dst.value !== "rax") {
+      return null;
+    }
+    const src = ops[1];
+    if (src.type !== "mem") {
+      return null;
+    }
+    const mem = src.value;
+    if (mem.base !== "rdi") {
+      return null;
+    }
+    const offset = mem.disp;
+    if (offset < 256 || offset > 1024) {
+      return null;
+    }
+    return offset;
+  }
+  function parseArmInstrumentationPointer(insn) {
+    return null;
+  }
+  function parseArm64InstrumentationPointer(insn) {
+    if (insn.mnemonic !== "ldr") {
+      return null;
+    }
+    const ops = insn.operands;
+    if (ops[0].value === "x0") {
+      return null;
+    }
+    const mem = ops[1].value;
+    if (mem.base !== "x0") {
+      return null;
+    }
+    const offset = mem.disp;
     if (offset < 256 || offset > 1024) {
       return null;
     }
@@ -3676,42 +3743,114 @@
     return spec;
   }
   function getArtClassSpec(vm3) {
-    let apiLevel;
-    try {
-      apiLevel = getAndroidApiLevel();
-    } catch (e) {
-      return null;
-    }
-    if (apiLevel >= 36) {
-      return {
-        offset: {
-          ifields: 40,
-          methods: 40 + 8,
-          sfields: 0,
-          copiedMethodsOffset: 108
-        }
+    const MAX_OFFSET = 256;
+    let spec = null;
+    vm3.perform((env) => {
+      const fieldSpec = getArtFieldSpec(vm3);
+      const methodSpec = getArtMethodSpec(vm3);
+      const fInfo = {
+        artArrayLengthSize: 4,
+        artArrayEntrySize: fieldSpec.size,
+        // java/lang/Thread has 36 fields on Android 16.
+        artArrayMax: 50
       };
-    } else if (apiLevel >= 26) {
-      return {
-        offset: {
-          ifields: 40,
-          methods: 40 + 8,
-          sfields: 40 + 16,
-          copiedMethodsOffset: 116
-        }
+      const mInfo = {
+        artArrayLengthSize: pointerSize5,
+        artArrayEntrySize: methodSpec.size,
+        // java/lang/Thread has 79 methods on Android 16.
+        artArrayMax: 100
       };
-    } else if (apiLevel >= 24) {
-      return {
-        offset: {
-          ifields: 56,
-          methods: 56 + 8,
-          sfields: 56 + 16,
-          copiedMethodsOffset: 124
+      const readArtArray = (objectBase, fieldOffset, lengthSize) => {
+        const header = objectBase.add(fieldOffset).readPointer();
+        if (header.isNull()) {
+          return null;
         }
+        const length = lengthSize === 4 ? header.readU32() : header.readU64().valueOf();
+        if (length <= 0) {
+          return null;
+        }
+        return {
+          length,
+          data: header.add(lengthSize)
+        };
       };
-    } else {
-      return null;
-    }
+      const hasEntry = (objectBase, offset, needle, info) => {
+        try {
+          const artArray = readArtArray(objectBase, offset, info.artArrayLengthSize);
+          if (artArray === null) {
+            return false;
+          }
+          const artArrayEnd = Math.min(artArray.length, info.artArrayMax);
+          for (let i = 0; i !== artArrayEnd; i++) {
+            const fieldPtr = artArray.data.add(i * info.artArrayEntrySize);
+            if (fieldPtr.equals(needle)) {
+              return true;
+            }
+          }
+        } catch {
+        }
+        return false;
+      };
+      const clazz = env.findClass("java/lang/Thread");
+      const clazzRef = env.newGlobalRef(clazz);
+      try {
+        let object;
+        withRunnableArtThread(vm3, env, (thread) => {
+          object = getApi()["art::JavaVMExt::DecodeGlobal"](vm3, thread, clazzRef);
+        });
+        const fieldInstance = unwrapFieldId(env.getFieldId(clazzRef, "name", "Ljava/lang/String;"));
+        const fieldStatic = unwrapFieldId(env.getStaticFieldId(clazzRef, "MAX_PRIORITY", "I"));
+        let offsetStatic = -1;
+        let offsetInstance = -1;
+        for (let offset = 0; offset !== MAX_OFFSET; offset += 4) {
+          if (offsetStatic === -1 && hasEntry(object, offset, fieldStatic, fInfo)) {
+            offsetStatic = offset;
+          }
+          if (offsetInstance === -1 && hasEntry(object, offset, fieldInstance, fInfo)) {
+            offsetInstance = offset;
+          }
+        }
+        if (offsetInstance === -1 || offsetStatic === -1) {
+          throw new Error("Unable to find fields in java/lang/Thread; please file a bug");
+        }
+        const sfieldOffset = offsetInstance !== offsetStatic ? offsetStatic : 0;
+        const ifieldOffset = offsetInstance;
+        let offsetMethods = -1;
+        const methodInstance = unwrapMethodId(env.getMethodId(clazzRef, "getName", "()Ljava/lang/String;"));
+        for (let offset = 0; offset !== MAX_OFFSET; offset += 4) {
+          if (offsetMethods === -1 && hasEntry(object, offset, methodInstance, mInfo)) {
+            offsetMethods = offset;
+          }
+        }
+        if (offsetMethods === -1) {
+          throw new Error("Unable to find methods in java/lang/Thread; please file a bug");
+        }
+        let offsetCopiedMethods = -1;
+        const methodsArray = readArtArray(object, offsetMethods, mInfo.artArrayLengthSize);
+        const methodsArraySize = methodsArray.length;
+        for (let offset = offsetMethods; offset !== MAX_OFFSET; offset += 4) {
+          if (object.add(offset).readU16() === methodsArraySize) {
+            offsetCopiedMethods = offset;
+            break;
+          }
+        }
+        if (offsetCopiedMethods === -1) {
+          throw new Error("Unable to find copied methods in java/lang/Thread; please file a bug");
+        }
+        spec = {
+          offset: {
+            ifields: ifieldOffset,
+            methods: offsetMethods,
+            sfields: sfieldOffset,
+            copiedMethodsOffset: offsetCopiedMethods
+          }
+        };
+      } finally {
+        env.deleteLocalRef(clazz);
+        env.deleteGlobalRef(clazzRef);
+      }
+    });
+    return spec;
   }
   function _getArtMethodSpec(vm3) {
     const api2 = getApi();
@@ -3909,6 +4048,33 @@
   }
   function _getAndroidApiLevel() {
     return parseInt(getAndroidSystemProperty("ro.build.version.sdk"), 10);
+  }
+  function _getArtApexVersion() {
+    try {
+      const mountInfo = File.readAllText("/proc/self/mountinfo");
+      let artSource = null;
+      const sourceVersions = /* @__PURE__ */ new Map();
+      for (const line of mountInfo.trimEnd().split("\n")) {
+        const elements = line.split(" ");
+        const mountRoot = elements[4];
+        if (!mountRoot.startsWith("/apex/com.android.art")) {
+          continue;
+        }
+        const mountSource = elements[10];
+        if (mountRoot.includes("@")) {
+          sourceVersions.set(mountSource, mountRoot.split("@")[1]);
+        } else {
+          artSource = mountSource;
+        }
+      }
+      const strVersion = sourceVersions.get(artSource);
+      return strVersion !== void 0 ? parseInt(strVersion) : computeArtApexVersionFromApiLevel();
+    } catch {
+      return computeArtApexVersionFromApiLevel();
+    }
+  }
+  function computeArtApexVersionFromApiLevel() {
+    return getAndroidApiLevel() * 1e7;
   }
   var systemPropertyGet = null;
   var PROP_VALUE_MAX = 92;
@@ -4235,6 +4401,31 @@ set_replacement_method (gpointer original_method,
 }
 
 void
+synchronize_replacement_methods (guint quick_code_offset,
+                                 void * nterp_entrypoint,
+                                 void * quick_to_interpreter_bridge)
+{
+  GHashTableIter iter;
+  gpointer hooked_method, replacement_method;
+
+  g_mutex_lock (&lock);
+
+  g_hash_table_iter_init (&iter, methods);
+  while (g_hash_table_iter_next (&iter, &hooked_method, &replacement_method))
+  {
+    void ** quick_code;
+
+    *((uint32_t *) replacement_method) = *((uint32_t *) hooked_method);
+
+    quick_code = hooked_method + quick_code_offset;
+    if (*quick_code == nterp_entrypoint)
+      *quick_code = quick_to_interpreter_bridge;
+  }
+
+  g_mutex_unlock (&lock);
+}
+
+void
 delete_replacement_method (gpointer original_method)
 {
   gpointer replacement_method;
@@ -4383,6 +4574,7 @@ on_leave_gc_concurrent_copying_copying_phase (GumInvocationContext * ic)
         isReplacement: new NativeFunction(cm2.is_replacement_method, "bool", ["pointer"], fastOptions),
         get: new NativeFunction(cm2.get_replacement_method, "pointer", ["pointer"], fastOptions),
         set: new NativeFunction(cm2.set_replacement_method, "void", ["pointer", "pointer"], fastOptions),
+        synchronize: new NativeFunction(cm2.synchronize_replacement_methods, "void", ["uint", "pointer", "pointer"], fastOptions),
         delete: new NativeFunction(cm2.delete_replacement_method, "void", ["pointer"], fastOptions),
         translate: new NativeFunction(cm2.translate_method, "pointer", ["pointer"], fastOptions),
         findReplacementFromQuickCode: cm2.find_replacement_method_from_quick_code
@@ -4414,6 +4606,8 @@ on_leave_gc_concurrent_copying_copying_phase (GumInvocationContext * ic)
     taughtArtAboutMethodInstrumentation = true;
     instrumentArtQuickEntrypoints(vm3);
     instrumentArtMethodInvocationFromInterpreter();
+    instrumentArtGarbageCollection();
+    instrumentArtFixupStaticTrampolines();
   }
   function instrumentArtQuickEntrypoints(vm3) {
     const api2 = getApi();
@@ -4450,6 +4644,45 @@ on_leave_gc_concurrent_copying_copying_phase (GumInvocationContext * ic)
     }
     for (const entry of entries) {
       Interceptor.attach(entry.address, artController.hooks.Interpreter.doCall);
+    }
+  }
+  function instrumentArtGarbageCollection() {
+    const api2 = getApi();
+    const art = api2.module;
+    const gc = art.findSymbolByName("_ZN3art2gc4Heap22CollectGarbageInternalENS0_9collector6GcTypeENS0_7GcCauseEbj");
+    if (gc === null) {
+      return;
+    }
+    const { artNterpEntryPoint, artQuickToInterpreterBridge } = api2;
+    const quickCodeOffset = getArtMethodSpec(api2.vm).offset.quickCode;
+    Interceptor.attach(gc, {
+      onLeave() {
+        artController.replacedMethods.synchronize(quickCodeOffset, artNterpEntryPoint, artQuickToInterpreterBridge);
+      }
+    });
+  }
+  function instrumentArtFixupStaticTrampolines() {
+    const patterns = [
+      ["_ZN3art11ClassLinker26VisiblyInitializedCallback22MarkVisiblyInitializedEPNS_6ThreadE", "e90340f8 : ff0ff0ff"],
+      ["_ZN3art11ClassLinker26VisiblyInitializedCallback29AdjustThreadVisibilityCounterEPNS_6ThreadEl", "7f0f00f9 : 1ffcffff"]
+    ];
+    const api2 = getApi();
+    const art = api2.module;
+    for (const [name, pattern] of patterns) {
+      const base = art.findSymbolByName(name);
+      if (base === null) {
+        continue;
+      }
+      const matches = Memory.scanSync(base, 8192, pattern);
+      if (matches.length === 0) {
+        return;
+      }
+      const { artNterpEntryPoint, artQuickToInterpreterBridge } = api2;
+      const quickCodeOffset = getArtMethodSpec(api2.vm).offset.quickCode;
+      Interceptor.attach(matches[0].address, function() {
+        artController.replacedMethods.synchronize(quickCodeOffset, artNterpEntryPoint, artQuickToInterpreterBridge);
+      });
+      return;
     }
   }
   function ensureArtKnowsHowToHandleReplacementMethods(vm3) {
@@ -4566,6 +4799,27 @@ on_leave_gc_concurrent_copying_copying_phase (GumInvocationContext * ic)
             "1f fc ff ff",
             "1f 00 00 ff",
             "00 00 00 9f"
+          ],
+          offset: 1,
+          validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm64
+        },
+        {
+          pattern: [
+            /* e8 */
+            "0a 40 b9",
+            // ldr w8, [x?, #0x8]
+            "1f 05 00 31",
+            // cmn w8, #0x1
+            "40 01 00 54",
+            // b.eq <target>
+            "00 0e 40 f9",
+            // ldr x?, [x?, #0x18]
+            ":",
+            /* 00 */
+            "fc ff ff",
+            "1f fc ff ff",
+            "1f 00 00 ff",
+            "00 fc ff ff"
           ],
           offset: 1,
           validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm64
@@ -4951,7 +5205,7 @@ extern GumTlsKey current_backtrace;
 
 extern void (* perform_art_thread_state_transition) (JNIEnv * env);
 
-extern ArtContext * art_thread_get_long_jump_context (ArtThread * thread);
+extern ArtContext * art_make_context (ArtThread * thread);
 
 extern void art_stack_visitor_init (ArtStackVisitor * visitor, ArtThread * thread, void * context, StackWalkKind walk_kind,
     size_t num_frames, bool check_suspended);
@@ -5017,7 +5271,7 @@ _on_thread_state_transition_complete (ArtThread * thread)
     },
   };
 
-  context = art_thread_get_long_jump_context (thread);
+  context = art_make_context (thread);
 
   art_stack_visitor_init (&visitor, thread, context, STACK_WALK_SKIP_INLINED_FRAMES, 0, true);
   visitor.vtable = &visitor.vtable_storage;
@@ -5302,7 +5556,7 @@ std_string_get_data (StdString * str)
 `, {
       current_backtrace: Memory.alloc(Process.pointerSize),
       perform_art_thread_state_transition: performImpl,
-      art_thread_get_long_jump_context: api2["art::Thread::GetLongJumpContext"],
+      art_make_context: api2["art::Thread::GetLongJumpContext"] ?? api2["art::Context::Create"],
       art_stack_visitor_init: api2["art::StackVisitor::StackVisitor"],
       art_stack_visitor_walk_stack: api2["art::StackVisitor::WalkStack"],
       art_stack_visitor_get_method: api2["art::StackVisitor::GetMethod"],
@@ -5363,6 +5617,12 @@ std_string_get_data (StdString * str)
     }
   }
   function unwrapMethodId(methodId) {
+    return unwrapGenericId(methodId, "art::jni::JniIdManager::DecodeMethodId");
+  }
+  function unwrapFieldId(fieldId) {
+    return unwrapGenericId(fieldId, "art::jni::JniIdManager::DecodeFieldId");
+  }
+  function unwrapGenericId(genericId, apiMethod) {
     const api2 = getApi();
     const runtimeOffset = getArtRuntimeSpec(api2).offset;
     const jniIdManagerOffset = runtimeOffset.jniIdManager;
@@ -5372,10 +5632,10 @@ std_string_get_data (StdString * str)
       const jniIdsIndirection = runtime2.add(jniIdsIndirectionOffset).readInt();
       if (jniIdsIndirection !== kPointer) {
         const jniIdManager = runtime2.add(jniIdManagerOffset).readPointer();
-        return api2["art::jni::JniIdManager::DecodeMethodId"](jniIdManager, methodId);
+        return api2[apiMethod](jniIdManager, genericId);
       }
     }
-    return methodId;
+    return genericId;
   }
   var artQuickCodeReplacementTrampolineWriters = {
     ia32: writeArtQuickCodeReplacementTrampolineIA32,
@@ -8005,6 +8265,7 @@ struct _JavaFieldApi
 
 struct _JavaApi
 {
+  jvmtiEnv * jvmti;
   JavaClassApi clazz;
   JavaMethodApi method;
   JavaFieldApi field;
@@ -8155,6 +8416,7 @@ model_new (jclass class_handle,
 {
   Model * model;
   GHashTable * members;
+  jvmtiEnv * jvmti = java_api.jvmti;
   gpointer * funcs = env->functions;
   jmethodID (* from_reflected_method) (JNIEnv *, jobject) = funcs[7];
   jfieldID (* from_reflected_field) (JNIEnv *, jobject) = funcs[8];
@@ -8174,7 +8436,52 @@ model_new (jclass class_handle,
   members = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
   model->members = members;
 
-  if (art_api.available)
+  if (jvmti != NULL)
+  {
+    gpointer * jf = jvmti->functions - 1;
+    jvmtiError (* deallocate) (jvmtiEnv *, void * mem) = jf[47];
+    jvmtiError (* get_class_methods) (jvmtiEnv *, jclass, jint *, jmethodID **) = jf[52];
+    jvmtiError (* get_class_fields) (jvmtiEnv *, jclass, jint *, jfieldID **) = jf[53];
+    jvmtiError (* get_field_name) (jvmtiEnv *, jclass, jfieldID, char **, char **, char **) = jf[60];
+    jvmtiError (* get_field_modifiers) (jvmtiEnv *, jclass, jfieldID, jint *) = jf[62];
+    jvmtiError (* get_method_name) (jvmtiEnv *, jmethodID, char **, char **, char **) = jf[64];
+    jvmtiError (* get_method_modifiers) (jvmtiEnv *, jmethodID, jint *) = jf[66];
+    jint method_count;
+    jmethodID * methods;
+    jint field_count;
+    jfieldID * fields;
+    char * name;
+    jint modifiers;
+
+    get_class_methods (jvmti, class_handle, &method_count, &methods);
+    for (i = 0; i != method_count; i++)
+    {
+      jmethodID method = methods[i];
+
+      get_method_name (jvmti, method, &name, NULL, NULL);
+      get_method_modifiers (jvmti, method, &modifiers);
+
+      model_add_method (model, name, method, modifiers);
+
+      deallocate (jvmti, name);
+    }
+    deallocate (jvmti, methods);
+
+    get_class_fields (jvmti, class_handle, &field_count, &fields);
+    for (i = 0; i != field_count; i++)
+    {
+      jfieldID field = fields[i];
+
+      get_field_name (jvmti, class_handle, field, &name, NULL, NULL);
+      get_field_modifiers (jvmti, class_handle, field, &modifiers);
+
+      model_add_field (model, name, field, modifiers);
+
+      deallocate (jvmti, name);
+    }
+    deallocate (jvmti, fields);
+  }
+  else if (art_api.available)
   {
     gpointer elements;
     guint n, i;
@@ -8622,8 +8929,7 @@ enumerate_methods_jvm (const gchar * class_query,
                        jboolean include_signature,
                        jboolean ignore_case,
                        jboolean skip_system_classes,
-                       JNIEnv * env,
-                       jvmtiEnv * jvmti)
+                       JNIEnv * env)
 {
   gchar * result;
   GPatternSpec * class_pattern, * method_pattern;
@@ -8632,6 +8938,7 @@ enumerate_methods_jvm (const gchar * class_query,
   jobject (* new_global_ref) (JNIEnv *, jobject) = ef[21];
   void (* delete_local_ref) (JNIEnv *, jobject) = ef[23];
   jboolean (* is_same_object) (JNIEnv *, jobject, jobject) = ef[24];
+  jvmtiEnv * jvmti = java_api.jvmti;
   gpointer * jf = jvmti->functions - 1;
   jvmtiError (* deallocate) (jvmtiEnv *, void * mem) = jf[47];
   jvmtiError (* get_class_signature) (jvmtiEnv *, jclass, char **, char **) = jf[48];
@@ -9117,15 +9424,14 @@ std_string_c_str (StdString * self)
         skipSystemClasses = modifiers.indexOf("u") !== -1;
       }
       let result;
-      if (api2.flavor === "jvm") {
+      if (api2.jvmti !== null) {
         const json = cm.enumerateMethodsJvm(
           classQuery,
           methodQuery,
           boolToNative(includeSignature),
           boolToNative(ignoreCase),
           boolToNative(skipSystemClasses),
-          env,
-          api2.jvmti
+          env
         );
         try {
           result = JSON.parse(json.readUtf8String()).map((group) => {
@@ -9185,10 +9491,12 @@ std_string_c_str (StdString * self)
     }
   }
   function compileModule(env) {
+    const api2 = api_default();
+    const { jvmti = null } = api2;
     const { pointerSize: pointerSize9 } = Process;
     const lockSize = 8;
     const modelsSize = pointerSize9;
-    const javaApiSize = 6 * pointerSize9;
+    const javaApiSize = 7 * pointerSize9;
     const artApiSize = 10 * 4 + 5 * pointerSize9;
     const dataSize = lockSize + modelsSize + javaApiSize + artApiSize;
     const data = Memory.alloc(dataSize);
@@ -9200,6 +9508,7 @@ std_string_c_str (StdString * self)
     const field = env.javaLangReflectField();
     let j = javaApi;
     [
+      jvmti !== null ? jvmti : NULL,
       getDeclaredMethods,
       getDeclaredFields,
       method.getName,
@@ -9211,18 +9520,20 @@ std_string_c_str (StdString * self)
     });
     const artApi = javaApi.add(javaApiSize);
     const { vm: vm3 } = env;
-    const artClass = getArtClassSpec(vm3);
-    if (artClass !== null) {
-      const c = artClass.offset;
+    if (api2.flavor === "art") {
+      let artClassOffsets;
+      if (jvmti !== null) {
+        artClassOffsets = [0, 0, 0, 0];
+      } else {
+        const c = getArtClassSpec(vm3).offset;
+        artClassOffsets = [c.ifields, c.methods, c.sfields, c.copiedMethodsOffset];
+      }
       const m = getArtMethodSpec(vm3);
       const f = getArtFieldSpec(vm3);
       let s = artApi;
       [
         1,
-        c.ifields,
-        c.methods,
-        c.sfields,
-        c.copiedMethodsOffset,
+        ...artClassOffsets,
         m.size,
         m.offset.accessFlags,
         f.size,
@@ -9231,7 +9542,6 @@ std_string_c_str (StdString * self)
       ].forEach((value) => {
         s = s.writeUInt(value).add(4);
       });
-      const api2 = getApi();
       [
         api2.artClassLinker.address,
         api2["art::ClassLinker::VisitClasses"],
@@ -9255,7 +9565,6 @@ std_string_c_str (StdString * self)
     const fastOptions = { exceptions: "propagate", scheduling: "exclusive" };
     return {
       handle: cm2,
-      mode: artClass !== null ? "full" : "basic",
       new: new NativeFunction(cm2.model_new, "pointer", ["pointer", "pointer", "pointer"], reentrantOptions),
       has: new NativeFunction(cm2.model_has, "bool", ["pointer", "pointer"], fastOptions),
       find: new NativeFunction(cm2.model_find, "pointer", ["pointer", "pointer"], fastOptions),
@@ -9272,17 +9581,17 @@ std_string_c_str (StdString * self)
         "bool",
         "bool",
         "bool",
-        "pointer",
         "pointer"
       ], reentrantOptions),
       dealloc: new NativeFunction(cm2.dealloc, "void", ["pointer"], fastOptions)
     };
   }
   function makeHandleUnwrapper(cm2, vm3) {
-    if (cm2.mode === "basic") {
+    const api2 = api_default();
+    if (api2.flavor !== "art") {
       return nullUnwrap;
     }
-    const decodeGlobal = getApi()["art::JavaVMExt::DecodeGlobal"];
+    const decodeGlobal = api2["art::JavaVMExt::DecodeGlobal"];
     return function(handle, env, fn) {
       let result;
       withRunnableArtThread(vm3, env, (thread) => {
@@ -13312,7 +13621,8 @@ std_string_c_str (StdString * self)
       log("WARN", "Java.available=false. El bridge est\xE1 incluido, pero esta sesi\xF3n todav\xEDa no expone una VM Java.");
     }
   } catch (error) {
-    log("ERROR", `Fallo al inicializar frida-java-bridge: ${error}`);
+    const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+    log("ERROR", `Fallo al inicializar frida-java-bridge: ${detail}`);
   }
 })();
 /*! Bundled license information:
